@@ -96,6 +96,39 @@ impl DeepView for Goal {
     }
 }
 
+impl TermX {
+    pub fn constant(name: &str) -> Term {
+        Rc::new(TermX::App(name.to_string(), vec![]))
+    }
+
+    pub fn app(name: &str, args: Vec<Term>) -> Term {
+        Rc::new(TermX::App(name.to_string(), args))
+    }
+
+    pub fn var(name: &str) -> Term {
+        Rc::new(TermX::Var(name.to_string()))
+    }
+
+    pub fn subst(&self, subst: &Subst) -> Term {
+        // TODO
+        TermX::constant("not implemented")
+    }
+}
+
+impl Subst {
+    pub fn new() -> Subst {
+        Subst(StringHashMap::new())
+    }
+
+    /**
+     * Apply self to each value of other and return a new substitution
+     */
+    pub fn compose(&self, other: &Subst) -> Subst {
+        // TODO
+        Subst::new()
+    }
+}
+
 // impl Goal {
 //     pub open spec fn view(self) -> SpecGoal {
 //         todo!()
@@ -112,14 +145,59 @@ impl DeepView for Goal {
  * :- connected(n1, n3).
  */
 
-// #[verifier::external_fn_specification]
-// #[verifier::when_used_as_spec(as_ref)]
-#[verifier::external_body]
-pub fn rc_as_ref<T: DeepView>(rc: &Rc<T>) -> (res: &T)
-    ensures rc.deep_view() == res.deep_view()
-{
-    rc.as_ref()
+/**
+ * Assume the existence of a unification algorithm
+ */
+fn unify(t1: Term, t2: Term) -> Option<Subst> { None }
+
+fn edge(cur_subst: &Subst, t1: &Term, t2: &Term) -> Option<Subst> {
+    // Rule edge(n1, n2)
+    if let Some(subst) = unify(
+        TermX::app("edge", vec![ TermX::constant("n1"), TermX::constant("n2") ]),
+        TermX::app("edge", vec![ t1.clone(), t2.clone() ]),
+    ) {
+        return Some(subst.compose(cur_subst));
+    }
+
+    // Rule edge(n2, n3)
+    if let Some(subst) = unify(
+        TermX::app("edge", vec![ TermX::constant("n2"), TermX::constant("n3") ]),
+        TermX::app("edge", vec![ t1.clone(), t2.clone() ]),
+    ) {
+        return Some(subst.compose(cur_subst));
+    }
+
+    return None;
 }
+
+fn connected(cur_subst: &Subst, t1: &Term, t2: &Term) -> Option<Subst> {
+    // Rule connected(A, B) :- edge(A, B)
+    if let Some(subst) = edge(cur_subst, t1, t2) {
+        return Some(subst);
+    }
+
+    // Rule connected(A, C) :- edge(A, B), connected(B, C)
+    if let Some(subst1) = edge(cur_subst, t1, &TermX::var("B")) {
+        if let Some(subst2) = connected(&subst1, &(&TermX::var("B")).subst(&subst1), &t2.subst(&subst1)) {
+            return Some(subst2);
+        }
+    }
+
+    return None;
+}
+
+fn solve() -> bool {
+    connected(&Subst::new(), &TermX::constant("n1"), &TermX::constant("n3")).is_some()
+}
+
+// // #[verifier::external_fn_specification]
+// // #[verifier::when_used_as_spec(as_ref)]
+// #[verifier::external_body]
+// pub fn rc_as_ref<T: DeepView>(rc: &Rc<T>) -> (res: &T)
+//     ensures rc.deep_view() == res.deep_view()
+// {
+//     rc.as_ref()
+// }
 
 // pub fn edge(t1: &Term, t2: &Term) -> (r: Vec<Subst>)
 //     ensures r.len() != 0 ==>
