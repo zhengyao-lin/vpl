@@ -5,8 +5,9 @@ verus! {
 
 #[verifier::ext_equal]
 #[verifier::reject_recursive_types(Value)]
+#[derive(Debug)]
 pub struct StringHashMap<Value> {
-    m: HashMap<String, Value>,
+    pub m: HashMap<String, Value>,
 }
 
 impl<Value> View for StringHashMap<Value> {
@@ -127,61 +128,3 @@ pub broadcast group group_hash_map_axioms {
 }
 
 }
-
-// Rc
-// verus! {
-//     struct InnerRc<T> {
-//         rc_cell: std::cell::UnsafeCell<u64>,
-//         t: T,
-//     }
-    
-//     struct Rc<T> {
-//         ptr: *mut InnerRc<T>,
-//     }
-    
-//     impl<T> Rc<T> {
-//         fn new(t: T) -> Self {
-//             // Allocate a new InnerRc object, initialize the counter to 1,
-//             // and return a pointer to it.
-//             let rc_cell = std::cell::UnsafeCell::new(1);
-//             let inner_rc = InnerRc { rc_cell, t };
-//             let ptr = Box::leak(Box::new(inner_rc));
-//             Rc { ptr }
-//         }
-    
-//         fn clone(&self) -> Self {
-//             unsafe {
-//                 // Increment the counter.
-//                 // If incrementing the counter would lead to overflow, then abort.
-//                 let inner_rc = &*self.ptr;
-//                 let count = *inner_rc.rc_cell.get();
-//                 if count == 0xffffffffffffffff {
-//                     std::process::abort();
-//                 }
-//                 *inner_rc.rc_cell.get() = count + 1;
-//             }
-    
-//             // Return a new Rc object with the same pointer.
-//             Rc { ptr: self.ptr }
-//         }
-    
-//         fn drop(self) {
-//             unsafe {
-//                 // Decrement the counter.
-//                 let inner_rc = &*self.ptr;
-//                 let count = *inner_rc.rc_cell.get() - 1;
-//                 *inner_rc.rc_cell.get() = count;
-    
-//                 // If the counter hits 0, drop the `T` and deallocate the memory.
-//                 if count == 0 {
-//                     std::ptr::drop_in_place(&mut (*self.ptr).t);
-//                     std::alloc::dealloc(self.ptr as *mut u8, std::alloc::Layout::for_value(&*self.ptr));
-//                 }
-//             }
-//         }
-    
-//         fn borrow(&self) -> &T {
-//             unsafe { &(*self.ptr).t }
-//         }
-//     }
-// }

@@ -45,6 +45,7 @@ pub struct ProgramX {
     pub rules: Vec<Rule>,
 }
 
+#[derive(Debug)]
 pub struct Subst(pub StringHashMap<Term>);
 
 pub struct Theorem {
@@ -259,6 +260,39 @@ impl Theorem {
             stmt: Rc::new(TermX::App(FnName::Eq, vec![left.clone(), right.clone()])),
             proof: Ghost(SpecProof::Refl),
         })
+    }
+}
+
+impl Clone for Theorem {
+    fn clone(&self) -> (res: Self)
+        ensures self@ == res@
+    {
+        Theorem {
+            stmt: self.stmt.clone(),
+            proof: self.proof,
+        }
+    }
+}
+
+impl Subst {
+    pub fn new() -> (res: Subst)
+        ensures res@.0 =~= Map::<SpecVar, SpecTerm>::empty()
+    {
+        Subst(StringHashMap::new())
+    }
+
+    pub fn insert(&mut self, var: Var, term: Term)
+        ensures self@.0 =~= old(self)@.0.insert(var@, term@),
+    {
+        self.0.insert(rc_str_to_str(&var).to_string(), term);
+    }
+}
+
+impl Clone for Subst {
+    fn clone(&self) -> (res: Self)
+        ensures self@.0 == res@.0
+    {
+        Subst(self.0.clone())
     }
 }
 
