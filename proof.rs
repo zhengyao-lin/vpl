@@ -1,6 +1,6 @@
 use vstd::prelude::*;
 
-// Define proofs of queries in datalog
+// Define proofs of queries in Prolog
 
 verus! {
 

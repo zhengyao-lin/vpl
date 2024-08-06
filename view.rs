@@ -41,7 +41,7 @@ impl View for RuleX {
     open spec fn view(&self) -> Self::V {
         SpecRule {
             head: self.head.view(),
-            body: Seq::new(self.body.len() as nat, |i| self.body[i].view()),
+            body: self.body.deep_view(),
         }
     }
 }
@@ -51,7 +51,7 @@ impl View for ProgramX {
 
     open spec fn view(&self) -> Self::V {
         SpecProgram {
-            rules: Seq::new(self.rules.len() as nat, |i| self.rules[i].view()),
+            rules: self.rules.deep_view(),
         }
     }
 }
@@ -77,6 +77,14 @@ impl View for Theorem {
 
 impl DeepView for TermX {
     type V = SpecTerm;
+
+    open spec fn deep_view(&self) -> Self::V {
+        self.view()
+    }
+}
+
+impl DeepView for RuleX {
+    type V = SpecRule;
 
     open spec fn deep_view(&self) -> Self::V {
         self.view()

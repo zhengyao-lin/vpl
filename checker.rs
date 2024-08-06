@@ -5,7 +5,7 @@ use crate::containers::StringHashMap;
 use crate::proof::*;
 use crate::polyfill::*;
 
-// A dynamic builder of proofs
+// A dynamic builder of proofs with verified checks
 
 verus! {
 
@@ -16,6 +16,7 @@ pub type UserFnName = Rc<str>;
 pub type RuleId = usize;
 pub type Arity = usize;
 
+#[derive(Debug)]
 pub enum FnName {
     // User-defined symbol: (name, arity)
     User(UserFnName, Arity),
@@ -25,18 +26,21 @@ pub enum FnName {
 }
 
 pub type Term = Rc<TermX>;
+#[derive(Debug)]
 pub enum TermX {
     Var(Var),
     App(FnName, Vec<Term>),
 }
 
 pub type Rule = Rc<RuleX>;
+#[derive(Debug)]
 pub struct RuleX {
     pub head: Term,
     pub body: Vec<Term>,
 }
 
 pub type Program = Rc<ProgramX>;
+#[derive(Debug)]
 pub struct ProgramX {
     pub rules: Vec<Rule>,
 }
@@ -49,7 +53,13 @@ pub struct Theorem {
 }
 
 impl FnName {
-    fn eq(&self, other: &Self) -> (res: bool)
+    pub fn user(name: &str, arity: usize) -> (res: FnName)
+        ensures res@ == SpecFnName::User(name@, arity as int)
+    {
+        FnName::User(str_to_rc_str(name), arity)
+    }
+
+    pub fn eq(&self, other: &Self) -> (res: bool)
         ensures res == (self@ == other@)
     {
         match (self, other) {
@@ -77,16 +87,37 @@ impl Clone for FnName {
 }
 
 impl TermX {
+    // Some utility functions to construct Term
     pub fn var(v: &Var) -> (res: Term)
         ensures res@ == SpecTerm::Var(v@)
     {
         Rc::new(TermX::Var(v.clone()))
     }
 
+    pub fn var_str(v: &str) -> (res: Term)
+        ensures res@ == SpecTerm::Var(v@)
+    {
+        TermX::var(&str_to_rc_str(v))
+    }
+
     pub fn app(name: &FnName, args: Vec<Term>) -> (res: Term)
         ensures res@ == SpecTerm::App(name@, args.deep_view())
     {
         Rc::new(TermX::App(name.clone(), args))
+    }
+
+    pub fn app_str(name: &str, args: Vec<Term>) -> (res: Term)
+        ensures res@ == SpecTerm::App(SpecFnName::User(name@, args.len() as int), args.deep_view())
+    {
+        TermX::app(&FnName::user(name, args.len()), args)
+    }
+
+    pub fn constant(name: &str) -> (res: Term)
+        ensures res@ == SpecTerm::App(SpecFnName::User(name@, 0), seq![])
+    {
+        let res = TermX::app(&FnName::user(name, 0), vec![]);
+        assert(res@->App_1 =~= seq![]);
+        res
     }
 
     /// Apply substitution to a term
@@ -115,7 +146,7 @@ impl TermX {
 }
 
 impl TermX {
-    fn eq(&self, other: &Self) -> (res: bool)
+    pub fn eq(&self, other: &Self) -> (res: bool)
         ensures res == (self@ == other@)
     {
         match (self, other) {
@@ -152,6 +183,22 @@ impl TermX {
     }
 }
 
+impl RuleX {
+    pub fn new(head: Term, body: Vec<Term>) -> (res: Rule)
+        ensures res == (RuleX { head, body })
+    {
+        Rc::new(RuleX { head, body })
+    }
+}
+
+impl ProgramX {
+    pub fn new(rules: Vec<Rule>) -> (res: Program)
+        ensures res.rules == rules
+    {
+        Rc::new(ProgramX { rules })
+    }
+}
+
 impl Theorem {
     /// A theorem has the invariant that the ghost proof object is
     /// a valid proof for the statement
@@ -159,7 +206,7 @@ impl Theorem {
         self@.wf(program)
     }
 
-    /// Axiom SpecProof::ApplyRule
+    /// Build on subproofs via the axiom SpecProof::ApplyRule
     pub fn apply_rule(program: &Program, rule_idx: RuleId, subst: &Subst, subproofs: Vec<Theorem>) -> (res: Option<Theorem>)
         requires
             0 <= rule_idx < program.rules.len() &&
