@@ -56,4 +56,15 @@ pub fn vec_map<T, U>(v: &Vec<T>, f: impl Fn(&T) -> U) -> (res: Vec<U>)
     res
 }
 
+#[verifier::external_body]
+pub fn vec_set<T>(v: &mut Vec<T>, i: usize, x: T)
+    requires 0 <= i < old(v).len()
+    ensures
+        v.len() == old(v).len() &&
+        (forall |j| 0 <= j < v.len() && j != i ==> v[j] == old(v)[j]) &&
+        v[i as int] == x
+{
+    v[i] = x;
+}
+
 }
