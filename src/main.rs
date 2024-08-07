@@ -4,15 +4,14 @@ mod containers;
 mod view;
 mod polyfill;
 mod solver;
+mod trace;
 
 use vstd::prelude::*;
-
-use crate::solver::test;
 
 verus! {
 
 pub fn main() {
-    test();
+    crate::trace::test();
 }
 
 }

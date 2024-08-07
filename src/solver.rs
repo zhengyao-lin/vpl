@@ -207,7 +207,7 @@ impl Solver {
                 // println!("subst: {:?}", &self.subgoal_solvers[j].subst);
                 let cur_solution = self.subgoal_solvers[j].cur_solution.as_ref().unwrap();
                 solution_subst = cur_solution.subst.compose(&solution_subst);
-                subproofs.push(cur_solution.proof.clone());
+                subproofs.push(&cur_solution.proof);
             }
 
             if let Some(thm) = Theorem::apply_rule(program, self.cur_rule_idx, &solution_subst, subproofs) {

@@ -1,5 +1,7 @@
 use vstd::prelude::*;
 use std::rc::Rc;
+use std::fmt::Display;
+use std::fmt::Debug;
 
 // Verus specs for some std functions
 
@@ -65,6 +67,33 @@ pub fn vec_set<T>(v: &mut Vec<T>, i: usize, x: T)
         v[i as int] == x
 {
     v[i] = x;
+}
+
+// TODO: can we support println! in verus code?
+
+#[verifier::external_trait_specification]
+pub trait ExtDisplay {
+    type ExternalTraitSpecificationFor: Display;
+}
+
+#[verifier::external_body]
+pub fn print<T: Display>(s: T) {
+    print!("{}", s);
+}
+
+#[verifier::external_body]
+pub fn println<T: Display>(s: T) {
+    println!("{}", s);
+}
+
+#[verifier::external_body]
+pub fn print_debug<T: Debug>(s: T) {
+    print!("{:?}", s);
+}
+
+#[verifier::external_body]
+pub fn println_debug<T: Debug>(s: T) {
+    println!("{:?}", s);
 }
 
 }

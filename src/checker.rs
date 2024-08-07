@@ -203,18 +203,18 @@ impl ProgramX {
 impl Theorem {
     /// A theorem has the invariant that the ghost proof object is
     /// a valid proof for the statement
-    pub open spec fn inv(self, program: SpecProgram) -> bool {
+    pub open spec fn wf(self, program: SpecProgram) -> bool {
         self@.wf(program)
     }
 
     /// Build on subproofs via the axiom SpecProof::ApplyRule
-    pub fn apply_rule(program: &Program, rule_idx: RuleId, subst: &Subst, subproofs: Vec<Theorem>) -> (res: Option<Theorem>)
+    pub fn apply_rule(program: &Program, rule_idx: RuleId, subst: &Subst, subproofs: Vec<&Theorem>) -> (res: Option<Theorem>)
         requires
             0 <= rule_idx < program.rules.len() &&
-            forall |i| 0 <= i < subproofs.len() ==> (#[trigger] subproofs[i]).inv(program@)
+            forall |i| 0 <= i < subproofs.len() ==> (#[trigger] subproofs[i]).wf(program@)
 
         ensures
-            res matches Some(thm) ==> thm.inv(program@)
+            res matches Some(thm) ==> thm.wf(program@)
     {
         let rule = &program.rules[rule_idx];
         let conclusion = TermX::subst(&rule.head, subst);
@@ -250,7 +250,7 @@ impl Theorem {
     /// Check that two terms are equal and apply axiom SpecProof::Refl
     pub fn refl(program: &Program, left: &Term, right: &Term) -> (res: Option<Theorem>)
         ensures
-            res matches Some(thm) ==> thm.inv(program@)
+            res matches Some(thm) ==> thm.wf(program@)
     {
         if !left.eq(right) {
             return None;
@@ -279,6 +279,17 @@ impl Subst {
         ensures res@.0 =~= Map::<SpecVar, SpecTerm>::empty()
     {
         Subst(StringHashMap::new())
+    }
+
+    pub fn get(&self, var: &Var) -> (res: Option<&Term>)
+        ensures
+            if self@.0.contains_key(var@) {
+                res matches Some(term) && term@ == self@.0[var@]
+            } else {
+                res matches None
+            }
+    {
+        self.0.get(var)
     }
 
     pub fn insert(&mut self, var: Var, term: Term)
