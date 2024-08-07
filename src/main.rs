@@ -6,13 +6,14 @@ mod polyfill;
 mod solver;
 mod trace;
 mod display;
+mod parser;
 
-use vstd::prelude::*;
+// use vstd::prelude::*;
 
-verus! {
+// verus! {
 
 pub fn main() {
-    crate::trace::test();
+    crate::parser::test();
 }
 
-}
+// }
