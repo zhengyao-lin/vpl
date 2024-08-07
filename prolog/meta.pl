@@ -49,7 +49,7 @@ prove(Goal, Id) :-
     % write(Goal), write(", "), writeln(P),
     (
         predicate_property(Goal, built_in);
-        predicate_property(Goal, autoload(_))
+        predicate_property(Goal, imported_from(_))
     ),
     !,
     Goal,
