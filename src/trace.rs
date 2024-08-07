@@ -234,7 +234,7 @@ pub fn test() {
         match validator.process_event(&program, &events[i]) {
             Ok(thm) => {
                 assert(thm.wf(program@));
-                print("Event "); print(events[i].id); print(" verified: "); println_debug(&thm.stmt);
+                print("Event "); print(events[i].id); print(" verified: "); println(&thm.stmt);
             }
             Err(msg) => {
                 print("Event "); print(events[i].id); print(" failed: "); println(msg);

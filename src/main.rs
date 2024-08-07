@@ -5,6 +5,7 @@ mod view;
 mod polyfill;
 mod solver;
 mod trace;
+mod display;
 
 use vstd::prelude::*;
 
