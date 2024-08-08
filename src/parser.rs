@@ -107,40 +107,60 @@ peg::parser!(grammar prolog(state: &ParserState) for str {
             }
 
     /// Prolog terms
-    pub rule term() -> (Term, usize)
-        = t1:atom_term() _ "=" _ t2:term() { (Rc::new(TermX::App(FnName::user(FN_NAME_EQ, 2), vec![t1.0, t2.0])), t1.1) }
-        / t1:atom_term() _ "==" _ t2:term() { (Rc::new(TermX::App(FnName::user(FN_NAME_EQUIV, 2), vec![t1.0, t2.0])), t1.1) }
-        / atom_term()
-    
-    pub rule atom_term() -> (Term, usize)
-        = var:var() { (TermX::var_str(var.0), var.1) }
+    /// See https://www.swi-prolog.org/pldoc/man?section=operators
+    /// for default precedence of operators
+    /// 
+    /// See https://docs.rs/peg/latest/peg/ for precedence!
+    pub rule term() -> (Term, usize) = precedence! {
+        t1:@ _ "=" _ t2:(@) { (Rc::new(TermX::App(FnName::user(FN_NAME_EQ, 2), vec![t1.0, t2.0])), t1.1) }
+        t1:@ _ "==" _ t2:(@) { (Rc::new(TermX::App(FnName::user(FN_NAME_EQUIV, 2), vec![t1.0, t2.0])), t1.1) }
+        --
+        t1:@ _ "/" _ t2:(@) { (Rc::new(TermX::App(FnName::user(FN_NAME_PRED_IND, 2), vec![t1.0, t2.0])), t1.1) }
+        --
+
+        // Same as ( t ) but we need to get the line number
+        // of the first parenthesis
+        line:term_left_paren() t:term() ")" { (t.0, line) }
+
+        var:var() { (TermX::var_str(var.0), var.1) }
         
         // There is a special case of the anonymous variable "_"
         // different occurrences of "_" in a clause is considered different variables
         // so we need to generate fresh names for them
-        / "_" { (TermX::var_str(&state.fresh_anon_var()), state.line()) }
+        "_" { (TermX::var_str(&state.fresh_anon_var()), state.line()) }
 
         // Literals
-        / i:int() { (Rc::new(TermX::Literal(Literal::Int(i))), state.line()) }
+        i:int() { (Rc::new(TermX::Literal(Literal::Int(i))), state.line()) }
         // TODO: string may range multiple lines, fix the line number
-        / s:string() { (Rc::new(TermX::Literal(Literal::String(s.into()))), state.line()) }
+        s:string() { (Rc::new(TermX::Literal(Literal::String(s.into()))), state.line()) }
 
         // Application (including atoms and lists)
-        / name:ident() _ "(" _ args:comma_sep(<term()>) _ ")" {
+        name:ident() _ "(" _ args:comma_sep(<term()>) _ ")" {
             (Rc::new(TermX::App(
                 FnName::user(name.0, args.len()),
                 args.iter().map(|(arg, _)| arg.clone()).collect(),
             )), name.1)
         }
-        / name:ident() { (Rc::new(TermX::App(FnName::user(name.0, 0), vec![])), name.1) }
-        / list:list() { list }
+        name:ident() { (Rc::new(TermX::App(FnName::user(name.0, 0), vec![])), name.1) }
+        list:list() { list }
+    }
+
+    /// Used for getting the line number
+    rule term_left_paren() -> usize
+        = "(" { state.line() }
 
     pub rule clause() -> (Rule, usize)
         = head:term() _ ":-" _ body:comma_sep(<term()>) _ "."
             { (RuleX::new(head.0, body.iter().map(|(arg, _)| arg.clone()).collect()), head.1) }
         / head:term() _ "."
             { (RuleX::new(head.0, vec![]), head.1) }
-
+        
+        // Headless clauses are converted into `true :- ... .`
+        / ":-" _ body:comma_sep(<term()>) _ "."
+            {
+                let head = Rc::new(TermX::App(FnName::user(FN_NAME_TRUE, 0), vec![]));
+                (RuleX::new(head, body.iter().map(|(arg, _)| arg.clone()).collect()), state.line())
+            }
 
     /// Returns a program and a map from line number to rule id
     pub rule program() -> (Program, HashMap<usize, RuleId>)

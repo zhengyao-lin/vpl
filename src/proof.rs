@@ -4,11 +4,13 @@ use vstd::prelude::*;
 
 verus! {
 
+pub const FN_NAME_TRUE: &'static str = "true";
 pub const FN_NAME_EQ: &'static str = "=";
 pub const FN_NAME_EQUIV: &'static str = "==";
 pub const FN_NAME_NOT: &'static str = "\\+";
 pub const FN_NAME_FORALL: &'static str = "forall";
 pub const FN_NAME_MEMBER: &'static str = "member";
+pub const FN_NAME_PRED_IND: &'static str = "/"; // e.g. functor/3
 
 pub type SpecVar = Seq<char>;
 pub type SpecUserFnName = Seq<char>;
@@ -265,4 +267,3 @@ impl SpecTheorem {
 }
 
 }
-

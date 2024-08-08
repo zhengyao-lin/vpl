@@ -17,7 +17,7 @@ use std::fs;
 use clap::{command, Parser};
 
 use crate::error::Error;
-use crate::parser::{parse_program, parse_trace_event};
+use crate::parser::{parse_program, parse_term, parse_trace_event};
 use crate::trace::{TraceValidator};
 
 #[derive(Parser, Debug)]
@@ -47,6 +47,9 @@ fn main_args(mut args: Args) -> Result<(), Error> {
     let source = fs::read_to_string(&args.source)?;
     let (program, line_map) = parse_program(source, &args.source)?;
 
+    // Parse the goal term
+    let goal = parse_term(&args.goal)?;
+
     if args.debug {
         println!("[debug] parsed program:");
         for rule in &program.rules {
@@ -55,23 +58,23 @@ fn main_args(mut args: Args) -> Result<(), Error> {
     }
 
     // Run the main goal in swipl with the meta interpreter
-    let mut swipl = Command::new(args.swipl_bin)
+    let mut swipl_cmd = Command::new(args.swipl_bin);
+    swipl_cmd
         .arg("-s").arg(&args.mi_path)
         .arg("-s").arg(&args.source)
         .arg("-g").arg(format!("prove({})", &args.goal))
         .arg("-g").arg("halt")
-        .stdout(Stdio::piped())
-        .spawn()?;
+        .stdout(Stdio::piped());
 
+    if args.debug {
+        println!("[debug] running swipl command: {:?}", &swipl_cmd);
+    }
+
+    let mut swipl = swipl_cmd.spawn()?;
     let mut swipl_stdout = swipl.stdout.take()
         .ok_or(Error::Other("failed to open swipl stdout".to_string()))?;
 
     let mut validator = TraceValidator::new(&program);
-
-    if args.debug {
-        println!("[debug] ==============================================================");
-        println!("[debug] started parsing trace");
-    }
 
     // For each line, check if it is a trace event;
     // if so, parse it and send it to the validator
@@ -79,13 +82,16 @@ fn main_args(mut args: Args) -> Result<(), Error> {
         let line_str = line?;
         
         if args.debug {
-            println!("[debug] trace: {}", &line_str);
+            println!("[debug] ==============================================================");
+            println!("[debug] event {}", &line_str);
         }
 
         match parse_trace_event(&line_str, &line_map) {
             Ok(event) => {
                 let thm = validator.process_event(&program, &event, args.debug)?;
-                println!("validated: {}", thm.stmt);
+                if args.debug {
+                    println!("[debug] validated: {}", thm.stmt);
+                }
             }
             Err(err) => {
                 println!("[warning] failed to parse trace event \"{}\": {}", &line_str, err);
@@ -97,7 +103,17 @@ fn main_args(mut args: Args) -> Result<(), Error> {
         return Err(Error::Other("swipl exited with failure".to_string()));
     }
 
-    Ok(())
+    // Verify that the goal term is indeed proved
+    if let Some(thm) = validator.thms.last() {
+        if thm.stmt.eq(&goal) {
+            println!("validated goal: {}", &goal);
+            Ok(())
+        } else {
+            Err(Error::Other(format!("unmatched final goal: expecting `{}`, got `{}`", &goal, &thm.stmt)))
+        }
+    } else {
+        Err(Error::Other(format!("failed to validate a proof of the goal: {}", &goal)))
+    }
 }
 
 pub fn main() -> ExitCode {

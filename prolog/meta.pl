@@ -60,7 +60,12 @@ prove(Goal, Id) :-
     % write(Goal), write(", "), writeln(P),
     (
         predicate_property(Goal, built_in);
-        predicate_property(Goal, imported_from(_))
+
+        % TODO: rule out all libraries in https://www.swi-prolog.org/pldoc/man?section=libpl
+        predicate_property(Goal, imported_from(lists));
+        predicate_property(Goal, imported_from(strings));
+        predicate_property(Goal, imported_from(url));
+        predicate_property(Goal, imported_from(uri))
     ),
     !,
     Goal,

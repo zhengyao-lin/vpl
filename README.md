@@ -85,3 +85,4 @@ TODO:
 - [-] Anonymous variables
 - [ ] Nested conjunctions and disjunctions
 - [ ] Proof rules for ground or special cases of `\+`, `forall`, `findall`
+- [ ] Modules (right now the meta-interpreter cannot find clauses in private predicates)
