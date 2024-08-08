@@ -7,6 +7,8 @@ verus! {
 pub const FN_NAME_EQ: &'static str = "=";
 pub const FN_NAME_EQUIV: &'static str = "==";
 pub const FN_NAME_NOT: &'static str = "\\+";
+pub const FN_NAME_FORALL: &'static str = "forall";
+pub const FN_NAME_MEMBER: &'static str = "member";
 
 pub type SpecVar = Seq<char>;
 pub type SpecUserFnName = Seq<char>;
@@ -60,6 +62,12 @@ pub enum SpecProof {
     // Proves t = t
     Refl,
 
+    // Proves goals of the form
+    //   forall(member(X, L), <Goal>)
+    // where X has to be a variable
+    // and L has to be a concrete list
+    ForallMember { subproofs: Seq<SpecTheorem> },
+
     // // For all base facts, certain query is true
     // // i.e. proves forall(p(x_1, ..., x_n), q(...))
     // // where p is a base predicate
@@ -106,6 +114,28 @@ impl SpecTerm {
 
     pub open spec fn args(self) -> Seq<SpecTerm> {
         self->App_1
+    }
+
+    /// Try to parse the term as a list [t1 | [t2 | ...]]
+    /// If there are non-cons or non-nil terms, return None
+    pub open spec fn as_list(self) -> Option<Seq<SpecTerm>>
+        decreases self
+    {
+        match self {
+            SpecTerm::App(SpecFnName::Nil, args) => if args.len() == 0 { Some(seq![]) } else { None },
+            SpecTerm::App(SpecFnName::Cons, args) =>
+                if args.len() == 2 {
+                    match args[1].as_list() {
+                        Some(tail) => {
+                            Some(seq![args[0]] + tail)
+                        }
+                        None => None,
+                    }
+                } else {
+                    None
+                },
+            _ => None,
+        }
     }
 }
 
@@ -160,6 +190,9 @@ impl SpecTheorem {
                 // All subproofs are well-formed
                 &&& forall |i| 0 <= i < subproofs.len() ==> (#[trigger] subproofs[i]).wf(program)
 
+                // The final conclusion should coincide with head of the rule after subst
+                &&& program.rules[rule_id].head.subst(subst) == self.stmt
+
                 // NOTE: we do not require subst to cover all free variables in the rule
                 // because we need to allow proofs for terms such as forall(p(x), q(x)),
                 // in which x can remain as a variable.
@@ -170,6 +203,28 @@ impl SpecTheorem {
                 &&& f == SpecFnName::User(FN_NAME_EQ.view(), 2) || f == SpecFnName::User(FN_NAME_EQUIV.view(), 2)
                 &&& args.len() == 2
                 &&& args[0] == args[1]
+            }
+
+            SpecProof::ForallMember { subproofs } => {
+                // Check that the statement of the form
+                //   forall(member(X, L), <Goal>)
+                // where X has to be a variable
+                // and L has to be a concrete list
+                &&& self.stmt matches SpecTerm::App(f, forall_args)
+                &&& f == SpecFnName::User(FN_NAME_FORALL.view(), 2)
+                &&& forall_args.len() == 2
+                &&& forall_args[0] matches SpecTerm::App(f2, member_args)
+                &&& f2 == SpecFnName::User(FN_NAME_MEMBER.view(), 2)
+                &&& member_args.len() == 2
+
+                &&& member_args[0] matches SpecTerm::Var(loop_var)
+                &&& member_args[1].as_list() matches Some(list)
+
+                // Then the proof obligation is that
+                // for each i in 0..list.len(), subproofs[i] is a proof of <Goal>[X |-> list[i]]
+                &&& subproofs.len() == list.len()
+                &&& forall |i| 0 <= i < list.len()
+                    ==> (#[trigger] subproofs[i]).stmt == forall_args[1].subst(SpecSubst(map!{ loop_var => list[i] }))
             }
 
             // ForallBase { subproofs: Seq<SpecTheorem> } => {
