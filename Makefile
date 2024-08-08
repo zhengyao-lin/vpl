@@ -1,17 +1,27 @@
-target/debug/vpl: cargo src/*.rs
-	verus src/main.rs \
-		-L dependency=target/debug/deps \
-		--extern peg="$(wildcard target/debug/deps/libpeg-*.rlib)" \
-		--extern clap="$(wildcard target/debug/deps/libclap-*.rlib)" \
-		--extern thiserror="$(wildcard target/debug/deps/libthiserror-*.rlib)" \
-		--compile -o target/debug/vpl
+# Add external dependencies here
+DEPS = peg clap thiserror
 
-.PHONY: cargo
-cargo: Cargo.toml
-	cargo build --package=peg --package=clap --package=thiserror
+.PHONY: debug
+debug: target/debug/vpl
+
+.PHONY: release
+release: target/release/vpl
+
+# Each dependency <dep> is mapped to verus argument --extern <dep>=target/<release/debug>/deps/lib<dep>-*.rlib
+target/%/vpl: $(foreach dep,$(DEPS),target/%/lib$(dep).rlib) src/*.rs
+	verus src/main.rs \
+		-L dependency=target/$*/deps \
+		$(foreach dep,$(DEPS),--extern $(dep)=$(firstword $(wildcard target/$*/deps/lib$(dep)-*.rlib))) \
+		--compile -o target/$*/vpl
+
+target/debug/lib%.rlib: Cargo.toml
+	cargo build --package=$*
+
+target/release/lib%.rlib: Cargo.toml
+	cargo build --package=$* --release
 
 .PHONY: test
-test:
+test: debug
 	for test in tests/*.pl; do \
 		echo $$test; \
         target/debug/vpl $$test go || exit 1; \
