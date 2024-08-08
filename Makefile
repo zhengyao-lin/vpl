@@ -1,8 +1,14 @@
-target/debug/vpl: target/debug/libpeg.rlib src/*.rs
-	verus src/main.rs -L dependency=target/debug/deps --extern peg=target/debug/libpeg.rlib --compile -o target/debug/vpl
+target/debug/vpl: cargo src/*.rs
+	verus src/main.rs \
+		-L dependency=target/debug/deps \
+		--extern peg="$(wildcard target/debug/deps/libpeg-*.rlib)" \
+		--extern clap="$(wildcard target/debug/deps/libclap-*.rlib)" \
+		--extern thiserror="$(wildcard target/debug/deps/libthiserror-*.rlib)" \
+		--compile -o target/debug/vpl
 
-target/debug/libpeg.rlib:
-	cargo build --package=peg
+.PHONY: cargo
+cargo: Cargo.toml
+	cargo build --package=peg --package=clap --package=thiserror
 
 .PHONY: clean
 clean:

@@ -3,7 +3,7 @@ use std::fmt;
 use crate::checker::*;
 
 impl fmt::Display for FnName {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             FnName::User(name, _) => write!(f, "{}", name),
             FnName::Eq => write!(f, "="),
@@ -14,7 +14,7 @@ impl fmt::Display for FnName {
 }
 
 impl fmt::Display for TermX {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             TermX::Var(v) => write!(f, "{}", v),
             TermX::App(name, args) => {
@@ -38,7 +38,7 @@ impl fmt::Display for TermX {
 }
 
 impl fmt::Display for RuleX {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.head)?;
 
         if self.body.len() != 0 {
@@ -53,5 +53,11 @@ impl fmt::Display for RuleX {
         }
         
         write!(f, ".")
+    }
+}
+
+impl fmt::Display for crate::trace::TraceError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "failed to verify event {}: {}", self.0, self.1)
     }
 }

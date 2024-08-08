@@ -21,16 +21,21 @@ pub type EventId = usize;
  * - <term> is the goal proved, and
  * - <tactic> is the tactic applied to get here.
  */
+#[derive(Debug)]
 pub struct Event {
     pub id: EventId,
     pub term: Term,
     pub tactic: Tactic,
 }
 
+#[derive(Debug)]
 pub enum Tactic {
     Apply { rule_idx: RuleId, subproof_ids: Vec<EventId> },
     BuiltIn,
 }
+
+#[derive(Debug)]
+pub struct TraceError(pub EventId, pub String);
 
 /**
  * TraceValidator dynamically reads in events and construct a Theorem for each event
@@ -104,7 +109,7 @@ impl TraceValidator {
 
     /// Process an event and construct a Theorem with the same statement claimed in the event
     /// Retuen the Theorem object if successful
-    pub fn process_event(&mut self, program: &Program, event: &Event) -> (res: Result<&Theorem, String>)
+    pub fn process_event(&mut self, program: &Program, event: &Event) -> (res: Result<&Theorem, TraceError>)
         requires
             old(self).wf(program@) &&
 
@@ -125,17 +130,17 @@ impl TraceValidator {
             )
     {
         match &event.tactic {
-            Tactic::BuiltIn => Err("not implemented".to_string()),
+            Tactic::BuiltIn => Err(TraceError(event.id, "not implemented".to_string())),
 
             Tactic::Apply { rule_idx, subproof_ids } => {
                 if *rule_idx >= program.rules.len() {
-                    return Err("rule does not exist".to_string());
+                    return Err(TraceError(event.id, "rule does not exist".to_string()));
                 }
 
                 let rule = &program.rules[*rule_idx];
 
                 if subproof_ids.len() != rule.body.len() {
-                    return Err("incorrect rule application".to_string());
+                    return Err(TraceError(event.id, "incorrect rule application".to_string()));
                 }
 
                 // Figure out the substitution for the rule application
@@ -143,7 +148,9 @@ impl TraceValidator {
                 let mut subproofs: Vec<&Theorem> = vec![];
 
                 // Match rule head against goal first
-                TraceValidator::match_terms(&mut subst, &rule.head, &event.term)?;
+                if let Err(err) = TraceValidator::match_terms(&mut subst, &rule.head, &event.term) {
+                    return Err(TraceError(event.id, err));
+                }
             
                 // Match each rule body against existing subproof
                 for i in 0..subproof_ids.len()
@@ -158,10 +165,13 @@ impl TraceValidator {
                 {
                     let subproof_id = subproof_ids[i];
                     if subproof_id >= self.thms.len() {
-                        return Err("subproof does not exist".to_string());
+                        return Err(TraceError(event.id, "subproof does not exist".to_string()));
                     }
                     subproofs.push(&self.thms[subproof_id]);
-                    TraceValidator::match_terms(&mut subst, &rule.body[i], &self.thms[subproof_id].stmt)?;
+                    
+                    if let Err(err) = TraceValidator::match_terms(&mut subst, &rule.body[i], &self.thms[subproof_id].stmt) {
+                        return Err(TraceError(event.id, err));
+                    }
                 }
 
                 // Apply and proof-check the final result 
@@ -172,10 +182,10 @@ impl TraceValidator {
                         self.thms.push(thm);
                         Ok(&self.thms[event.id])
                     } else {
-                        Err("incorrect matching algorithm".to_string())
+                        Err(TraceError(event.id, "incorrect matching algorithm".to_string()))
                     }
                 } else {
-                    Err("failed to verify proof".to_string())
+                    Err(TraceError(event.id, "failed to verify proof".to_string()))
                 }
             }
         }
@@ -237,7 +247,7 @@ pub fn test() {
                 print("Event "); print(events[i].id); print(" verified: "); println(&thm.stmt);
             }
             Err(msg) => {
-                print("Event "); print(events[i].id); print(" failed: "); println(msg);
+                print("Event "); print(events[i].id); print(" failed: "); println_debug(msg);
                 break;
             }
         }

@@ -10,7 +10,7 @@ gen_id(Id) :-
 
 % Log a proof step
 log_proof(Id, Goal) :-
-    write(Id), write(". "),
+    write("["), write(Id), write("] "),
     writeq(Goal),
     write(" by ").
 

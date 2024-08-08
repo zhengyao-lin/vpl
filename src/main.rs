@@ -7,13 +7,74 @@ mod solver;
 mod trace;
 mod display;
 mod parser;
+mod error;
 
-// use vstd::prelude::*;
+use std::io::BufReader;
+use std::io::BufRead;
+use std::process::{ExitCode, Command, Stdio};
+use std::fs;
 
-// verus! {
+use clap::{command, Parser};
 
-pub fn main() {
-    crate::parser::test();
+use crate::error::Error;
+use crate::parser::parse_program;
+
+#[derive(Parser, Debug)]
+#[command(long_about = None)]
+struct Args {
+    /// Prolog source file
+    source: String,
+
+    /// The main goal to be solved
+    goal: String,
+
+    /// Path to the SWI-Prolog binary
+    #[clap(long, value_parser, num_args = 0.., value_delimiter = ' ', default_value = "swipl")]
+    swipl_bin: String,
+
+    /// Path to the meta interpreter
+    #[clap(long, value_parser, num_args = 0.., value_delimiter = ' ', default_value = "prolog/meta.pl")]
+    mi_path: String,
 }
 
-// }
+fn main_args(mut args: Args) -> Result<(), Error> {
+    // Parse the source file
+    let source = fs::read_to_string(&args.source)?;
+    let (program, line_map) = parse_program(source, &args.source)?;
+
+    for rule in &program.rules {
+        println!("{}", rule);
+    }
+
+    // Run the main goal in swipl with the meta interpreter
+    let mut swipl = Command::new(args.swipl_bin)
+        .arg("-s").arg(&args.mi_path)
+        .arg("-s").arg(&args.source)
+        .arg("-g").arg(format!("prove({})", &args.goal))
+        .arg("-g").arg("halt")
+        .stdout(Stdio::piped())
+        .spawn()?;
+
+    let mut swipl_stdout = swipl.stdout.take()
+        .ok_or(Error::Other("failed to open swipl stdout".to_string()))?;
+
+    let reader = BufReader::new(swipl_stdout);
+
+    for line in reader.lines() {
+        println!("trace: {}", line?);
+    }
+
+    println!("swipl exited: {}", swipl.wait()?);
+
+    Ok(())
+}
+
+pub fn main() -> ExitCode {
+    match main_args(Args::parse()) {
+        Ok(..) => ExitCode::from(0),
+        Err(err) => {
+            eprintln!("{}", err);
+            ExitCode::from(1)
+        }
+    }
+}
