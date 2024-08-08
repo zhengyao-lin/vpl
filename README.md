@@ -66,18 +66,22 @@ Our tool then parses this trace and uses a verified kernel to check its validity
 
 ## What am I trusting
 
-You only need to trust:
+The idea is to reduce the trusted parts to:
 1. The specification of the kernel in `src/proof.rs`,
 which describes the proof rules allowed to construct valid goals (e.g. clause application, built-in function evaluation for strings and lists).
 2. The Prolog parser (`src/parser.rs`), which should accurately parse the input Prolog program.
+
+The rest of the tool, including SWI-Prolog, does not need to be trusted.
 
 ## Missing features
 
 TODO:
 
+- [ ] Integers
 - [ ] Strings
 - [ ] Lists
-- [ ] Built-in functions for strings and lists
+- [ ] Built-in functions for integers, strings, lists
 - [ ] Disjunction `;`
+- [ ] Anonymous variables
 - [ ] Nested conjunctions and disjunctions
 - [ ] Proof rules for ground or special cases of `\+`, `forall`, `findall`
