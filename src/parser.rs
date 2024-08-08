@@ -58,13 +58,13 @@ peg::parser!(grammar prolog(state: &ParserState) for str {
 
     /// Returns the slice and the line number
     rule ident() -> (&'input str, usize)
-        = name:quiet!{$(['a'..='z' | 'A'..='Z']['a'..='z' | 'A'..='Z' | '0'..='9']*)} { (name, state.line()) }
+        = name:quiet!{$(['a'..='z' | 'A'..='Z']['_' | 'a'..='z' | 'A'..='Z' | '0'..='9']*)} { (name, state.line()) }
         / "'" name:$([^'\'']*) "'" { (name, state.line()) }
         / expected!("identifier")
 
     rule var() -> (&'input str, usize)
-        = name:quiet!{$(['A'..='Z']['a'..='z' | 'A'..='Z' | '0'..='9']*)} { (name, state.line()) }
-        / name:quiet!{$(['_']['a'..='z' | 'A'..='Z' | '0'..='9']+)} { (name, state.line()) }
+        = name:quiet!{$(['A'..='Z']['_' | 'a'..='z' | 'A'..='Z' | '0'..='9']*)} { (name, state.line()) }
+        / name:quiet!{$(['_']['_' | 'a'..='z' | 'A'..='Z' | '0'..='9']+)} { (name, state.line()) }
         / expected!("variable")
 
     rule nat() -> usize
