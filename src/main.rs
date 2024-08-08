@@ -71,16 +71,16 @@ fn main_args(mut args: Args) -> Result<(), Error> {
         let line_str = line?;
         
         if args.debug {
-            println!("[trace] {}", &line_str);
+            println!("[debug] trace: {}", &line_str);
         }
 
         match parse_trace_event(&line_str, &line_map) {
             Ok(event) => {
-                let thm = validator.process_event(&program, &event)?;
+                let thm = validator.process_event(&program, &event, args.debug)?;
                 println!("validated: {}", thm.stmt);
             }
             Err(err) => {
-                println!("failed to parse trace event \"{}\": {}", &line_str, err);
+                println!("[warning] failed to parse trace event \"{}\": {}", &line_str, err);
             }
         }
     }

@@ -117,7 +117,7 @@ impl TraceValidator {
 
     /// Process an event and construct a Theorem with the same statement claimed in the event
     /// Retuen the Theorem object if successful
-    pub fn process_event(&mut self, program: &Program, event: &Event) -> (res: Result<&Theorem, TraceError>)
+    pub fn process_event(&mut self, program: &Program, event: &Event, debug: bool) -> (res: Result<&Theorem, TraceError>)
         requires
             old(self).wf(program@) &&
 
@@ -151,6 +151,10 @@ impl TraceValidator {
                     return Err(TraceError(event.id, "incorrect rule application".to_string()));
                 }
 
+                if debug {
+                    print("[debug] applying rule: "); println(rule);
+                }
+
                 // Figure out the substitution for the rule application
                 let mut subst = Subst::new();
                 let mut subproofs: Vec<&Theorem> = vec![];
@@ -177,9 +181,17 @@ impl TraceValidator {
                     }
                     subproofs.push(&self.thms[subproof_id]);
                     
+                    if debug {
+                        print("[debug]   with subproof: "); println(&self.thms[subproof_id].stmt);
+                    }
+
                     if let Err(err) = TraceValidator::match_terms(&mut subst, &rule.body[i], &self.thms[subproof_id].stmt) {
                         return Err(TraceError(event.id, err));
                     }
+                }
+
+                if debug {
+                    print("[debug] matching substitution: "); println(&subst);
                 }
 
                 // Apply and proof-check the final result 
@@ -249,7 +261,7 @@ pub fn test() {
             validator.thms.len() == i &&
             (forall |i: int| 0 <= i < events.len() ==> (#[trigger] events[i].id) as int == i)
     {
-        match validator.process_event(&program, &events[i]) {
+        match validator.process_event(&program, &events[i], true) {
             Ok(thm) => {
                 assert(thm.wf(program@));
                 print("Event "); print(events[i].id); print(" verified: "); println(&thm.stmt);

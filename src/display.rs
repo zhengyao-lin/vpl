@@ -77,6 +77,20 @@ impl fmt::Display for RuleX {
     }
 }
 
+impl fmt::Display for Subst {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{{")?;
+        for (i, (k, v)) in self.0.m.iter().enumerate() {
+            if i == 0 {
+                write!(f, "{} -> {}", k, v)?;
+            } else {
+                write!(f, ", {} -> {}", k, v)?;
+            }
+        }
+        write!(f, "}}")
+    }
+}
+
 impl fmt::Display for crate::trace::TraceError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "failed to verify event {}: {}", self.0, self.1)

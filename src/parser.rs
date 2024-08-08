@@ -7,14 +7,46 @@ use peg;
 use crate::checker::*;
 use crate::trace::*;
 
+/// e.g. edge(_, _) => edge(%1, %2)
+/// when displaying, all variables starting with % is replaced with _
+const ANON_VAR_PREFIX: &'static str = "%";
+
+struct ParserState {
+    line: Cell<usize>,
+    anon_var_counter: Cell<usize>,
+}
+
+impl ParserState {
+    fn new() -> ParserState {
+        ParserState {
+            line: Cell::new(1),
+            anon_var_counter: Cell::new(0),
+        }
+    }
+
+    fn line(&self) -> usize {
+        self.line.get()
+    }
+
+    fn inc_line(&self) {
+        self.line.set(self.line.get() + 1);
+    }
+
+    fn fresh_anon_var(&self) -> String {
+        let counter = self.anon_var_counter.get();
+        self.anon_var_counter.set(counter + 1);
+        format!("{}{}", ANON_VAR_PREFIX, counter)
+    }
+}
+
 // Grammar of Prolog
-peg::parser!(grammar prolog(line: &Cell<usize>) for str {
+peg::parser!(grammar prolog(state: &ParserState) for str {
     rule ignore()
         // whitespaces
         = quiet!{[' ' | '\t' | '\r']}
-        / quiet!{"\n"} { line.set(line.get() + 1); }
+        / quiet!{"\n"} { state.inc_line(); }
         // Inline comments
-        / "%" [^'\n']* // { line.set(line.get() + 1); }
+        / "%" [^'\n']*
 
     rule _ = ignore()*
 
@@ -26,12 +58,13 @@ peg::parser!(grammar prolog(line: &Cell<usize>) for str {
 
     /// Returns the slice and the line number
     rule ident() -> (&'input str, usize)
-        = name:quiet!{$(['a'..='z' | 'A'..='Z']['a'..='z' | 'A'..='Z' | '0'..='9']*)} { (name, line.get()) }
-        / "'" name:$([^'\'']*) "'" { (name, line.get()) }
+        = name:quiet!{$(['a'..='z' | 'A'..='Z']['a'..='z' | 'A'..='Z' | '0'..='9']*)} { (name, state.line()) }
+        / "'" name:$([^'\'']*) "'" { (name, state.line()) }
         / expected!("identifier")
 
     rule var() -> (&'input str, usize)
-        = name:quiet!{$(['_' | 'A'..='Z']['a'..='z' | 'A'..='Z' | '0'..='9']*)} { (name, line.get()) }
+        = name:quiet!{$(['A'..='Z']['a'..='z' | 'A'..='Z' | '0'..='9']*)} { (name, state.line()) }
+        / name:quiet!{$(['_']['a'..='z' | 'A'..='Z' | '0'..='9']+)} { (name, state.line()) }
         / expected!("variable")
 
     rule nat() -> usize
@@ -50,7 +83,7 @@ peg::parser!(grammar prolog(line: &Cell<usize>) for str {
 
     /// Used for getting the line number
     rule list_left_bracket() -> usize
-        = "[" { line.get() }
+        = "[" { state.line() }
 
     /// Prolog lists, e.g., [], [a,b|[]], [a,b,c]
     rule list() -> (Term, usize)
@@ -75,11 +108,16 @@ peg::parser!(grammar prolog(line: &Cell<usize>) for str {
     /// Prolog terms
     pub rule term() -> (Term, usize)
         = var:var() { (TermX::var_str(var.0), var.1) }
+        
+        // There is a special case of the anonymous variable "_"
+        // different occurrences of "_" in a clause is considered different variables
+        // so we need to generate fresh names for them
+        / "_" { (TermX::var_str(&state.fresh_anon_var()), state.line()) }
 
         // Literals
-        / i:int() { (Rc::new(TermX::Literal(Literal::Int(i))), line.get()) }
+        / i:int() { (Rc::new(TermX::Literal(Literal::Int(i))), state.line()) }
         // TODO: string may range multiple lines, fix the line number
-        / s:string() { (Rc::new(TermX::Literal(Literal::String(s.into()))), line.get()) }
+        / s:string() { (Rc::new(TermX::Literal(Literal::String(s.into()))), state.line()) }
 
         // Application (including atoms and lists)
         / name:ident() _ "(" _ args:comma_sep(<term()>) _ ")" {
@@ -137,22 +175,22 @@ pub struct ParserError(pub Option<String>, pub peg::error::ParseError<peg::str::
 /// Parse a Prolog program source
 /// Returns a program and a map from line numbers to rule ids
 pub fn parse_program(source: impl AsRef<str>, path: impl AsRef<str>) -> Result<(Program, HashMap<usize, RuleId>), ParserError> {
-    let line = Cell::new(1);
-    prolog::program(source.as_ref(), &line).map_err(|e| ParserError(Some(path.as_ref().to_string()), e))
+    let state = ParserState::new();
+    prolog::program(source.as_ref(), &state).map_err(|e| ParserError(Some(path.as_ref().to_string()), e))
 }
 
 /// Parse a Prolog term
 pub fn parse_term(source: impl AsRef<str>) -> Result<Term, ParserError> {
-    let line = Cell::new(1);
-    let (term, _) = prolog::term(source.as_ref(), &line)
+    let state = ParserState::new();
+    let (term, _) = prolog::term(source.as_ref(), &state)
         .map_err(|e| ParserError(None, e))?;
     Ok(term)
 }
 
 /// Parse a trace event
 pub fn parse_trace_event(source: impl AsRef<str>, line_map: &HashMap<usize, RuleId>) -> Result<Event, ParserError> {
-    let line = Cell::new(1);
-    prolog::event(source.as_ref(), &line, &line_map).map_err(|e| ParserError(None, e))
+    let state = ParserState::new();
+    prolog::event(source.as_ref(), &state, &line_map).map_err(|e| ParserError(None, e))
 }
 
 pub fn test() {
