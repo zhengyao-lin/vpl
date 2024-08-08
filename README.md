@@ -81,8 +81,12 @@ TODO:
 - [x] Strings
 - [x] Lists
 - [ ] Built-in functions for integers, strings, lists
-- [ ] Disjunction `;`
+- [x] Disjunction `;`
 - [x] Anonymous variables
-- [ ] Nested conjunctions and disjunctions
-- [ ] Proof rules for ground or special cases of `\+`, `forall`, `findall`
-- [ ] Modules (right now the meta-interpreter cannot find clauses in private predicates)
+- [x] Nested conjunctions and disjunctions
+- [x] `forall(member(X, L), ..)`
+- [ ] `\+base_pred(..)`
+- [ ] `findall(X, base_pred(..., X), ..)`
+- [ ] Other required special cases of `\+`, `forall`, `findall`
+- [ ] Private clauses in modules
+- [ ] Adapt to optimizations done by the compiler
