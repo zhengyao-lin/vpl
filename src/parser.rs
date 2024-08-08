@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use peg;
 
 use crate::checker::*;
+use crate::trace::*;
 
 // Grammar of Prolog
 peg::parser!(grammar prolog(line: &Cell<usize>) for str {
@@ -21,6 +22,9 @@ peg::parser!(grammar prolog(line: &Cell<usize>) for str {
 
     rule var() -> (&'input str, usize)
         = name:$(['_' | 'A'..='Z']['a'..='z' | 'A'..='Z' | '0'..='9']*) { (name, line.get()) }
+
+    rule nat() -> usize
+        = n:$(['0'..='9']+) { n.parse().unwrap() }
 
     pub rule term() -> (Term, usize)
         = var:var() { (TermX::var_str(var.0), var.1) }
@@ -45,6 +49,30 @@ peg::parser!(grammar prolog(line: &Cell<usize>) for str {
             (ProgramX::new(rules.iter().map(|(rule, _)| rule.clone()).collect()),
             rules.iter().enumerate().map(|(i, (_, line))| (*line, i)).collect())
         }
+
+    /// Parser of a trace event
+    pub rule event(line_map: &HashMap<usize, RuleId>) -> Event
+        = _ id:nat() _ "." _ term:term() _ "by" _ tactic:tactic(line_map) _
+            { Event { id, term: term.0, tactic: tactic } }
+
+    rule nested_nat_list() -> Vec<usize>
+        = v:nat() { vec![v] }
+        / "[" _ l:(nested_nat_list() ** (_ "," _)) _ "]" { l.into_iter().flatten().collect() }
+
+    /// Read a line number, and convert it to a rule id
+    /// using the line_map; fails if no entry found in line_map
+    rule rule_id(line_map: &HashMap<usize, RuleId>) -> RuleId
+        = rule_line:nat() {?
+            line_map.get(&rule_line).cloned()
+                .ok_or("failed to find rule by the line number")
+        }
+
+    rule tactic(line_map: &HashMap<usize, RuleId>) -> Tactic
+        = "apply" _ "(" _ "fact" _ "," _ id:rule_id(&line_map) _ ")"
+            { Tactic::Apply { rule_id: id, subproof_ids: vec![] } }
+        / "apply" _ "(" _ subgoals:nested_nat_list() _ "," _ id:rule_id(&line_map) _ ")"
+            { Tactic::Apply { rule_id: id, subproof_ids: subgoals } }
+        / "built-in" { Tactic::BuiltIn }
 });
 
 /// First argument is the path
@@ -64,6 +92,12 @@ pub fn parse_term(source: impl AsRef<str>) -> Result<Term, ParserError> {
     let (term, _) = prolog::term(source.as_ref(), &line)
         .map_err(|e| ParserError(None, e))?;
     Ok(term)
+}
+
+/// Parse a trace event
+pub fn parse_trace_event(source: impl AsRef<str>, line_map: &HashMap<usize, RuleId>) -> Result<Event, ParserError> {
+    let line = Cell::new(1);
+    prolog::event(source.as_ref(), &line, &line_map).map_err(|e| ParserError(None, e))
 }
 
 pub fn test() {

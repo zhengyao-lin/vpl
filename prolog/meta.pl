@@ -10,7 +10,7 @@ gen_id(Id) :-
 
 % Log a proof step
 log_proof(Id, Goal) :-
-    write("["), write(Id), write("] "),
+    write(Id), write(". "),
     writeq(Goal),
     write(" by ").
 
@@ -64,14 +64,15 @@ prove(Goal, Id) :-
     prove(Body, BodyId),
 
     % Get clause information
-    clause_property(Ref, file(File)),
+    % clause_property(Ref, file(File)),
     clause_property(Ref, line_count(Line)),
 
     % Include file and line number of the rule applied
     gen_id(Id),
     log_proof(Id, Goal),
     write("apply("), write(BodyId), write(", "),
-    write(File), write(":"), write(Line),
+    % write(File), write(":"),
+    write(Line),
     writeln(")").
 
 prove(Goal) :-

@@ -61,3 +61,13 @@ impl fmt::Display for crate::trace::TraceError {
         write!(f, "failed to verify event {}: {}", self.0, self.1)
     }
 }
+
+impl fmt::Display for crate::parser::ParserError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match &self.0 {
+            Some(path) => write!(f, "{}", path)?,
+            None => write!(f, "<unknown>")?,
+        }
+        write!(f, ":{}:{}: {}", self.1.location.line, self.1.location.column, self.1.expected)
+    }
+}

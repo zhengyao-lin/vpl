@@ -17,7 +17,8 @@ use std::fs;
 use clap::{command, Parser};
 
 use crate::error::Error;
-use crate::parser::parse_program;
+use crate::parser::{parse_program, parse_trace_event};
+use crate::trace::{TraceValidator};
 
 #[derive(Parser, Debug)]
 #[command(long_about = None)]
@@ -42,9 +43,9 @@ fn main_args(mut args: Args) -> Result<(), Error> {
     let source = fs::read_to_string(&args.source)?;
     let (program, line_map) = parse_program(source, &args.source)?;
 
-    for rule in &program.rules {
-        println!("{}", rule);
-    }
+    // for rule in &program.rules {
+    //     println!("{}", rule);
+    // }
 
     // Run the main goal in swipl with the meta interpreter
     let mut swipl = Command::new(args.swipl_bin)
@@ -58,11 +59,28 @@ fn main_args(mut args: Args) -> Result<(), Error> {
     let mut swipl_stdout = swipl.stdout.take()
         .ok_or(Error::Other("failed to open swipl stdout".to_string()))?;
 
-    let reader = BufReader::new(swipl_stdout);
+    let mut validator = TraceValidator::new(&program);
 
-    for line in reader.lines() {
-        println!("trace: {}", line?);
+    // For each line, check if it is a trace event;
+    // if so, parse it and send it to the validator
+    for line in BufReader::new(swipl_stdout).lines() {
+        let line_str = line?;
+        // println!("{}", &line_str);
+        match parse_trace_event(&line_str, &line_map) {
+            Ok(event) => {
+                let thm = validator.process_event(&program, &event)?;
+                println!("validated: {}", thm.stmt);
+            }
+            Err(err) => {
+                println!("failed to parse trace event \"{}\": {}", &line_str, err);
+            }
+        }
     }
+
+    // match validator.thms.last() {
+    //     Some(thm) => println!("validated: {}", thm.stmt),
+    //     None => println!("no proof constructed"),
+    // }
 
     println!("swipl exited: {}", swipl.wait()?);
 

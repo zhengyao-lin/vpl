@@ -30,7 +30,7 @@ pub struct Event {
 
 #[derive(Debug)]
 pub enum Tactic {
-    Apply { rule_idx: RuleId, subproof_ids: Vec<EventId> },
+    Apply { rule_id: RuleId, subproof_ids: Vec<EventId> },
     BuiltIn,
 }
 
@@ -132,12 +132,12 @@ impl TraceValidator {
         match &event.tactic {
             Tactic::BuiltIn => Err(TraceError(event.id, "not implemented".to_string())),
 
-            Tactic::Apply { rule_idx, subproof_ids } => {
-                if *rule_idx >= program.rules.len() {
+            Tactic::Apply { rule_id, subproof_ids } => {
+                if *rule_id >= program.rules.len() {
                     return Err(TraceError(event.id, "rule does not exist".to_string()));
                 }
 
-                let rule = &program.rules[*rule_idx];
+                let rule = &program.rules[*rule_id];
 
                 if subproof_ids.len() != rule.body.len() {
                     return Err(TraceError(event.id, "incorrect rule application".to_string()));
@@ -175,7 +175,7 @@ impl TraceValidator {
                 }
 
                 // Apply and proof-check the final result 
-                if let Some(thm) = Theorem::apply_rule(program, *rule_idx, &subst, subproofs) {
+                if let Some(thm) = Theorem::apply_rule(program, *rule_id, &subst, subproofs) {
                     // TODO: this should be guaranteed if the matching algorithm is correct
                     // prove more about matching to conclude this without the dynamic check.
                     if (&thm.stmt).eq(&event.term) {
@@ -213,22 +213,22 @@ pub fn test() {
         Event {
             id: 0,
             term: TermX::app_str("edge", vec![ TermX::constant("a"), TermX::constant("b") ]),
-            tactic: Tactic::Apply { rule_idx: 0, subproof_ids: vec![] },
+            tactic: Tactic::Apply { rule_id: 0, subproof_ids: vec![] },
         },
         Event {
             id: 1,
             term: TermX::app_str("edge", vec![ TermX::constant("b"), TermX::constant("c") ]),
-            tactic: Tactic::Apply { rule_idx: 1, subproof_ids: vec![] },
+            tactic: Tactic::Apply { rule_id: 1, subproof_ids: vec![] },
         },
         Event {
             id: 2,
             term: TermX::app_str("connect", vec![ TermX::constant("b"), TermX::constant("c") ]),
-            tactic: Tactic::Apply { rule_idx: 2, subproof_ids: vec![1] },
+            tactic: Tactic::Apply { rule_id: 2, subproof_ids: vec![1] },
         },
         Event {
             id: 3,
             term: TermX::app_str("connect", vec![ TermX::constant("a"), TermX::constant("c") ]),
-            tactic: Tactic::Apply { rule_idx: 3, subproof_ids: vec![0, 2] },
+            tactic: Tactic::Apply { rule_id: 3, subproof_ids: vec![0, 2] },
         },
     ];
 

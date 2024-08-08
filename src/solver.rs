@@ -100,7 +100,7 @@ pub struct Solver {
     goal: Term,
     cur_solution: Option<Solution>, // latest solution found
 
-    cur_rule_idx: RuleId,
+    cur_rule_id: RuleId,
     unifier: Option<Subst>, // unifier for the current rule
     subgoals: Vec<Term>, // subgoals after applied the current rule
     subgoal_solvers: Vec<Solver>,
@@ -112,7 +112,7 @@ impl Solver {
             goal: goal,
             cur_solution: None,
 
-            cur_rule_idx: 0,
+            cur_rule_id: 0,
             unifier: None,
             subgoals: vec![],
             subgoal_solvers: vec![],
@@ -121,13 +121,13 @@ impl Solver {
 
     #[verifier::external_body]
     pub fn next(&mut self, program: &Program) -> Result<Option<Solution>, String> {
-        'outer: while self.cur_rule_idx < program.rules.len() {
+        'outer: while self.cur_rule_id < program.rules.len() {
             // Get the current unifier
             let unifier = match &self.unifier {
                 Some(unifier) => unifier,
                 None => {
                     // Haven't applied the current rule yet
-                    let rule = &program.rules[self.cur_rule_idx];
+                    let rule = &program.rules[self.cur_rule_id];
 
                     // TODO: rename variables
 
@@ -143,7 +143,7 @@ impl Solver {
                     } else {
                         // The current rule doesn't apply
                         // Try the next one
-                        self.cur_rule_idx += 1;
+                        self.cur_rule_id += 1;
                         continue;
                     }
                 }
@@ -187,7 +187,7 @@ impl Solver {
                     self.subgoal_solvers.pop();
                     if cur_subgoal_idx == 0 {
                         // Exhausted even the first subgoal, try next rule
-                        self.cur_rule_idx += 1;
+                        self.cur_rule_id += 1;
                         self.unifier = None;
                         continue 'outer;
                     } else {
@@ -210,7 +210,7 @@ impl Solver {
                 subproofs.push(&cur_solution.proof);
             }
 
-            if let Some(thm) = Theorem::apply_rule(program, self.cur_rule_idx, &solution_subst, subproofs) {
+            if let Some(thm) = Theorem::apply_rule(program, self.cur_rule_id, &solution_subst, subproofs) {
                 let solution = Solution {
                     subst: solution_subst,
                     proof: thm,
@@ -218,7 +218,7 @@ impl Solver {
 
                 if self.subgoals.len() == 0 {
                     // If this is a fact, then no more solutions are possible
-                    self.cur_rule_idx += 1;
+                    self.cur_rule_id += 1;
                     self.unifier = None;
                 }
 

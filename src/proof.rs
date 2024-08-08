@@ -42,7 +42,7 @@ pub struct SpecTheorem {
 
 pub enum SpecProof {
     // Apply an instance of an existing rule
-    ApplyRule { rule_idx: SpecRuleId, subst: SpecSubst, subproofs: Seq<SpecTheorem> },
+    ApplyRule { rule_id: SpecRuleId, subst: SpecSubst, subproofs: Seq<SpecTheorem> },
     
     // Proves t = t
     Refl,
@@ -152,13 +152,13 @@ impl SpecTheorem {
         decreases self
     {
         match self.proof {
-            SpecProof::ApplyRule { rule_idx, subst, subproofs } => {
-                &&& 0 <= rule_idx < program.rules.len()
+            SpecProof::ApplyRule { rule_id, subst, subproofs } => {
+                &&& 0 <= rule_id < program.rules.len()
 
                 // Subproofs correspond to each term in the body of the rule
-                &&& subproofs.len() == program.rules[rule_idx].body.len()
+                &&& subproofs.len() == program.rules[rule_id].body.len()
                 &&& forall |i| 0 <= i < subproofs.len() ==>
-                    #[trigger] program.rules[rule_idx].body[i].subst(subst) == (#[trigger] subproofs[i]).stmt
+                    #[trigger] program.rules[rule_id].body[i].subst(subst) == (#[trigger] subproofs[i]).stmt
 
                 // All subproofs are well-formed
                 &&& forall |i| 0 <= i < subproofs.len() ==> (#[trigger] subproofs[i]).wf(program)

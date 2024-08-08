@@ -208,15 +208,15 @@ impl Theorem {
     }
 
     /// Build on subproofs via the axiom SpecProof::ApplyRule
-    pub fn apply_rule(program: &Program, rule_idx: RuleId, subst: &Subst, subproofs: Vec<&Theorem>) -> (res: Option<Theorem>)
+    pub fn apply_rule(program: &Program, rule_id: RuleId, subst: &Subst, subproofs: Vec<&Theorem>) -> (res: Option<Theorem>)
         requires
-            0 <= rule_idx < program.rules.len() &&
+            0 <= rule_id < program.rules.len() &&
             forall |i| 0 <= i < subproofs.len() ==> (#[trigger] subproofs[i]).wf(program@)
 
         ensures
             res matches Some(thm) ==> thm.wf(program@)
     {
-        let rule = &program.rules[rule_idx];
+        let rule = &program.rules[rule_id];
         let conclusion = TermX::subst(&rule.head, subst);
 
         if rule.body.len() != subproofs.len() {
@@ -240,7 +240,7 @@ impl Theorem {
         Some(Theorem {
             stmt: conclusion,
             proof: Ghost(SpecProof::ApplyRule {
-                rule_idx: rule_idx as int,
+                rule_id: rule_id as int,
                 subst: subst@,
                 subproofs: subproofs.deep_view(),
             }),
