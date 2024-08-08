@@ -10,6 +10,12 @@ target/debug/vpl: cargo src/*.rs
 cargo: Cargo.toml
 	cargo build --package=peg --package=clap --package=thiserror
 
+.PHONY: test
+test:
+	for test in tests/*.pl; do \
+        target/debug/vpl $$test go || exit 1; \
+    done
+
 .PHONY: clean
 clean:
 	cargo clean

@@ -43,6 +43,17 @@ prove(maplist(Fn, List, Results), Id) :-
     log_proof(Id, maplist(Fn, List, Results)),
     writeln("maplist").
 
+% Special case for forall(member(...), ...)
+prove(forall(member(X, L), Goal), Id) :-
+    !,
+    % First prove the forall goal
+    forall(member(X, L), Goal),
+    % If successful, rerun all goals to gather proofs
+    findall(Id, (member(X, L), prove(Goal, Id)), Ids),
+    gen_id(Id),
+    log_proof(Id, forall(member(X, L), Goal)),
+    write("forall-member("), write(Ids), writeln(")").
+
 % Builtin predicates
 prove(Goal, Id) :-
     % predicate_property(Goal, P),

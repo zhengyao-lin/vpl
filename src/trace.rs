@@ -138,7 +138,15 @@ impl TraceValidator {
             )
     {
         match &event.tactic {
-            Tactic::BuiltIn => Err(TraceError(event.id, "not implemented".to_string())),
+            Tactic::BuiltIn => {
+                match rc_as_ref(&event.term) {
+                    TermX::App(f, args) => {
+                        // f == FnName::User(FN_NAME_EQ, 2)
+                        Err(TraceError(event.id, "unsupported built-in".to_string()))
+                    }
+                    _ => Err(TraceError(event.id, "unsupported built-in".to_string())),
+                }
+            }
 
             Tactic::Apply { rule_id, subproof_ids } => {
                 if *rule_id >= program.rules.len() {

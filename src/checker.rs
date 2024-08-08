@@ -25,9 +25,6 @@ pub type LiteralString = Rc<str>;
 pub enum FnName {
     // User-defined symbol: (name, arity)
     User(UserFnName, Arity),
-    Eq,
-    Not,
-    Forall,
     Nil,
     Cons,
 }
@@ -80,9 +77,6 @@ impl FnName {
         match (self, other) {
             (FnName::User(name1, arity1), FnName::User(name2, arity2)) =>
                 rc_str_eq(name1, name2) && arity1 == arity2,
-            (FnName::Eq, FnName::Eq) => true,
-            (FnName::Not, FnName::Not) => true,
-            (FnName::Forall, FnName::Forall) => true,
             (FnName::Nil, FnName::Nil) => true,
             (FnName::Cons, FnName::Cons) => true,
             _ => false,
@@ -96,9 +90,6 @@ impl Clone for FnName {
     {
         match self {
             FnName::User(name, arity) => FnName::User(name.clone(), *arity),
-            FnName::Eq => FnName::Eq,
-            FnName::Not => FnName::Not,
-            FnName::Forall => FnName::Forall,
             FnName::Nil => FnName::Nil,
             FnName::Cons => FnName::Cons,
         }
@@ -290,7 +281,7 @@ impl Theorem {
         }
 
         Some(Theorem {
-            stmt: Rc::new(TermX::App(FnName::Eq, vec![left.clone(), right.clone()])),
+            stmt: Rc::new(TermX::App(FnName::user(FN_NAME_EQ, 2), vec![left.clone(), right.clone()])),
             proof: Ghost(SpecProof::Refl),
         })
     }

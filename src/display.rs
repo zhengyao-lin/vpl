@@ -5,13 +5,18 @@ use crate::checker::*;
 impl fmt::Display for FnName {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            FnName::User(name, _) => write!(f, "{}", name),
-            FnName::Eq => write!(f, "="),
-            FnName::Not => write!(f, "\\+"),
-            FnName::Forall => write!(f, "forall"),
+            FnName::User(name, _) => {
+                if name.chars().all(|c| c.is_alphanumeric() || c == '_') {
+                    write!(f, "{}", name)
+                } else {
+                    // TODO: escape string
+                    write!(f, "'{}'", name)
+                }
+            },
 
-            // TODO: better way to print these?
-            FnName::Nil => write!(f, "'[]'"),
+            // According to https://www.swi-prolog.org/pldoc/man?section=ext-lists
+            // [] /= '[]', but functor([1, 2], '[|]', _) is true.
+            FnName::Nil => write!(f, "[]"),
             FnName::Cons => write!(f, "'[|]'"),
         }
     }

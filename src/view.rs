@@ -12,9 +12,6 @@ impl View for FnName {
     open spec fn view(&self) -> Self::V {
         match self {
             FnName::User(name, arity) => SpecFnName::User(name.view(), *arity as int),
-            FnName::Eq => SpecFnName::Eq,
-            FnName::Not => SpecFnName::Not,
-            FnName::Forall => SpecFnName::Forall,
             FnName::Nil => SpecFnName::Nil,
             FnName::Cons => SpecFnName::Cons,
         }

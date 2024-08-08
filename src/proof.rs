@@ -4,6 +4,9 @@ use vstd::prelude::*;
 
 verus! {
 
+pub const FN_NAME_EQ: &'static str = "=";
+pub const FN_NAME_NOT: &'static str = "\\+";
+
 pub type SpecVar = Seq<char>;
 pub type SpecUserFnName = Seq<char>;
 pub type SpecRuleId = int;
@@ -14,9 +17,6 @@ pub type SpecStringLiteral = Seq<char>;
 pub enum SpecFnName {
     // User-defined symbol: (name, arity)
     User(SpecUserFnName, SpecArity),
-    Eq,
-    Not,
-    Forall,
 
     // List nil/0 and cons/2
     Nil,
@@ -72,24 +72,6 @@ pub enum SpecProof {
 }
 
 impl SpecTerm {
-    // /// Check for arity mismatch
-    // TODO: Do we want this?
-    // pub closed spec fn wf(self) -> bool
-    //     decreases self
-    // {
-    //     match self {
-    //         SpecTerm::Var(..) => true,
-    //         SpecTerm::App(name, args) => {
-    //             forall |i| 0 <= i < args.len() ==> (#[trigger] args[i]).wf() &&
-    //             match name {
-    //                 SpecFnName::User(_, arity) => args.len() == arity,
-    //                 SpecFnName::Eq => args.len() == 2,
-    //                 SpecFnName::Not => args.len() == 1,
-    //             }
-    //         }
-    //     }
-    // }
-
     /// Get free variables in a term
     pub closed spec fn free_vars(self) -> Set<SpecVar>
         decreases self
@@ -183,7 +165,8 @@ impl SpecTheorem {
             }
 
             SpecProof::Refl => {
-                &&& self.stmt matches SpecTerm::App(SpecFnName::Eq, args)
+                &&& self.stmt matches SpecTerm::App(f, args)
+                &&& f == SpecFnName::User(FN_NAME_EQ.view(), 2)
                 &&& args.len() == 2
                 &&& args[0] == args[1]
             }
@@ -204,7 +187,8 @@ impl SpecTheorem {
             // Proves negation for a base predicate
             SpecProof::NotBase => {
                 // self.stmt is of the form \+P(...)
-                &&& self.stmt matches SpecTerm::App(SpecFnName::Not, not_args)
+                &&& self.stmt matches SpecTerm::App(f, not_args)
+                &&& f == SpecFnName::User(FN_NAME_NOT.view(), 1)
                 &&& not_args.len() == 1
 
                 // P is a base predicate and P(...) is ground
@@ -219,7 +203,6 @@ impl SpecTheorem {
                     ==>
                     program.rules[i].head.args().len() == args.len() &&
                     program.rules[i].head.args() != args
-
             }
         }
     }

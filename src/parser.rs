@@ -9,7 +9,7 @@ use crate::trace::*;
 
 /// e.g. edge(_, _) => edge(%1, %2)
 /// when displaying, all variables starting with % is replaced with _
-const ANON_VAR_PREFIX: &'static str = "%";
+pub const ANON_VAR_PREFIX: &'static str = "%";
 
 struct ParserState {
     line: Cell<usize>,
