@@ -9,6 +9,20 @@ impl fmt::Display for FnName {
             FnName::Eq => write!(f, "="),
             FnName::Not => write!(f, "\\+"),
             FnName::Forall => write!(f, "forall"),
+
+            // TODO: better way to print these?
+            FnName::Nil => write!(f, "'[]'"),
+            FnName::Cons => write!(f, "'[|]'"),
+        }
+    }
+}
+
+impl fmt::Display for Literal {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Literal::Int(i) => write!(f, "{}", i),
+            // TODO: escapte s
+            Literal::String(s) => write!(f, "\"{}\"", s),
         }
     }
 }
@@ -17,6 +31,13 @@ impl fmt::Display for TermX {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             TermX::Var(v) => write!(f, "{}", v),
+            TermX::Literal(lit) => write!(f, "{}", lit),
+            TermX::App(FnName::Nil, args) if args.len() == 0 => {
+                write!(f, "[]")
+            }
+            TermX::App(FnName::Cons, args) if args.len() == 2 => {
+                write!(f, "[{}|{}]", args[0], args[1])
+            }
             TermX::App(name, args) => {
                 write!(f, "{}", name)?;
                 if args.len() != 0 {
@@ -68,6 +89,6 @@ impl fmt::Display for crate::parser::ParserError {
             Some(path) => write!(f, "{}", path)?,
             None => write!(f, "<unknown>")?,
         }
-        write!(f, ":{}:{}: {}", self.1.location.line, self.1.location.column, self.1.expected)
+        write!(f, ":{}:{}: expecting {}", self.1.location.line, self.1.location.column, self.1.expected)
     }
 }

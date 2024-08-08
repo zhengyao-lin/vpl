@@ -67,6 +67,11 @@ pub fn unify(t1: &Term, t2: &Term) -> Option<Subst>
                     eq_left.push(t2);
                     eq_right.push(t1);
                 }
+                (TermX::Literal(lit1), TermX::Literal(lit2)) => {
+                    if !lit1.eq(lit2) {
+                        return None;
+                    }
+                }
                 (TermX::App(f1, args1), TermX::App(f2, args2)) => {
                     if f1.eq(f2) && args1.len() == args2.len() {
                         for i in 0..args1.len()
@@ -80,7 +85,10 @@ pub fn unify(t1: &Term, t2: &Term) -> Option<Subst>
                     } else {
                         return None;
                     }
-                },
+                }
+                _ => {
+                    return None;
+                }
             }
         } else {
             break;

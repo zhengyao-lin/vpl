@@ -15,6 +15,18 @@ impl View for FnName {
             FnName::Eq => SpecFnName::Eq,
             FnName::Not => SpecFnName::Not,
             FnName::Forall => SpecFnName::Forall,
+            FnName::Nil => SpecFnName::Nil,
+            FnName::Cons => SpecFnName::Cons,
+        }
+    }
+}
+
+impl View for Literal {
+    type V = SpecLiteral;
+    open spec fn view(&self) -> Self::V {
+        match self {
+            Literal::Int(i) => SpecLiteral::Int(*i as int),
+            Literal::String(s) => SpecLiteral::String(s.view()),
         }
     }
 }
@@ -30,6 +42,7 @@ impl TermX {
     pub broadcast proof fn axiom_view(&self)
         ensures #[trigger] self.view() == match self {
             TermX::Var(v) => SpecTerm::Var(v.view()),
+            TermX::Literal(lit) => SpecTerm::Literal(lit.view()),
             TermX::App(name, args) => SpecTerm::App(name.view(), args.deep_view()),
         }
     {}

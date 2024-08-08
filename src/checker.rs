@@ -16,6 +16,11 @@ pub type UserFnName = Rc<str>;
 pub type RuleId = usize;
 pub type Arity = usize;
 
+/// TODO: right now we limit integers to 64-bit
+/// but Prolog actually supports arbitrary precision integers
+pub type LiteralInt = i64;
+pub type LiteralString = Rc<str>;
+
 #[derive(Debug)]
 pub enum FnName {
     // User-defined symbol: (name, arity)
@@ -23,12 +28,21 @@ pub enum FnName {
     Eq,
     Not,
     Forall,
+    Nil,
+    Cons,
+}
+
+#[derive(Debug)]
+pub enum Literal {
+    Int(LiteralInt),
+    String(LiteralString),
 }
 
 pub type Term = Rc<TermX>;
 #[derive(Debug)]
 pub enum TermX {
     Var(Var),
+    Literal(Literal),
     App(FnName, Vec<Term>),
 }
 
@@ -69,6 +83,8 @@ impl FnName {
             (FnName::Eq, FnName::Eq) => true,
             (FnName::Not, FnName::Not) => true,
             (FnName::Forall, FnName::Forall) => true,
+            (FnName::Nil, FnName::Nil) => true,
+            (FnName::Cons, FnName::Cons) => true,
             _ => false,
         }
     }
@@ -83,6 +99,20 @@ impl Clone for FnName {
             FnName::Eq => FnName::Eq,
             FnName::Not => FnName::Not,
             FnName::Forall => FnName::Forall,
+            FnName::Nil => FnName::Nil,
+            FnName::Cons => FnName::Cons,
+        }
+    }
+}
+
+impl Literal {
+    pub fn eq(&self, other: &Self) -> (res: bool)
+        ensures res == (self@ == other@)
+    {
+        match (self, other) {
+            (Literal::Int(i1), Literal::Int(i2)) => i1 == i2,
+            (Literal::String(s1), Literal::String(s2)) => rc_str_eq(s1, s2),
+            _ => false,
         }
     }
 }
@@ -133,6 +163,8 @@ impl TermX {
                     term.clone()
                 },
 
+            TermX::Literal(..) => term.clone(),
+
             TermX::App(name, args) => {
                 // Apply substitution to each argument
                 let subst_args = vec_map(args, |arg| -> (res: Term)
@@ -152,6 +184,7 @@ impl TermX {
     {
         match (self, other) {
             (TermX::Var(v1), TermX::Var(v2)) => rc_str_eq(v1, v2),
+            (TermX::Literal(l1), TermX::Literal(l2)) => l1.eq(l2),
             (TermX::App(f1, args1), TermX::App(f2, args2)) => {
                 if !f1.eq(f2) {
                     return false;

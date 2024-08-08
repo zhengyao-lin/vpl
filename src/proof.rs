@@ -8,6 +8,8 @@ pub type SpecVar = Seq<char>;
 pub type SpecUserFnName = Seq<char>;
 pub type SpecRuleId = int;
 pub type SpecArity = int;
+pub type SpecIntLiteral = int;
+pub type SpecStringLiteral = Seq<char>;
 
 pub enum SpecFnName {
     // User-defined symbol: (name, arity)
@@ -15,10 +17,20 @@ pub enum SpecFnName {
     Eq,
     Not,
     Forall,
+
+    // List nil/0 and cons/2
+    Nil,
+    Cons,
+}
+
+pub enum SpecLiteral {
+    Int(SpecIntLiteral),
+    String(SpecStringLiteral),
 }
 
 pub enum SpecTerm {
     Var(SpecVar),
+    Literal(SpecLiteral),
     App(SpecFnName, Seq<SpecTerm>),
 }
 
@@ -84,6 +96,7 @@ impl SpecTerm {
     {
         match self {
             SpecTerm::Var(v) => Set::new(|u| u == v),
+            SpecTerm::Literal(..) => Set::empty(),
             SpecTerm::App(_, args) =>
                 Set::new(|v| exists |i|
                     #![trigger args[i].free_vars()]
@@ -98,6 +111,7 @@ impl SpecTerm {
     pub broadcast proof fn axiom_subst(self, subst: SpecSubst)
         ensures #[trigger] self.subst(subst) == match self {
             SpecTerm::Var(v) => if subst.contains_var(v) { subst.get(v) } else { self },
+            SpecTerm::Literal(..) => self,
             SpecTerm::App(f, args) => SpecTerm::App(f, args.map_values(|arg: SpecTerm| arg.subst(subst))),
         }
     {}

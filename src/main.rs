@@ -36,6 +36,10 @@ struct Args {
     /// Path to the meta interpreter
     #[clap(long, value_parser, num_args = 0.., value_delimiter = ' ', default_value = "prolog/meta.pl")]
     mi_path: String,
+
+    /// Enable debug mode
+    #[arg(long, default_value_t = false)]
+    debug: bool,
 }
 
 fn main_args(mut args: Args) -> Result<(), Error> {
@@ -65,7 +69,11 @@ fn main_args(mut args: Args) -> Result<(), Error> {
     // if so, parse it and send it to the validator
     for line in BufReader::new(swipl_stdout).lines() {
         let line_str = line?;
-        // println!("{}", &line_str);
+        
+        if args.debug {
+            println!("[trace] {}", &line_str);
+        }
+
         match parse_trace_event(&line_str, &line_map) {
             Ok(event) => {
                 let thm = validator.process_event(&program, &event)?;

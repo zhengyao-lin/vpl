@@ -82,6 +82,14 @@ impl TraceValidator {
                 }
             }
 
+            (TermX::Literal(l1), TermX::Literal(l2)) => {
+                if !l1.eq(l2) {
+                    Err("unmatched literals".to_string())
+                } else {
+                    Ok(())
+                }
+            }
+
             (TermX::App(f1, args1), TermX::App(f2, args2)) => {
                 if !f1.eq(f2) {
                     return Err("unmatched function symbol".to_string());
