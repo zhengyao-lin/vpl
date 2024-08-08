@@ -92,8 +92,10 @@ fn main_args(mut args: Args) -> Result<(), Error> {
             }
         }
     }
-
-    println!("swipl exited: {}", swipl.wait()?);
+    
+    if !swipl.wait()?.success() {
+        return Err(Error::Other("swipl exited with failure".to_string()));
+    }
 
     Ok(())
 }

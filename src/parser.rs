@@ -171,6 +171,8 @@ peg::parser!(grammar prolog(state: &ParserState) for str {
             { Tactic::Apply { rule_id: id, subproof_ids: vec![] } }
         / "apply" _ "(" _ subgoals:nested_nat_list() _ "," _ id:rule_id(&line_map) _ ")"
             { Tactic::Apply { rule_id: id, subproof_ids: subgoals } }
+        / "forall-member" _ "(" _ subgoals:nested_nat_list() _ ")"
+            { Tactic::ForallMember { subproof_ids: subgoals } }
         / "built-in" { Tactic::BuiltIn }
 });
 

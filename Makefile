@@ -11,7 +11,7 @@ cargo: Cargo.toml
 	cargo build --package=peg --package=clap --package=thiserror
 
 .PHONY: test
-test:
+test: target/debug/vpl tests/*.pl
 	for test in tests/*.pl; do \
         target/debug/vpl $$test go || exit 1; \
     done

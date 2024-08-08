@@ -31,6 +31,7 @@ pub struct Event {
 #[derive(Debug)]
 pub enum Tactic {
     Apply { rule_id: RuleId, subproof_ids: Vec<EventId> },
+    ForallMember { subproof_ids: Vec<EventId> },
     BuiltIn,
 }
 
@@ -40,6 +41,9 @@ pub struct TraceError(pub EventId, pub String);
 /**
  * TraceValidator dynamically reads in events and construct a Theorem for each event
  * and also stores the theorem for future rule applications
+ * 
+ * TODO: all proofs should have unique parents, so we can probably remove theorems
+ * once they are used
  */
 pub struct TraceValidator {
     pub thms: Vec<Theorem>,
@@ -139,32 +143,58 @@ impl TraceValidator {
     {
         match &event.tactic {
             Tactic::BuiltIn => {
-                match rc_as_ref(&event.term) {
-                    TermX::App(f, args) => {
-                        if f.eq(&FnName::user(FN_NAME_EQ, 2)) || f.eq(&FnName::user(FN_NAME_EQUIV, 2)) {
-                            if args.len() != 2 {
-                                return Err(TraceError(event.id, "incorrect number of arguments for equality".to_string()));
-                            }
+                if let TermX::App(f, args) = rc_as_ref(&event.term) {
+                    if f.eq(&FnName::user(FN_NAME_EQ, 2)) || f.eq(&FnName::user(FN_NAME_EQUIV, 2)) {
+                        if args.len() != 2 {
+                            return Err(TraceError(event.id, "incorrect number of arguments for equality".to_string()));
+                        }
 
-                            if let Some(thm) = if f.eq(&FnName::user(FN_NAME_EQ, 2)) {
-                                Theorem::refl_eq(program, &args[0], &args[1])
+                        // Decide between = and == and apply refl
+                        let thm_opt = if f.eq(&FnName::user(FN_NAME_EQ, 2)) {
+                            Theorem::refl_eq(program, &args[0], &args[1])
+                        } else {
+                            Theorem::refl_equiv(program, &args[0], &args[1])
+                        };
+
+                        if let Some(thm) = thm_opt {
+                            if (&thm.stmt).eq(&event.term) {
+                                self.thms.push(thm);
+                                return Ok(&self.thms[event.id]);
                             } else {
-                                Theorem::refl_equiv(program, &args[0], &args[1])
-                            } {
-                                if (&thm.stmt).eq(&event.term) {
-                                    self.thms.push(thm);
-                                    Ok(&self.thms[event.id])
-                                } else {
-                                    Err(TraceError(event.id, "incorrect matching algorithm".to_string()))
-                                }
-                            } else {
-                                Err(TraceError(event.id, "fail to proof check equality".to_string()))
+                                return Err(TraceError(event.id, "incorrect matching algorithm".to_string()));
                             }
                         } else {
-                            Err(TraceError(event.id, "unsupported built-in".to_string()))
+                            return Err(TraceError(event.id, "fail to proof check equality".to_string()));
                         }
                     }
-                    _ => Err(TraceError(event.id, "unsupported built-in".to_string())),
+                }
+
+                Err(TraceError(event.id, "unsupported built-in".to_string()))
+            }
+
+            Tactic::ForallMember { subproof_ids } => {
+                let mut subproofs: Vec<&Theorem> = vec![];
+
+                // Collect all subproofs via the ids
+                for i in 0..subproof_ids.len()
+                    invariant
+                        0 <= i <= subproof_ids.len() &&
+                        subproofs.len() == i &&
+                        self.wf(program@) &&
+                        (forall |j| 0 <= j < i ==> (#[trigger] subproofs[j]).wf(program@))
+                {
+                    let subproof_id = subproof_ids[i];
+                    if subproof_id >= self.thms.len() {
+                        return Err(TraceError(event.id, "subproof does not exist".to_string()));
+                    }
+                    subproofs.push(&self.thms[subproof_id]);
+                }
+
+                if let Some(thm) = Theorem::forall_member(program, &event.term, subproofs) {
+                    self.thms.push(thm);
+                    Ok(&self.thms[event.id])
+                } else {
+                    Err(TraceError(event.id, "failed to verify proof".to_string()))
                 }
             }
 
@@ -200,7 +230,7 @@ impl TraceValidator {
 
                         // Invariants to show that subproofs are valid
                         subproofs.len() == i &&
-                        (forall |j| 0 <= j < self.thms.len() ==> (#[trigger] self.thms[j]).wf(program@)) &&
+                        self.wf(program@) &&
                         (forall |j| 0 <= j < i ==> (#[trigger] subproofs[j]).wf(program@))
                 {
                     let subproof_id = subproof_ids[i];

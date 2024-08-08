@@ -206,6 +206,36 @@ impl TermX {
             _ => false,
         }
     }
+
+    /// Corresponds to SpecTerm::as_list
+    pub fn as_list(&self) -> (res: Option<Vec<&Term>>)
+        ensures res matches Some(list) ==> self@.as_list() =~= Some(list.deep_view())
+    {
+        match self {
+            TermX::App(FnName::Nil, args) =>
+                if args.len() == 0 {
+                    Some(vec![])
+                } else {
+                    None
+                },
+
+            TermX::App(FnName::Cons, args) =>
+                if args.len() == 2 {
+                    match (&args[1]).as_list() {
+                        Some(mut tail) => {
+                            // TODO: innefficient
+                            tail.insert(0, &args[0]);
+                            Some(tail)
+                        }
+                        None => None,
+                    }
+                } else {
+                    None
+                },
+
+            _ => None,
+        }
+    }
 }
 
 impl RuleX {
@@ -286,7 +316,7 @@ impl Theorem {
         })
     }
 
-    // Same but uses == instead of =
+    /// Same but uses == instead of =
     pub fn refl_equiv(program: &Program, left: &Term, right: &Term) -> (res: Option<Theorem>)
         ensures
             res matches Some(thm) ==> thm.wf(program@)
@@ -299,6 +329,80 @@ impl Theorem {
             stmt: Rc::new(TermX::App(FnName::user(FN_NAME_EQUIV, 2), vec![left.clone(), right.clone()])),
             proof: Ghost(SpecProof::Refl),
         })
+    }
+
+    /// Construct a proof for forall(member(loop_var, list_term), goal), see SpecProof::ForallMember for more detail
+    pub fn forall_member(program: &Program, outer_goal: &Term, subproofs: Vec<&Theorem>) -> (res: Option<Theorem>)
+        ensures
+            res matches Some(thm) ==> thm.stmt@ == outer_goal@ && thm.wf(program@)
+    {
+        // Check that outer_goal is of the form forall(member(loop_var, list_term), goal)
+        let (loop_var, list_term, goal) = match rc_as_ref(outer_goal) {
+            TermX::App(f, forall_args) => {
+                if !f.eq(&FnName::user(FN_NAME_FORALL, 2)) || forall_args.len() != 2 {
+                    return None;
+                }
+
+                // Check member(..)
+                match rc_as_ref(&forall_args[0]) {
+                    TermX::App(f2, member_args) => {
+                        if !f2.eq(&FnName::user(FN_NAME_MEMBER, 2)) || member_args.len() != 2 {
+                            return None;
+                        }
+
+                        let loop_var = match rc_as_ref(&member_args[0]) {
+                            TermX::Var(v) => v,
+                            _ => return None,
+                        };
+
+                        let list_term = &member_args[1];
+                        let goal = &forall_args[1];
+
+                        (loop_var, list_term, goal)
+                    }
+                    _ => return None,
+                }
+            }
+            _ => return None,
+        };
+
+        match list_term.as_list() {
+            None => None,
+            Some(list) => {
+                if list.len() != subproofs.len() {
+                    return None;
+                }
+
+                // For each subproof, check that the statement is exactly
+                // Goal[loop_var |-> list[i]]
+                for i in 0..list.len()
+                    invariant
+                        0 <= i <= list.len() &&
+                        list.len() == subproofs.len() &&
+
+                        (forall |j| 0 <= j < i ==> {
+                            let subst = SpecSubst(map!{ loop_var@ => list[j]@ });
+                            let subst_goal = goal@.subst(subst);
+                            (#[trigger] subproofs[j]).stmt@ == subst_goal
+                        })
+                {
+                    let mut subst = Subst::new();
+                    subst.insert(loop_var.clone(), list[i].clone());
+                    let subst_goal = TermX::subst(goal, &subst);
+
+                    if !(&subproofs[i].stmt).eq(&subst_goal) {
+                        return None;
+                    }
+                }
+
+                Some(Theorem {
+                    stmt: outer_goal.clone(),
+                    proof: Ghost(SpecProof::ForallMember {
+                        subproofs: subproofs.deep_view(),
+                    }),
+                })
+            }
+        }
     }
 }
 
