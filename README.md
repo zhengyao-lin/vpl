@@ -77,12 +77,12 @@ The rest of the tool, including SWI-Prolog, does not need to be trusted.
 
 TODO:
 
-- [-] Integers
-- [-] Strings
-- [-] Lists
+- [x] Integers
+- [x] Strings
+- [x] Lists
 - [ ] Built-in functions for integers, strings, lists
 - [ ] Disjunction `;`
-- [-] Anonymous variables
+- [x] Anonymous variables
 - [ ] Nested conjunctions and disjunctions
 - [ ] Proof rules for ground or special cases of `\+`, `forall`, `findall`
 - [ ] Modules (right now the meta-interpreter cannot find clauses in private predicates)
