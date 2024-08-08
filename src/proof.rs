@@ -5,6 +5,7 @@ use vstd::prelude::*;
 verus! {
 
 pub const FN_NAME_EQ: &'static str = "=";
+pub const FN_NAME_EQUIV: &'static str = "==";
 pub const FN_NAME_NOT: &'static str = "\\+";
 
 pub type SpecVar = Seq<char>;
@@ -166,7 +167,7 @@ impl SpecTheorem {
 
             SpecProof::Refl => {
                 &&& self.stmt matches SpecTerm::App(f, args)
-                &&& f == SpecFnName::User(FN_NAME_EQ.view(), 2)
+                &&& f == SpecFnName::User(FN_NAME_EQ.view(), 2) || f == SpecFnName::User(FN_NAME_EQUIV.view(), 2)
                 &&& args.len() == 2
                 &&& args[0] == args[1]
             }

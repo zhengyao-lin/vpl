@@ -4,6 +4,7 @@ use std::collections::HashMap;
 
 use peg;
 
+use crate::proof::*;
 use crate::checker::*;
 use crate::trace::*;
 
@@ -107,6 +108,11 @@ peg::parser!(grammar prolog(state: &ParserState) for str {
 
     /// Prolog terms
     pub rule term() -> (Term, usize)
+        = t1:atom_term() _ "=" _ t2:term() { (Rc::new(TermX::App(FnName::user(FN_NAME_EQ, 2), vec![t1.0, t2.0])), t1.1) }
+        / t1:atom_term() _ "==" _ t2:term() { (Rc::new(TermX::App(FnName::user(FN_NAME_EQUIV, 2), vec![t1.0, t2.0])), t1.1) }
+        / atom_term()
+    
+    pub rule atom_term() -> (Term, usize)
         = var:var() { (TermX::var_str(var.0), var.1) }
         
         // There is a special case of the anonymous variable "_"

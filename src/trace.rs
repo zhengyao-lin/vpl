@@ -141,8 +141,28 @@ impl TraceValidator {
             Tactic::BuiltIn => {
                 match rc_as_ref(&event.term) {
                     TermX::App(f, args) => {
-                        // f == FnName::User(FN_NAME_EQ, 2)
-                        Err(TraceError(event.id, "unsupported built-in".to_string()))
+                        if f.eq(&FnName::user(FN_NAME_EQ, 2)) || f.eq(&FnName::user(FN_NAME_EQUIV, 2)) {
+                            if args.len() != 2 {
+                                return Err(TraceError(event.id, "incorrect number of arguments for equality".to_string()));
+                            }
+
+                            if let Some(thm) = if f.eq(&FnName::user(FN_NAME_EQ, 2)) {
+                                Theorem::refl_eq(program, &args[0], &args[1])
+                            } else {
+                                Theorem::refl_equiv(program, &args[0], &args[1])
+                            } {
+                                if (&thm.stmt).eq(&event.term) {
+                                    self.thms.push(thm);
+                                    Ok(&self.thms[event.id])
+                                } else {
+                                    Err(TraceError(event.id, "incorrect matching algorithm".to_string()))
+                                }
+                            } else {
+                                Err(TraceError(event.id, "fail to proof check equality".to_string()))
+                            }
+                        } else {
+                            Err(TraceError(event.id, "unsupported built-in".to_string()))
+                        }
                     }
                     _ => Err(TraceError(event.id, "unsupported built-in".to_string())),
                 }

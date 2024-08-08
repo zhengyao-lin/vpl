@@ -272,7 +272,7 @@ impl Theorem {
     }
 
     /// Check that two terms are equal and apply axiom SpecProof::Refl
-    pub fn refl(program: &Program, left: &Term, right: &Term) -> (res: Option<Theorem>)
+    pub fn refl_eq(program: &Program, left: &Term, right: &Term) -> (res: Option<Theorem>)
         ensures
             res matches Some(thm) ==> thm.wf(program@)
     {
@@ -282,6 +282,21 @@ impl Theorem {
 
         Some(Theorem {
             stmt: Rc::new(TermX::App(FnName::user(FN_NAME_EQ, 2), vec![left.clone(), right.clone()])),
+            proof: Ghost(SpecProof::Refl),
+        })
+    }
+
+    // Same but uses == instead of =
+    pub fn refl_equiv(program: &Program, left: &Term, right: &Term) -> (res: Option<Theorem>)
+        ensures
+            res matches Some(thm) ==> thm.wf(program@)
+    {
+        if !left.eq(right) {
+            return None;
+        }
+
+        Some(Theorem {
+            stmt: Rc::new(TermX::App(FnName::user(FN_NAME_EQUIV, 2), vec![left.clone(), right.clone()])),
             proof: Ghost(SpecProof::Refl),
         })
     }

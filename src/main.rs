@@ -47,9 +47,12 @@ fn main_args(mut args: Args) -> Result<(), Error> {
     let source = fs::read_to_string(&args.source)?;
     let (program, line_map) = parse_program(source, &args.source)?;
 
-    // for rule in &program.rules {
-    //     println!("{}", rule);
-    // }
+    if args.debug {
+        println!("[debug] parsed program:");
+        for rule in &program.rules {
+            println!("[debug]   {}", rule);
+        }
+    }
 
     // Run the main goal in swipl with the meta interpreter
     let mut swipl = Command::new(args.swipl_bin)
@@ -64,6 +67,11 @@ fn main_args(mut args: Args) -> Result<(), Error> {
         .ok_or(Error::Other("failed to open swipl stdout".to_string()))?;
 
     let mut validator = TraceValidator::new(&program);
+
+    if args.debug {
+        println!("[debug] ==============================================================");
+        println!("[debug] started parsing trace");
+    }
 
     // For each line, check if it is a trace event;
     // if so, parse it and send it to the validator
@@ -84,11 +92,6 @@ fn main_args(mut args: Args) -> Result<(), Error> {
             }
         }
     }
-
-    // match validator.thms.last() {
-    //     Some(thm) => println!("validated: {}", thm.stmt),
-    //     None => println!("no proof constructed"),
-    // }
 
     println!("swipl exited: {}", swipl.wait()?);
 
