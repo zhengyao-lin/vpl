@@ -301,6 +301,39 @@ impl Theorem {
         })
     }
 
+    /// Introduce (a, b) given proofs of both a and b
+    pub fn and_intro(program: &Program, left: &Theorem, right: &Theorem) -> (res: Theorem)
+        requires left.wf(program@) && right.wf(program@)
+        ensures res.wf(program@)
+    {
+        Theorem {
+            stmt: TermX::app(&FnName::user(FN_NAME_AND, 2), vec![left.stmt.clone(), right.stmt.clone()]),
+            proof: Ghost(SpecProof::AndIntro(Box::new(left@), Box::new(right@))),
+        }
+    }
+
+    /// Introduce (a; b) given a proof a
+    pub fn or_intro_left(program: &Program, subproof: &Theorem, right: &Term) -> (res: Theorem)
+        requires subproof.wf(program@)
+        ensures res.wf(program@)
+    {
+        Theorem {
+            stmt: TermX::app(&FnName::user(FN_NAME_OR, 2), vec![subproof.stmt.clone(), right.clone()]),
+            proof: Ghost(SpecProof::OrIntroLeft(Box::new(subproof@))),
+        }
+    }
+
+    /// Introduce (a; b) given a proof b
+    pub fn or_intro_right(program: &Program, left: &Term, subproof: &Theorem) -> (res: Theorem)
+        requires subproof.wf(program@)
+        ensures res.wf(program@)
+    {
+        Theorem {
+            stmt: TermX::app(&FnName::user(FN_NAME_OR, 2), vec![left.clone(), subproof.stmt.clone()]),
+            proof: Ghost(SpecProof::OrIntroRight(Box::new(subproof@))),
+        }
+    }
+
     /// Check that two terms are equal and apply axiom SpecProof::Refl
     pub fn refl_eq(program: &Program, left: &Term, right: &Term) -> (res: Option<Theorem>)
         ensures

@@ -89,7 +89,7 @@ peg::parser!(grammar prolog(state: &ParserState) for str {
     /// Prolog lists, e.g., [], [a,b|[]], [a,b,c]
     rule list() -> (Term, usize)
         = brak_line:list_left_bracket() _ "]" { (Rc::new(TermX::App(FnName::Nil, vec![])), brak_line) }
-        / brak_line:list_left_bracket() _ elems:comma_sep_plus(<term()>) _ "]"
+        / brak_line:list_left_bracket() _ elems:comma_sep_plus(<small_term()>) _ "]"
             {
                 let mut list = Rc::new(TermX::App(FnName::Nil, vec![]));
                 for elem in elems.into_iter().rev() {
@@ -97,7 +97,7 @@ peg::parser!(grammar prolog(state: &ParserState) for str {
                 }
                 (list, brak_line)
             }
-        / brak_line:list_left_bracket() _ heads:comma_sep_plus(<term()>) _ "|" _ tail:term() _ "]"
+        / brak_line:list_left_bracket() _ heads:comma_sep_plus(<small_term()>) _ "|" _ tail:small_term() _ "]"
             {
                 let mut list = tail.0;
                 for head in heads.into_iter().rev() {
@@ -112,10 +112,27 @@ peg::parser!(grammar prolog(state: &ParserState) for str {
     /// 
     /// See https://docs.rs/peg/latest/peg/ for precedence!
     pub rule term() -> (Term, usize) = precedence! {
+        t1:@ _ ";" _ t2:(@) { (Rc::new(TermX::App(FnName::user(FN_NAME_OR, 2), vec![t1.0, t2.0])), t1.1) }
+        --
+        t1:@ _ "," _ t2:(@) { (Rc::new(TermX::App(FnName::user(FN_NAME_AND, 2), vec![t1.0, t2.0])), t1.1) }
+        --
+        t:small_term() { t }
+    }
+
+    /// Terms without comma or disjunction
+    /// This is to avoid [a, b, c] being parsed as a singleton list of conjunction (a, b, c)
+    /// 
+    /// TODO: Prolog syntax is weird.
+    /// For example, disjunction (;/2) has lower precedence than conjunction (,/2).
+    /// However, we have
+    /// - Illegal: [a|b,c]
+    /// - Legal: [a|(b;c)]
+    /// - Legal: [a|(b,c)]
+    pub rule small_term() -> (Term, usize) = precedence! {
         t1:@ _ "=" _ t2:(@) { (Rc::new(TermX::App(FnName::user(FN_NAME_EQ, 2), vec![t1.0, t2.0])), t1.1) }
         t1:@ _ "==" _ t2:(@) { (Rc::new(TermX::App(FnName::user(FN_NAME_EQUIV, 2), vec![t1.0, t2.0])), t1.1) }
         --
-        t1:@ _ "/" _ t2:(@) { (Rc::new(TermX::App(FnName::user(FN_NAME_PRED_IND, 2), vec![t1.0, t2.0])), t1.1) }
+        t1:(@) _ "/" _ t2:@ { (Rc::new(TermX::App(FnName::user(FN_NAME_PRED_IND, 2), vec![t1.0, t2.0])), t1.1) }
         --
 
         // Same as ( t ) but we need to get the line number
@@ -135,7 +152,7 @@ peg::parser!(grammar prolog(state: &ParserState) for str {
         s:string() { (Rc::new(TermX::Literal(Literal::String(s.into()))), state.line()) }
 
         // Application (including atoms and lists)
-        name:ident() _ "(" _ args:comma_sep(<term()>) _ ")" {
+        name:ident() _ "(" _ args:comma_sep(<small_term()>) _ ")" {
             (Rc::new(TermX::App(
                 FnName::user(name.0, args.len()),
                 args.iter().map(|(arg, _)| arg.clone()).collect(),
@@ -150,17 +167,30 @@ peg::parser!(grammar prolog(state: &ParserState) for str {
         = "(" { state.line() }
 
     pub rule clause() -> (Rule, usize)
-        = head:term() _ ":-" _ body:comma_sep(<term()>) _ "."
-            { (RuleX::new(head.0, body.iter().map(|(arg, _)| arg.clone()).collect()), head.1) }
-        / head:term() _ "."
+        = head:term() _ "."
             { (RuleX::new(head.0, vec![]), head.1) }
-        
+
+        // Conjunction as a binary operator
+        / head:term() _ ":-" _ body:term() _ "."
+            { (RuleX::new(head.0, vec![body.0]), head.1) }
+
         // Headless clauses are converted into `true :- ... .`
-        / ":-" _ body:comma_sep(<term()>) _ "."
+        / ":-" _ body:term() _ "."
             {
                 let head = Rc::new(TermX::App(FnName::user(FN_NAME_TRUE, 0), vec![]));
-                (RuleX::new(head, body.iter().map(|(arg, _)| arg.clone()).collect()), state.line())
+                (RuleX::new(head, vec![body.0]), state.line())
             }
+
+        // Conjunction as native rule structure
+        // / head:term() _ ":-" _ body:comma_sep(<term()>) _ "."
+        //     { (RuleX::new(head.0, body.iter().map(|(arg, _)| arg.clone()).collect()), head.1) }
+        
+        // // Headless clauses are converted into `true :- ... .`
+        // / ":-" _ body:comma_sep(<term()>) _ "."
+        //     {
+        //         let head = Rc::new(TermX::App(FnName::user(FN_NAME_TRUE, 0), vec![]));
+        //         (RuleX::new(head, body.iter().map(|(arg, _)| arg.clone()).collect()), state.line())
+        //     }
 
     /// Returns a program and a map from line number to rule id
     pub rule program() -> (Program, HashMap<usize, RuleId>)
@@ -191,6 +221,12 @@ peg::parser!(grammar prolog(state: &ParserState) for str {
             { Tactic::Apply { rule_id: id, subproof_ids: vec![] } }
         / "apply" _ "(" _ subgoals:nested_nat_list() _ "," _ id:rule_id(&line_map) _ ")"
             { Tactic::Apply { rule_id: id, subproof_ids: subgoals } }
+        / "and" _ "(" _ left:nat() _ "," _ right:nat() _ ")"
+            { Tactic::AndIntro(left, right) }
+        / "or-left" _ "(" _ left:nat() _ ")"
+            { Tactic::OrIntroLeft(left) }
+        / "or-right" _ "(" _ right:nat() _ ")"
+            { Tactic::OrIntroRight(right) }
         / "forall-member" _ "(" _ subgoals:nested_nat_list() _ ")"
             { Tactic::ForallMember { subproof_ids: subgoals } }
         / "built-in" { Tactic::BuiltIn }

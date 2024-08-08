@@ -11,7 +11,8 @@ gen_id(Id) :-
 % Log a proof step
 log_proof(Id, Goal) :-
     write(Id), write(". "),
-    writeq(Goal),
+    % TODO: ignore_ops(true) will produce things like ==(...)
+    write_term(Goal, [quoted(true), numbervars(true)]),
     write(" by ").
 
 % Helper function for prove(maplist(...), ...)
@@ -24,16 +25,16 @@ prove_map(Fn, X, Y) :-
 % the proof that Goal is true is associated with node Id
 prove(true, fact) :- !.
 
-prove((A, B), [Id1, Id2]) :- !,
+prove((A, B), Id) :- !,
     prove(A, Id1),
-    prove(B, Id2).
-    % gen_id(Id),
-    % log_proof(Id, (A, B)),
-    % write("and("), write(Id1), write(", "), write(Id2), writeln(")").
+    prove(B, Id2),
+    gen_id(Id),
+    log_proof(Id, (A, B)),
+    write("and("), write(Id1), write(", "), write(Id2), writeln(")").
 
 prove((A; B), Id) :- !,
-    (prove(A, Id1), gen_id(Id), log_proof(Id, (A;B)), write("or_left("), write(Id1), writeln(")");
-     prove(B, Id2), gen_id(Id), log_proof(Id, (A;B)), write("or_right("), write(Id2), writeln(")")).
+    (prove(A, Id1), gen_id(Id), log_proof(Id, (A;B)), write("or-left("), write(Id1), writeln(")");
+     prove(B, Id2), gen_id(Id), log_proof(Id, (A;B)), write("or-right("), write(Id2), writeln(")")).
 
 % Special case for maplist
 prove(maplist(Fn, List, Results), Id) :-
@@ -60,7 +61,7 @@ prove(Goal, Id) :-
     % write(Goal), write(", "), writeln(P),
     (
         predicate_property(Goal, built_in);
-
+        
         % TODO: rule out all libraries in https://www.swi-prolog.org/pldoc/man?section=libpl
         predicate_property(Goal, imported_from(lists));
         predicate_property(Goal, imported_from(strings));

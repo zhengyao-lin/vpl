@@ -5,6 +5,8 @@ use vstd::prelude::*;
 verus! {
 
 pub const FN_NAME_TRUE: &'static str = "true";
+pub const FN_NAME_AND: &'static str = ",";
+pub const FN_NAME_OR: &'static str = ";";
 pub const FN_NAME_EQ: &'static str = "=";
 pub const FN_NAME_EQUIV: &'static str = "==";
 pub const FN_NAME_NOT: &'static str = "\\+";
@@ -61,6 +63,13 @@ pub enum SpecProof {
     // Apply an instance of an existing rule
     ApplyRule { rule_id: SpecRuleId, subst: SpecSubst, subproofs: Seq<SpecTheorem> },
     
+    // Show a, b if we have proven a and b separately
+    AndIntro(Box<SpecTheorem>, Box<SpecTheorem>),
+
+    // Show a; b if we have proven a or b
+    OrIntroLeft(Box<SpecTheorem>),
+    OrIntroRight(Box<SpecTheorem>),
+
     // Proves t = t
     Refl,
 
@@ -198,6 +207,28 @@ impl SpecTheorem {
                 // NOTE: we do not require subst to cover all free variables in the rule
                 // because we need to allow proofs for terms such as forall(p(x), q(x)),
                 // in which x can remain as a variable.
+            }
+
+            SpecProof::AndIntro(left, right) => {
+                &&& self.stmt matches SpecTerm::App(f, args)
+                &&& f == SpecFnName::User(FN_NAME_AND.view(), 2)
+                &&& args.len() == 2
+                &&& left.stmt == args[0]
+                &&& right.stmt == args[1]
+            }
+
+            SpecProof::OrIntroLeft(subproof) => {
+                &&& self.stmt matches SpecTerm::App(f, args)
+                &&& f == SpecFnName::User(FN_NAME_OR.view(), 2)
+                &&& args.len() == 2
+                &&& subproof.stmt == args[0]
+            }
+
+            SpecProof::OrIntroRight(subproof) => {
+                &&& self.stmt matches SpecTerm::App(f, args)
+                &&& f == SpecFnName::User(FN_NAME_OR.view(), 2)
+                &&& args.len() == 2
+                &&& subproof.stmt == args[1]
             }
 
             SpecProof::Refl => {

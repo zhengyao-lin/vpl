@@ -1,5 +1,6 @@
 use std::fmt;
 
+use crate::proof::*;
 use crate::checker::*;
 
 impl fmt::Display for FnName {
@@ -42,6 +43,12 @@ impl fmt::Display for TermX {
             }
             TermX::App(FnName::Cons, args) if args.len() == 2 => {
                 write!(f, "[{}|{}]", args[0], args[1])
+            }
+            TermX::App(name, args) if name.eq(&FnName::user(FN_NAME_OR, 2)) && args.len() == 2 => {
+                write!(f, "({}; {})", args[0], args[1])
+            }
+            TermX::App(name, args) if name.eq(&FnName::user(FN_NAME_AND, 2)) && args.len() == 2 => {
+                write!(f, "({}, {})", args[0], args[1])
             }
             TermX::App(name, args) => {
                 write!(f, "{}", name)?;

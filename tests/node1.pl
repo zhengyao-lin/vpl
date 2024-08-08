@@ -9,4 +9,4 @@ is_end_node(C) :-
 go :-
     start(A),
     node(A),
-    is_end_node(B).
+    is_end_node(_).
