@@ -108,9 +108,7 @@ impl TraceValidator {
 
                 // Match each subterm
                 for i in 0..args1.len()
-                    invariant
-                        0 <= i <= args1.len() &&
-                        args1.len() == args2.len()
+                    invariant args1.len() == args2.len()
                 {
                     TraceValidator::match_terms(subst, &args1[i], &args2[i])?;
                 }
@@ -173,7 +171,6 @@ impl TraceValidator {
                 // Match each rule body against existing subproof
                 for i in 0..subproof_ids.len()
                     invariant
-                        0 <= i <= subproof_ids.len() &&
                         subproof_ids.len() == rule.body.len() &&
 
                         // Invariants to show that subproofs are valid
@@ -283,7 +280,6 @@ impl TraceValidator {
                 // Collect all subproofs via the ids
                 for i in 0..subproof_ids.len()
                     invariant
-                        0 <= i <= subproof_ids.len() &&
                         subproofs.len() == i &&
                         self.wf(program@) &&
                         (forall |j| 0 <= j < i ==> (#[trigger] subproofs[j]).wf(program@))

@@ -15,20 +15,6 @@ pub const FN_NAME_MEMBER: &'static str = "member";
 pub const FN_NAME_LENGTH: &'static str = "length";
 pub const FN_NAME_PRED_IND: &'static str = "/"; // e.g. functor/3
 
-/// TODO: find a better way to do this
-pub broadcast proof fn fn_name_distinct()
-    ensures ({
-        &&& FN_NAME_EQUIV.view() !~= FN_NAME_EQ.view()
-        &&& FN_NAME_EQUIV.view() !~= FN_NAME_LENGTH.view()
-        &&& FN_NAME_LENGTH.view() !~= FN_NAME_EQ.view()
-    })
-{
-    reveal_strlit("member");
-    reveal_strlit("length");
-    reveal_strlit("=");
-    reveal_strlit("==");
-}
-
 pub type SpecVar = Seq<char>;
 pub type SpecUserFnName = Seq<char>;
 pub type SpecRuleId = int;
@@ -90,9 +76,6 @@ pub enum SpecProof {
     // where X has to be a variable
     // and L has to be a concrete list
     ForallMember(Seq<SpecTheorem>),
-
-    // // Proves t = t
-    // Refl,
 
     /// Domain function evaluation for integers, strings, and lists
     Domain,
@@ -271,6 +254,7 @@ impl SpecTheorem {
                     ==> (#[trigger] subproofs[i]).stmt == forall_args[1].subst(SpecSubst(map!{ loop_var => list[i] }))
             }
 
+            // Specifications for the built-in functions
             SpecProof::Domain => {
                 // self.stmt is of the form f(...) where f is a domain function
                 &&& self.stmt matches SpecTerm::App(SpecFnName::User(name, arity), args)
@@ -281,13 +265,17 @@ impl SpecTheorem {
                         &&& arity == 2
                         &&& args[0] == args[1]
                     }
-
                     ||| {
                         &&& name == FN_NAME_LENGTH.view()
                         &&& arity == 2
                         &&& args[0].as_list() matches Some(list)
                         &&& args[1] matches SpecTerm::Literal(SpecLiteral::Int(len))
                         &&& list.len() == len
+                    }
+                    ||| {
+                        &&& name == FN_NAME_MEMBER.view()
+                        &&& arity == 2
+                        &&& true
                     }
                 }
             }

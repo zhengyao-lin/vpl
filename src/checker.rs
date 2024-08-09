@@ -9,7 +9,7 @@ use crate::polyfill::*;
 
 verus! {
 
-broadcast use TermX::axiom_view, SpecTerm::axiom_subst, fn_name_distinct;
+broadcast use TermX::axiom_view, SpecTerm::axiom_subst;
 
 pub type Var = Rc<str>;
 pub type UserFnName = Rc<str>;
@@ -188,7 +188,6 @@ impl TermX {
 
                 for i in 0..args1.len()
                     invariant
-                        0 <= i <= args1.len() &&
                         args1.len() == args2.len() &&
                         args1.deep_view() =~= self@->App_1 &&
                         args2.deep_view() =~= other@->App_1 &&
@@ -236,6 +235,21 @@ impl TermX {
             _ => None,
         }
     }
+
+    /// Check if `self` occurs in the list of terms
+    pub fn is_member(&self, list: &Vec<&Term>) -> (res: bool)
+        ensures res == list.deep_view().contains(self@)
+    {
+        for i in 0..list.len()
+            invariant forall |j| 0 <= j < i ==> self@ != #[trigger] list.deep_view()[j]
+        {
+            if self.eq(list[i]) {
+                assert(list.deep_view()[i as int] == self@);
+                return true;
+            }
+        }
+        return false;
+    }
 }
 
 impl RuleX {
@@ -280,7 +294,6 @@ impl Theorem {
         // Check that each subproof matches the corresponding body term (after substitution)
         for i in 0..rule.body.len()
             invariant
-                0 <= i <= rule.body.len() &&
                 rule.body.len() == subproofs.len() &&
                 forall |j| 0 <= j < i ==> (#[trigger] rule.body[j])@.subst(subst@) == subproofs[j].stmt@
         {
@@ -380,7 +393,6 @@ impl Theorem {
                 // Goal[loop_var |-> list[i]]
                 for i in 0..list.len()
                     invariant
-                        0 <= i <= list.len() &&
                         list.len() == subproofs.len() &&
 
                         (forall |j| 0 <= j < i ==> {
@@ -453,14 +465,18 @@ impl Theorem {
                     }
                 } else if rc_str_eq_str(name, FN_NAME_LENGTH) && *arity == 2 {
                     // length(L, N) iff length of L is N
-                    match ((&args[0]).as_list(), rc_as_ref(&args[1])) {
-                        (Some(list), TermX::Literal(Literal::Int(i))) => {
-                            // TODO: better way to check overflow
-                            if *i >= 0 && *i <= u32::MAX as i64 && list.len() == *i as usize {
-                                return Some(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::Domain) });
-                            }
+                    if let (Some(list), TermX::Literal(Literal::Int(i))) = ((&args[0]).as_list(), rc_as_ref(&args[1])) {
+                        // TODO: better way to check overflow
+                        if *i >= 0 && *i <= u32::MAX as i64 && list.len() == *i as usize {
+                            return Some(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::Domain) });
                         }
-                        _ => {}
+                    }
+                } else if rc_str_eq_str(name, FN_NAME_MEMBER) && *arity == 2 {
+                    // member(X, L) iff X is in L
+                    if let Some(list) = (&args[1]).as_list() {
+                        if (&args[0]).is_member(&list) {
+                            return Some(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::Domain) });
+                        }
                     }
                 }
             }
