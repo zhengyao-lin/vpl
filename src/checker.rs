@@ -250,6 +250,40 @@ impl TermX {
         }
         return false;
     }
+
+    /// Corresponds to SpecTerm::not_unifiable
+    pub fn not_unifiable(&self, other: &Term) -> (res: bool)
+        ensures res == self@.not_unifiable(other@)
+    {
+        match (self, rc_as_ref(other)) {
+            (TermX::Literal(l1), TermX::Literal(l2)) => !l1.eq(l2),
+
+            // Distinct head symbol, or non-unifiable subterms
+            (TermX::App(f1, args1), TermX::App(f2, args2)) => {
+                if !f1.eq(f2) || args1.len() != args2.len() {
+                    return true;
+                }
+
+                // Check if any subterms are not unifiable
+                for i in 0..args1.len()
+                    invariant
+                        args1.len() == args2.len() &&
+                        self@ =~= SpecTerm::App(f1@, args1.deep_view()) &&
+                        other@ =~= SpecTerm::App(f2@, args2.deep_view()) &&
+                        (forall |j| 0 <= j < i ==> !(#[trigger] args1[j])@.not_unifiable(args2[j]@))
+                {
+                    if (&args1[i]).not_unifiable(&args2[i]) {
+                        assert(self@->App_1[i as int].not_unifiable(other@->App_1[i as int]));
+                        return true;
+                    }
+                }
+
+                false
+            }
+
+            _ => false,
+        }
+    }
 }
 
 impl RuleX {
@@ -418,38 +452,8 @@ impl Theorem {
         }
     }
 
-    // /// Check that two terms are equal and apply axiom SpecProof::Refl
-    // pub fn refl_eq(program: &Program, left: &Term, right: &Term) -> (res: Option<Theorem>)
-    //     ensures
-    //         res matches Some(thm) ==> thm.wf(program@)
-    // {
-    //     if !left.eq(right) {
-    //         return None;
-    //     }
-
-    //     Some(Theorem {
-    //         stmt: Rc::new(TermX::App(FnName::user(FN_NAME_EQ, 2), vec![left.clone(), right.clone()])),
-    //         proof: Ghost(SpecProof::Refl),
-    //     })
-    // }
-
-    // /// Same but uses == instead of =
-    // pub fn refl_equiv(program: &Program, left: &Term, right: &Term) -> (res: Option<Theorem>)
-    //     ensures
-    //         res matches Some(thm) ==> thm.wf(program@)
-    // {
-    //     if !left.eq(right) {
-    //         return None;
-    //     }
-
-    //     Some(Theorem {
-    //         stmt: Rc::new(TermX::App(FnName::user(FN_NAME_EQUIV, 2), vec![left.clone(), right.clone()])),
-    //         proof: Ghost(SpecProof::Refl),
-    //     })
-    // }
-
     /// Try applying the axiom of a domain function for ints, strings, or lists
-    pub fn try_domain(program: &Program, goal: &Term) -> (res: Option<Theorem>)
+    pub fn try_built_in(program: &Program, goal: &Term) -> (res: Option<Theorem>)
         ensures
             res matches Some(thm) ==> thm.stmt@ == goal@ && thm.wf(program@)
     {
@@ -461,23 +465,36 @@ impl Theorem {
 
                 if (rc_str_eq_str(name, FN_NAME_EQ) || rc_str_eq_str(name, FN_NAME_EQUIV)) && *arity == 2 {
                     if (&args[0]).eq(&args[1]) {
-                        return Some(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::Domain) });
+                        return Some(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::BuiltIn) });
                     }
                 } else if rc_str_eq_str(name, FN_NAME_LENGTH) && *arity == 2 {
                     // length(L, N) iff length of L is N
                     if let (Some(list), TermX::Literal(Literal::Int(i))) = ((&args[0]).as_list(), rc_as_ref(&args[1])) {
                         // TODO: better way to check overflow
                         if *i >= 0 && *i <= u32::MAX as i64 && list.len() == *i as usize {
-                            return Some(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::Domain) });
+                            return Some(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::BuiltIn) });
                         }
                     }
                 } else if rc_str_eq_str(name, FN_NAME_MEMBER) && *arity == 2 {
                     // member(X, L) iff X is in L
                     if let Some(list) = (&args[1]).as_list() {
                         if (&args[0]).is_member(&list) {
-                            return Some(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::Domain) });
+                            return Some(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::BuiltIn) });
                         }
                     }
+                } else if rc_str_eq_str(name, FN_NAME_NOT) && *arity == 1 {
+                    // \+P holds if P is not unifiable with head of any rule
+                    for i in 0..program.rules.len()
+                        invariant
+                            args.len() == 1 &&
+                            forall |j| 0 <= j < i ==> (#[trigger] program.rules[j]).head@.not_unifiable(args[0]@)
+                    {
+                        if !(&program.rules[i].head).not_unifiable(&args[0]) {
+                            return None;
+                        }
+                    }
+
+                    return Some(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::BuiltIn) });
                 }
             }
             _ => {}

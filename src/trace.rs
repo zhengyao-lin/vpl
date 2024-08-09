@@ -342,7 +342,7 @@ impl TraceValidator {
                         return Err(TraceError(event.id, "incorrect unmatched arity".to_string()));
                     }
 
-                    if let Some(thm) = Theorem::try_domain(program, &event.term) {
+                    if let Some(thm) = Theorem::try_built_in(program, &event.term) {
                         if (&thm.stmt).eq(&event.term) {
                             return Ok(self.add_theorem(program, event.id, thm));
                         } else {

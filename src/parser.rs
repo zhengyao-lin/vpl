@@ -127,6 +127,8 @@ peg::parser!(grammar prolog(state: &ParserState) for str {
     /// - Legal: [a|(b;c)]
     /// - Legal: [a|(b,c)]
     pub rule small_term() -> Term = precedence! {
+        "\\+" _ t:@ { Rc::new(TermX::App(FnName::user(FN_NAME_NOT, 1), vec![t])) }
+        --
         t1:@ _ "=" _ t2:(@) { Rc::new(TermX::App(FnName::user(FN_NAME_EQ, 2), vec![t1, t2])) }
         t1:@ _ "==" _ t2:(@) { Rc::new(TermX::App(FnName::user(FN_NAME_EQUIV, 2), vec![t1, t2])) }
         --

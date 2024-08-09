@@ -9,5 +9,5 @@ fib(0, 0).
 fib(s(0), s(0)).
 fib(s(s(N)), F) :- fib(s(N), F1), fib(N, F2), add(F1, F2, F).
 
-% Compute fib(16)
-go :- X = s(s(s(s(0)))), mul(X, X, Y), fib(Y, _).
+% Compute fib(9)
+go :- X = s(s(s(0))), mul(X, X, Y), fib(Y, _).

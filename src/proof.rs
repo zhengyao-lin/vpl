@@ -8,6 +8,7 @@ pub const FN_NAME_TRUE: &'static str = "true";
 pub const FN_NAME_AND: &'static str = ",";
 pub const FN_NAME_OR: &'static str = ";";
 pub const FN_NAME_EQ: &'static str = "=";
+pub const FN_NAME_NOT_EQ: &'static str = "\\=";
 pub const FN_NAME_EQUIV: &'static str = "==";
 pub const FN_NAME_NOT: &'static str = "\\+";
 pub const FN_NAME_FORALL: &'static str = "forall";
@@ -77,16 +78,13 @@ pub enum SpecProof {
     // and L has to be a concrete list
     ForallMember(Seq<SpecTheorem>),
 
-    /// Domain function evaluation for integers, strings, and lists
-    Domain,
+    /// Built-in function evaluation for integers, strings, and lists
+    BuiltIn,
 
     // // For all base facts, certain query is true
     // // i.e. proves forall(p(x_1, ..., x_n), q(...))
     // // where p is a base predicate
     // ForallBase { subproofs: Seq<SpecTheorem> },
-
-    // Proves ground and base version of \+P(...)
-    NotBase,
 
     // TODO: Need an entire class of proof rules for proving
     // negation of queries (e.g. for conjunction, disjunction, etc.)
@@ -148,6 +146,24 @@ impl SpecTerm {
                     None
                 },
             _ => None,
+        }
+    }
+
+    /// Specifies a sufficient condition for two terms to be non-unifiable
+    /// NOTE: this does not completely cover non-unifiability
+    pub open spec fn not_unifiable(self, other: SpecTerm) -> bool
+        decreases self
+    {
+        match (self, other) {
+            (SpecTerm::Literal(l1), SpecTerm::Literal(l2)) => l1 != l2,
+
+            // Distinct head symbol, or non-unifiable subterms
+            (SpecTerm::App(f1, args1), SpecTerm::App(f2, args2)) =>
+                f1 != f2 ||
+                args1.len() != args2.len() ||
+                (exists |i| 0 <= i < args1.len() && (#[trigger] args1[i]).not_unifiable(#[trigger] args2[i])),
+
+            _ => false,
         }
     }
 }
@@ -256,7 +272,7 @@ impl SpecTheorem {
             }
 
             // Specifications for the built-in functions
-            SpecProof::Domain => {
+            SpecProof::BuiltIn => {
                 // self.stmt is of the form f(...) where f is a domain function
                 &&& self.stmt matches SpecTerm::App(SpecFnName::User(name, arity), args)
                 &&& args.len() == arity
@@ -278,6 +294,17 @@ impl SpecTheorem {
                         &&& arity == 2
                         &&& true
                     }
+                    ||| {
+                        // Base case for negation
+                        // If the term is not unifiable with any rule head
+                        // then the negation of the term holds
+                        &&& name == FN_NAME_NOT.view()
+                        &&& args.len() == 1
+                        
+                        // NOTE: this might be innefficient to check if implemented naively
+                        &&& forall |i| 0 <= i < program.rules.len() ==>
+                            (#[trigger] program.rules[i]).head.not_unifiable(args[0])
+                    }
                 }
             }
 
@@ -293,27 +320,6 @@ impl SpecTheorem {
             //     // TODO: for each base fact of p that can unify with p(...)
             //     // we need to have a subproof of q(...)
             // }
-
-            // Proves negation for a base predicate
-            SpecProof::NotBase => {
-                // self.stmt is of the form \+P(...)
-                &&& self.stmt matches SpecTerm::App(f, not_args)
-                &&& f == SpecFnName::User(FN_NAME_NOT.view(), 1)
-                &&& not_args.len() == 1
-
-                // P is a base predicate and P(...) is ground
-                &&& not_args[0] matches SpecTerm::App(name, args)
-                &&& program.is_base_pred(name)
-                &&& not_args[0].free_vars().is_empty()
-
-                // P(...) is NOT a fact in the program
-                &&& forall |i|
-                    0 <= i < program.rules.len() &&
-                    (#[trigger] program.rules[i]).head.is_app_of(name)
-                    ==>
-                    program.rules[i].head.args().len() == args.len() &&
-                    program.rules[i].head.args() != args
-            }
         }
     }
 }
