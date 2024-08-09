@@ -128,7 +128,8 @@ impl SpecTerm {
         self->App_1
     }
 
-    /// Try to parse the term as a list [t1 | [t2 | ...]]
+    /// Try to convert a term in the form of a Prolog list [t1 | [t2 | ...]]
+    /// to a Seq of terms [t1, t2, ...]
     /// If there are non-cons or non-nil terms, return None
     pub open spec fn as_list(self) -> Option<Seq<SpecTerm>>
         decreases self

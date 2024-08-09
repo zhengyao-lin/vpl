@@ -40,6 +40,10 @@ struct Args {
     /// Enable debug mode
     #[arg(long, default_value_t = false)]
     debug: bool,
+
+    /// Only print out the parsed Prolog program and the command to be run
+    #[arg(long, default_value_t = false)]
+    dry: bool,
 }
 
 fn main_args(mut args: Args) -> Result<(), Error> {
@@ -50,7 +54,7 @@ fn main_args(mut args: Args) -> Result<(), Error> {
     // Parse the goal term
     let goal = parse_term(&args.goal)?;
 
-    if args.debug {
+    if args.debug || args.dry {
         println!("[debug] parsed program:");
         for rule in &program.rules {
             println!("[debug]   {}", rule);
@@ -66,8 +70,12 @@ fn main_args(mut args: Args) -> Result<(), Error> {
         .arg("-g").arg("halt")
         .stdout(Stdio::piped());
 
-    if args.debug {
+    if args.debug || args.dry {
         println!("[debug] running swipl command: {:?}", &swipl_cmd);
+    }
+
+    if args.dry {
+        return Ok(());
     }
 
     let mut swipl = swipl_cmd.spawn()?;
