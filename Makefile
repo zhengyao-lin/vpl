@@ -12,7 +12,9 @@ target/%/vpl: $(foreach dep,$(DEPS),target/%/lib$(dep).rlib) src/*.rs
 	verus src/main.rs \
 		-L dependency=target/$*/deps \
 		$(foreach dep,$(DEPS),--extern $(dep)=$(firstword $(wildcard target/$*/deps/lib$(dep)-*.rlib))) \
-		--compile -o target/$*/vpl
+		--compile \
+		$(if $(filter release,$*),-C opt-level=3) \
+		-o target/$*/vpl
 
 target/debug/lib%.rlib: Cargo.toml
 	cargo build --package=$*
