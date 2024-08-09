@@ -467,6 +467,10 @@ impl Theorem {
                     if (&args[0]).eq(&args[1]) {
                         return Some(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::BuiltIn) });
                     }
+                } else if rc_str_eq_str(name, FN_NAME_NOT_EQUIV) && *arity == 2 {
+                    if !(&args[0]).eq(&args[1]) {
+                        return Some(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::BuiltIn) });
+                    }
                 } else if rc_str_eq_str(name, FN_NAME_LENGTH) && *arity == 2 {
                     // length(L, N) iff length of L is N
                     if let (Some(list), TermX::Literal(Literal::Int(i))) = ((&args[0]).as_list(), rc_as_ref(&args[1])) {

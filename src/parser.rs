@@ -131,7 +131,9 @@ peg::parser!(grammar prolog(state: &ParserState) for str {
         --
         t1:@ _ "=" _ t2:(@) { Rc::new(TermX::App(FnName::user(FN_NAME_EQ, 2), vec![t1, t2])) }
         t1:@ _ "==" _ t2:(@) { Rc::new(TermX::App(FnName::user(FN_NAME_EQUIV, 2), vec![t1, t2])) }
+        t1:@ _ "\\==" _ t2:(@) { Rc::new(TermX::App(FnName::user(FN_NAME_NOT_EQUIV, 2), vec![t1, t2])) }
         --
+        t1:(@) _ "+" _ t2:@ { Rc::new(TermX::App(FnName::user(FN_NAME_ADD, 2), vec![t1, t2])) }
         t1:(@) _ "/" _ t2:@ { Rc::new(TermX::App(FnName::user(FN_NAME_PRED_IND, 2), vec![t1, t2])) }
         --
 

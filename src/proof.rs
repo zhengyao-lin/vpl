@@ -7,14 +7,17 @@ verus! {
 pub const FN_NAME_TRUE: &'static str = "true";
 pub const FN_NAME_AND: &'static str = ",";
 pub const FN_NAME_OR: &'static str = ";";
-pub const FN_NAME_EQ: &'static str = "=";
+pub const FN_NAME_EQ: &'static str = "="; // equality checks for unification
 pub const FN_NAME_NOT_EQ: &'static str = "\\=";
-pub const FN_NAME_EQUIV: &'static str = "==";
+pub const FN_NAME_EQUIV: &'static str = "=="; // equivalence checks for syntactic equality (e.g. X \== Y)
+pub const FN_NAME_NOT_EQUIV: &'static str = "\\==";
 pub const FN_NAME_NOT: &'static str = "\\+";
 pub const FN_NAME_FORALL: &'static str = "forall";
 pub const FN_NAME_MEMBER: &'static str = "member";
 pub const FN_NAME_LENGTH: &'static str = "length";
 pub const FN_NAME_PRED_IND: &'static str = "/"; // e.g. functor/3
+
+pub const FN_NAME_ADD: &'static str = "+";
 
 pub type SpecVar = Seq<char>;
 pub type SpecUserFnName = Seq<char>;
@@ -281,6 +284,11 @@ impl SpecTheorem {
                         &&& (name == FN_NAME_EQ.view() || name == FN_NAME_EQUIV.view())
                         &&& arity == 2
                         &&& args[0] == args[1]
+                    }
+                    ||| {
+                        &&& (name == FN_NAME_NOT_EQUIV.view())
+                        &&& arity == 2
+                        &&& args[0] != args[1]
                     }
                     ||| {
                         &&& name == FN_NAME_LENGTH.view()
