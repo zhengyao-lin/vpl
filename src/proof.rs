@@ -12,7 +12,22 @@ pub const FN_NAME_EQUIV: &'static str = "==";
 pub const FN_NAME_NOT: &'static str = "\\+";
 pub const FN_NAME_FORALL: &'static str = "forall";
 pub const FN_NAME_MEMBER: &'static str = "member";
+pub const FN_NAME_LENGTH: &'static str = "length";
 pub const FN_NAME_PRED_IND: &'static str = "/"; // e.g. functor/3
+
+/// TODO: find a better way to do this
+pub broadcast proof fn fn_name_distinct()
+    ensures ({
+        &&& FN_NAME_EQUIV.view() !~= FN_NAME_EQ.view()
+        &&& FN_NAME_EQUIV.view() !~= FN_NAME_LENGTH.view()
+        &&& FN_NAME_LENGTH.view() !~= FN_NAME_EQ.view()
+    })
+{
+    reveal_strlit("member");
+    reveal_strlit("length");
+    reveal_strlit("=");
+    reveal_strlit("==");
+}
 
 pub type SpecVar = Seq<char>;
 pub type SpecUserFnName = Seq<char>;
@@ -70,14 +85,17 @@ pub enum SpecProof {
     OrIntroLeft(Box<SpecTheorem>),
     OrIntroRight(Box<SpecTheorem>),
 
-    // Proves t = t
-    Refl,
-
     // Proves goals of the form
     //   forall(member(X, L), <Goal>)
     // where X has to be a variable
     // and L has to be a concrete list
-    ForallMember { subproofs: Seq<SpecTheorem> },
+    ForallMember(Seq<SpecTheorem>),
+
+    // // Proves t = t
+    // Refl,
+
+    /// Domain function evaluation for integers, strings, and lists
+    Domain,
 
     // // For all base facts, certain query is true
     // // i.e. proves forall(p(x_1, ..., x_n), q(...))
@@ -231,14 +249,7 @@ impl SpecTheorem {
                 &&& subproof.stmt == args[1]
             }
 
-            SpecProof::Refl => {
-                &&& self.stmt matches SpecTerm::App(f, args)
-                &&& f == SpecFnName::User(FN_NAME_EQ.view(), 2) || f == SpecFnName::User(FN_NAME_EQUIV.view(), 2)
-                &&& args.len() == 2
-                &&& args[0] == args[1]
-            }
-
-            SpecProof::ForallMember { subproofs } => {
+            SpecProof::ForallMember(subproofs) => {
                 // Check that the statement of the form
                 //   forall(member(X, L), <Goal>)
                 // where X has to be a variable
@@ -258,6 +269,27 @@ impl SpecTheorem {
                 &&& subproofs.len() == list.len()
                 &&& forall |i| 0 <= i < list.len()
                     ==> (#[trigger] subproofs[i]).stmt == forall_args[1].subst(SpecSubst(map!{ loop_var => list[i] }))
+            }
+
+            SpecProof::Domain => {
+                // self.stmt is of the form f(...) where f is a domain function
+                &&& self.stmt matches SpecTerm::App(SpecFnName::User(name, arity), args)
+                &&& args.len() == arity
+                &&& {
+                    ||| {
+                        &&& (name == FN_NAME_EQ.view() || name == FN_NAME_EQUIV.view())
+                        &&& arity == 2
+                        &&& args[0] == args[1]
+                    }
+
+                    ||| {
+                        &&& name == FN_NAME_LENGTH.view()
+                        &&& arity == 2
+                        &&& args[0].as_list() matches Some(list)
+                        &&& args[1] matches SpecTerm::Literal(SpecLiteral::Int(len))
+                        &&& list.len() == len
+                    }
+                }
             }
 
             // ForallBase { subproofs: Seq<SpecTheorem> } => {

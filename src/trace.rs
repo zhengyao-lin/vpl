@@ -145,128 +145,7 @@ impl TraceValidator {
             )
     {
         match &event.tactic {
-            Tactic::AndIntro(left_id, right_id) => {
-                if *left_id >= self.thms.len() {
-                    return Err(TraceError(event.id, "left subproof does not exist".to_string()));
-                }
-
-                if *right_id >= self.thms.len() {
-                    return Err(TraceError(event.id, "right subproof does not exist".to_string()));
-                }
-
-                let thm = Theorem::and_intro(program, &self.thms[*left_id], &self.thms[*right_id]);
-
-                // Check if the statement is consistent with the statement in the trace event
-                if (&thm.stmt).eq(&event.term) {
-                    self.thms.push(thm);
-                    Ok(&self.thms[event.id])
-                } else {
-                    Err(TraceError(event.id, "incorrect matching algorithm".to_string()))
-                }
-            }
-
-            Tactic::OrIntroLeft(subproof_id) => {
-                if *subproof_id >= self.thms.len() {
-                    return Err(TraceError(event.id, "subproof does not exist".to_string()));
-                }
-
-                match rc_as_ref(&event.term) {
-                    TermX::App(f, args) if f.eq(&FnName::user(FN_NAME_OR, 2)) && args.len() == 2 => {
-                        let thm = Theorem::or_intro_left(program, &self.thms[*subproof_id], &args[1]);
-
-                        if (&thm.stmt).eq(&event.term) {
-                            self.thms.push(thm);
-                            Ok(&self.thms[event.id])
-                        } else {
-                            Err(TraceError(event.id, "incorrect matching algorithm".to_string()))
-                        }
-                    }
-
-                    _ => Err(TraceError(event.id, "incorrect goal".to_string())),
-                }
-            }
-
-            Tactic::OrIntroRight(subproof_id) => {
-                if *subproof_id >= self.thms.len() {
-                    return Err(TraceError(event.id, "subproof does not exist".to_string()));
-                }
-
-                match rc_as_ref(&event.term) {
-                    TermX::App(f, args) if f.eq(&FnName::user(FN_NAME_OR, 2)) && args.len() == 2 => {
-                        let thm = Theorem::or_intro_right(program, &args[0], &self.thms[*subproof_id]);
-
-                        if (&thm.stmt).eq(&event.term) {
-                            self.thms.push(thm);
-                            Ok(&self.thms[event.id])
-                        } else {
-                            Err(TraceError(event.id, "incorrect matching algorithm".to_string()))
-                        }
-                    }
-
-                    _ => Err(TraceError(event.id, "incorrect goal".to_string())),
-                }
-            }
-
-            Tactic::BuiltIn => {
-                if let TermX::App(f, args) = rc_as_ref(&event.term) {
-                    if f.eq(&FnName::user(FN_NAME_EQ, 2)) || f.eq(&FnName::user(FN_NAME_EQUIV, 2)) {
-                        if args.len() != 2 {
-                            return Err(TraceError(event.id, "incorrect number of arguments for equality".to_string()));
-                        }
-
-                        // Decide between = and == and apply refl
-                        let thm_opt = if f.eq(&FnName::user(FN_NAME_EQ, 2)) {
-                            Theorem::refl_eq(program, &args[0], &args[1])
-                        } else {
-                            Theorem::refl_equiv(program, &args[0], &args[1])
-                        };
-
-                        if let Some(thm) = thm_opt {
-                            if (&thm.stmt).eq(&event.term) {
-                                self.thms.push(thm);
-                                return Ok(&self.thms[event.id]);
-                            } else {
-                                return Err(TraceError(event.id, "incorrect matching algorithm".to_string()));
-                            }
-                        } else {
-                            return Err(TraceError(event.id, "fail to proof check equality".to_string()));
-                        }
-                    }
-                }
-
-                Err(TraceError(event.id, "unsupported built-in".to_string()))
-            }
-
-            Tactic::ForallMember { subproof_ids } => {
-                let mut subproofs: Vec<&Theorem> = vec![];
-
-                // Collect all subproofs via the ids
-                for i in 0..subproof_ids.len()
-                    invariant
-                        0 <= i <= subproof_ids.len() &&
-                        subproofs.len() == i &&
-                        self.wf(program@) &&
-                        (forall |j| 0 <= j < i ==> (#[trigger] subproofs[j]).wf(program@))
-                {
-                    let subproof_id = subproof_ids[i];
-                    if subproof_id >= self.thms.len() {
-                        return Err(TraceError(event.id, "subproof does not exist".to_string()));
-                    }
-                    subproofs.push(&self.thms[subproof_id]);
-                }
-
-                if debug {
-                    print("[debug] apply forall_member: "); println(&event.term);
-                }
-
-                if let Some(thm) = Theorem::forall_member(program, &event.term, subproofs) {
-                    self.thms.push(thm);
-                    Ok(&self.thms[event.id])
-                } else {
-                    Err(TraceError(event.id, "failed to verify proof".to_string()))
-                }
-            }
-
+            // Try to convert the event to a theorem via Theorem::apply_rule
             Tactic::Apply { rule_id, subproof_ids } => {
                 if *rule_id >= program.rules.len() {
                     return Err(TraceError(event.id, "rule does not exist".to_string()));
@@ -334,6 +213,119 @@ impl TraceValidator {
                 } else {
                     Err(TraceError(event.id, "failed to verify proof".to_string()))
                 }
+            }
+
+            Tactic::AndIntro(left_id, right_id) => {
+                if *left_id >= self.thms.len() {
+                    return Err(TraceError(event.id, "left subproof does not exist".to_string()));
+                }
+
+                if *right_id >= self.thms.len() {
+                    return Err(TraceError(event.id, "right subproof does not exist".to_string()));
+                }
+
+                let thm = Theorem::and_intro(program, &self.thms[*left_id], &self.thms[*right_id]);
+
+                // Check if the statement is consistent with the statement in the trace event
+                if (&thm.stmt).eq(&event.term) {
+                    self.thms.push(thm);
+                    Ok(&self.thms[event.id])
+                } else {
+                    Err(TraceError(event.id, "incorrect matching algorithm".to_string()))
+                }
+            }
+
+            Tactic::OrIntroLeft(subproof_id) => {
+                if *subproof_id >= self.thms.len() {
+                    return Err(TraceError(event.id, "subproof does not exist".to_string()));
+                }
+
+                match rc_as_ref(&event.term) {
+                    TermX::App(f, args) if f.eq(&FnName::user(FN_NAME_OR, 2)) && args.len() == 2 => {
+                        let thm = Theorem::or_intro_left(program, &self.thms[*subproof_id], &args[1]);
+
+                        if (&thm.stmt).eq(&event.term) {
+                            self.thms.push(thm);
+                            Ok(&self.thms[event.id])
+                        } else {
+                            Err(TraceError(event.id, "incorrect matching algorithm".to_string()))
+                        }
+                    }
+
+                    _ => Err(TraceError(event.id, "incorrect goal".to_string())),
+                }
+            }
+
+            Tactic::OrIntroRight(subproof_id) => {
+                if *subproof_id >= self.thms.len() {
+                    return Err(TraceError(event.id, "subproof does not exist".to_string()));
+                }
+
+                match rc_as_ref(&event.term) {
+                    TermX::App(f, args) if f.eq(&FnName::user(FN_NAME_OR, 2)) && args.len() == 2 => {
+                        let thm = Theorem::or_intro_right(program, &args[0], &self.thms[*subproof_id]);
+
+                        if (&thm.stmt).eq(&event.term) {
+                            self.thms.push(thm);
+                            Ok(&self.thms[event.id])
+                        } else {
+                            Err(TraceError(event.id, "incorrect matching algorithm".to_string()))
+                        }
+                    }
+
+                    _ => Err(TraceError(event.id, "incorrect goal".to_string())),
+                }
+            }
+
+            Tactic::ForallMember { subproof_ids } => {
+                let mut subproofs: Vec<&Theorem> = vec![];
+
+                // Collect all subproofs via the ids
+                for i in 0..subproof_ids.len()
+                    invariant
+                        0 <= i <= subproof_ids.len() &&
+                        subproofs.len() == i &&
+                        self.wf(program@) &&
+                        (forall |j| 0 <= j < i ==> (#[trigger] subproofs[j]).wf(program@))
+                {
+                    let subproof_id = subproof_ids[i];
+                    if subproof_id >= self.thms.len() {
+                        return Err(TraceError(event.id, "subproof does not exist".to_string()));
+                    }
+                    subproofs.push(&self.thms[subproof_id]);
+                }
+
+                if debug {
+                    print("[debug] apply forall_member: "); println(&event.term);
+                }
+
+                if let Some(thm) = Theorem::forall_member(program, &event.term, subproofs) {
+                    self.thms.push(thm);
+                    Ok(&self.thms[event.id])
+                } else {
+                    Err(TraceError(event.id, "failed to verify proof".to_string()))
+                }
+            }
+
+            Tactic::BuiltIn => {
+                if let TermX::App(FnName::User(name, arity), args) = rc_as_ref(&event.term) {
+                    if *arity != args.len() {
+                        return Err(TraceError(event.id, "incorrect unmatched arity".to_string()));
+                    }
+
+                    if let Some(thm) = Theorem::try_domain(program, &event.term) {
+                        if (&thm.stmt).eq(&event.term) {
+                            self.thms.push(thm);
+                            return Ok(&self.thms[event.id]);
+                        } else {
+                            return Err(TraceError(event.id, "incorrect matching algorithm".to_string()));
+                        }
+                    } else {
+                        return Err(TraceError(event.id, "unsupported or unable to check built-in".to_string()));
+                    }
+                }
+
+                Err(TraceError(event.id, "unsupported built-in".to_string()))
             }
         }
     }

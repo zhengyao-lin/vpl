@@ -29,6 +29,13 @@ pub fn rc_str_eq(s1: &Rc<str>, s2: &Rc<str>) -> (res: bool)
 }
 
 #[verifier::external_body]
+pub fn rc_str_eq_str(s1: &Rc<str>, s2: &str) -> (res: bool)
+    ensures res == (s1@ == s2@)
+{
+    s1.as_ref() == s2
+}
+
+#[verifier::external_body]
 pub fn rc_as_ref<T: View>(rc: &Rc<T>) -> (res: &T)
     ensures rc.view() == res.view()
 {

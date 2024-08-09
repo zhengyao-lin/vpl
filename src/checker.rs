@@ -9,7 +9,7 @@ use crate::polyfill::*;
 
 verus! {
 
-broadcast use TermX::axiom_view, SpecTerm::axiom_subst;
+broadcast use TermX::axiom_view, SpecTerm::axiom_subst, fn_name_distinct;
 
 pub type Var = Rc<str>;
 pub type UserFnName = Rc<str>;
@@ -334,36 +334,6 @@ impl Theorem {
         }
     }
 
-    /// Check that two terms are equal and apply axiom SpecProof::Refl
-    pub fn refl_eq(program: &Program, left: &Term, right: &Term) -> (res: Option<Theorem>)
-        ensures
-            res matches Some(thm) ==> thm.wf(program@)
-    {
-        if !left.eq(right) {
-            return None;
-        }
-
-        Some(Theorem {
-            stmt: Rc::new(TermX::App(FnName::user(FN_NAME_EQ, 2), vec![left.clone(), right.clone()])),
-            proof: Ghost(SpecProof::Refl),
-        })
-    }
-
-    /// Same but uses == instead of =
-    pub fn refl_equiv(program: &Program, left: &Term, right: &Term) -> (res: Option<Theorem>)
-        ensures
-            res matches Some(thm) ==> thm.wf(program@)
-    {
-        if !left.eq(right) {
-            return None;
-        }
-
-        Some(Theorem {
-            stmt: Rc::new(TermX::App(FnName::user(FN_NAME_EQUIV, 2), vec![left.clone(), right.clone()])),
-            proof: Ghost(SpecProof::Refl),
-        })
-    }
-
     /// Construct a proof for forall(member(loop_var, list_term), goal), see SpecProof::ForallMember for more detail
     pub fn forall_member(program: &Program, outer_goal: &Term, subproofs: Vec<&Theorem>) -> (res: Option<Theorem>)
         ensures
@@ -430,12 +400,74 @@ impl Theorem {
 
                 Some(Theorem {
                     stmt: outer_goal.clone(),
-                    proof: Ghost(SpecProof::ForallMember {
-                        subproofs: subproofs.deep_view(),
-                    }),
+                    proof: Ghost(SpecProof::ForallMember(subproofs.deep_view())),
                 })
             }
         }
+    }
+
+    // /// Check that two terms are equal and apply axiom SpecProof::Refl
+    // pub fn refl_eq(program: &Program, left: &Term, right: &Term) -> (res: Option<Theorem>)
+    //     ensures
+    //         res matches Some(thm) ==> thm.wf(program@)
+    // {
+    //     if !left.eq(right) {
+    //         return None;
+    //     }
+
+    //     Some(Theorem {
+    //         stmt: Rc::new(TermX::App(FnName::user(FN_NAME_EQ, 2), vec![left.clone(), right.clone()])),
+    //         proof: Ghost(SpecProof::Refl),
+    //     })
+    // }
+
+    // /// Same but uses == instead of =
+    // pub fn refl_equiv(program: &Program, left: &Term, right: &Term) -> (res: Option<Theorem>)
+    //     ensures
+    //         res matches Some(thm) ==> thm.wf(program@)
+    // {
+    //     if !left.eq(right) {
+    //         return None;
+    //     }
+
+    //     Some(Theorem {
+    //         stmt: Rc::new(TermX::App(FnName::user(FN_NAME_EQUIV, 2), vec![left.clone(), right.clone()])),
+    //         proof: Ghost(SpecProof::Refl),
+    //     })
+    // }
+
+    /// Try applying the axiom of a domain function for ints, strings, or lists
+    pub fn try_domain(program: &Program, goal: &Term) -> (res: Option<Theorem>)
+        ensures
+            res matches Some(thm) ==> thm.stmt@ == goal@ && thm.wf(program@)
+    {
+        match rc_as_ref(goal) {
+            TermX::App(FnName::User(name, arity), args) => {
+                if args.len() != *arity {
+                    return None;
+                }
+
+                if (rc_str_eq_str(name, FN_NAME_EQ) || rc_str_eq_str(name, FN_NAME_EQUIV)) && *arity == 2 {
+                    if (&args[0]).eq(&args[1]) {
+                        return Some(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::Domain) });
+                    }
+                } else if rc_str_eq_str(name, FN_NAME_LENGTH) && *arity == 2 {
+                    // length(L, N) iff length of L is N
+                    match ((&args[0]).as_list(), rc_as_ref(&args[1])) {
+                        (Some(list), TermX::Literal(Literal::Int(i))) => {
+                            // TODO: better way to check overflow
+                            if *i >= 0 && *i <= u32::MAX as i64 && list.len() == *i as usize {
+                                return Some(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::Domain) });
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            _ => {}
+        }
+
+        None
     }
 }
 

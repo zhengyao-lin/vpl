@@ -80,7 +80,8 @@ TODO:
 - [x] Integers
 - [x] Strings
 - [x] Lists
-- [ ] Built-in functions for integers, strings, lists
+- [ ] Built-in functions for strings, lists
+- [ ] Arithmetic
 - [x] Disjunction `;`
 - [x] Anonymous variables
 - [x] Nested conjunctions and disjunctions
