@@ -51,6 +51,8 @@ peg::parser!(grammar prolog(state: &ParserState) for str {
 
     rule _ = ignore()*
 
+    rule line() -> usize = { state.line() }
+
     /// Comma separated list without extra trailing comma
     rule comma_sep<T>(x: rule<T>) -> Vec<T> = v:(x() ** (_ "," _)) { v }
 
@@ -58,14 +60,14 @@ peg::parser!(grammar prolog(state: &ParserState) for str {
     rule comma_sep_plus<T>(x: rule<T>) -> Vec<T> = v:(x() ++ (_ "," _)) { v }
 
     /// Returns the slice and the line number
-    rule ident() -> (&'input str, usize)
-        = name:quiet!{$(['a'..='z' | 'A'..='Z']['_' | 'a'..='z' | 'A'..='Z' | '0'..='9']*)} { (name, state.line()) }
-        / "'" name:$([^'\'']*) "'" { (name, state.line()) }
+    rule ident() -> &'input str
+        = name:quiet!{$(['a'..='z' | 'A'..='Z']['_' | 'a'..='z' | 'A'..='Z' | '0'..='9']*)} { name }
+        / "'" name:$([^'\'']*) "'" { name }
         / expected!("identifier")
 
-    rule var() -> (&'input str, usize)
-        = name:quiet!{$(['A'..='Z']['_' | 'a'..='z' | 'A'..='Z' | '0'..='9']*)} { (name, state.line()) }
-        / name:quiet!{$(['_']['_' | 'a'..='z' | 'A'..='Z' | '0'..='9']+)} { (name, state.line()) }
+    rule var() -> &'input str
+        = name:quiet!{$(['A'..='Z']['_' | 'a'..='z' | 'A'..='Z' | '0'..='9']*)} { name }
+        / name:quiet!{$(['_']['_' | 'a'..='z' | 'A'..='Z' | '0'..='9']+)} { name }
         / expected!("variable")
 
     rule nat() -> usize
@@ -82,28 +84,24 @@ peg::parser!(grammar prolog(state: &ParserState) for str {
         = "\"" s:$([^'"']*) "\"" { s }
         / expected!("string")
 
-    /// Used for getting the line number
-    rule list_left_bracket() -> usize
-        = "[" { state.line() }
-
     /// Prolog lists, e.g., [], [a,b|[]], [a,b,c]
-    rule list() -> (Term, usize)
-        = brak_line:list_left_bracket() _ "]" { (Rc::new(TermX::App(FnName::Nil, vec![])), brak_line) }
-        / brak_line:list_left_bracket() _ elems:comma_sep_plus(<small_term()>) _ "]"
+    rule list() -> Term
+        = "[" _ "]" { Rc::new(TermX::App(FnName::Nil, vec![])) }
+        / "[" _ elems:comma_sep_plus(<small_term()>) _ "]"
             {
                 let mut list = Rc::new(TermX::App(FnName::Nil, vec![]));
                 for elem in elems.into_iter().rev() {
-                    list = Rc::new(TermX::App(FnName::Cons, vec![elem.0, list]));
+                    list = Rc::new(TermX::App(FnName::Cons, vec![elem, list]));
                 }
-                (list, brak_line)
+                list
             }
-        / brak_line:list_left_bracket() _ heads:comma_sep_plus(<small_term()>) _ "|" _ tail:small_term() _ "]"
+        / "[" _ heads:comma_sep_plus(<small_term()>) _ "|" _ tail:small_term() _ "]"
             {
-                let mut list = tail.0;
+                let mut list = tail;
                 for head in heads.into_iter().rev() {
-                    list = Rc::new(TermX::App(FnName::Cons, vec![head.0, list]));
+                    list = Rc::new(TermX::App(FnName::Cons, vec![head, list]));
                 }
-                (list, brak_line)
+                list
             }
 
     /// Prolog terms
@@ -111,10 +109,10 @@ peg::parser!(grammar prolog(state: &ParserState) for str {
     /// for default precedence of operators
     /// 
     /// See https://docs.rs/peg/latest/peg/ for precedence!
-    pub rule term() -> (Term, usize) = precedence! {
-        t1:@ _ ";" _ t2:(@) { (Rc::new(TermX::App(FnName::user(FN_NAME_OR, 2), vec![t1.0, t2.0])), t1.1) }
+    pub rule term() -> Term = precedence! {
+        t1:@ _ ";" _ t2:(@) { Rc::new(TermX::App(FnName::user(FN_NAME_OR, 2), vec![t1, t2])) }
         --
-        t1:@ _ "," _ t2:(@) { (Rc::new(TermX::App(FnName::user(FN_NAME_AND, 2), vec![t1.0, t2.0])), t1.1) }
+        t1:@ _ "," _ t2:(@) { Rc::new(TermX::App(FnName::user(FN_NAME_AND, 2), vec![t1, t2])) }
         --
         t:small_term() { t }
     }
@@ -128,81 +126,70 @@ peg::parser!(grammar prolog(state: &ParserState) for str {
     /// - Illegal: [a|b,c]
     /// - Legal: [a|(b;c)]
     /// - Legal: [a|(b,c)]
-    pub rule small_term() -> (Term, usize) = precedence! {
-        t1:@ _ "=" _ t2:(@) { (Rc::new(TermX::App(FnName::user(FN_NAME_EQ, 2), vec![t1.0, t2.0])), t1.1) }
-        t1:@ _ "==" _ t2:(@) { (Rc::new(TermX::App(FnName::user(FN_NAME_EQUIV, 2), vec![t1.0, t2.0])), t1.1) }
+    pub rule small_term() -> Term = precedence! {
+        t1:@ _ "=" _ t2:(@) { Rc::new(TermX::App(FnName::user(FN_NAME_EQ, 2), vec![t1, t2])) }
+        t1:@ _ "==" _ t2:(@) { Rc::new(TermX::App(FnName::user(FN_NAME_EQUIV, 2), vec![t1, t2])) }
         --
-        t1:(@) _ "/" _ t2:@ { (Rc::new(TermX::App(FnName::user(FN_NAME_PRED_IND, 2), vec![t1.0, t2.0])), t1.1) }
+        t1:(@) _ "/" _ t2:@ { Rc::new(TermX::App(FnName::user(FN_NAME_PRED_IND, 2), vec![t1, t2])) }
         --
 
         // Same as ( t ) but we need to get the line number
         // of the first parenthesis
-        line:term_left_paren() t:term() ")" { (t.0, line) }
+        "(" t:term() ")" { t }
 
-        var:var() { (TermX::var_str(var.0), var.1) }
+        var:var() { TermX::var_str(var) }
         
         // There is a special case of the anonymous variable "_"
         // different occurrences of "_" in a clause is considered different variables
         // so we need to generate fresh names for them
-        "_" { (TermX::var_str(&state.fresh_anon_var()), state.line()) }
+        "_" { TermX::var_str(&state.fresh_anon_var()) }
 
         // Literals
-        i:int() { (Rc::new(TermX::Literal(Literal::Int(i))), state.line()) }
+        i:int() { Rc::new(TermX::Literal(Literal::Int(i))) }
         // TODO: string may range multiple lines, fix the line number
-        s:string() { (Rc::new(TermX::Literal(Literal::String(s.into()))), state.line()) }
+        s:string() { Rc::new(TermX::Literal(Literal::String(s.into()))) }
 
         // Application (including atoms and lists)
         name:ident() _ "(" _ args:comma_sep(<small_term()>) _ ")" {
-            (Rc::new(TermX::App(
-                FnName::user(name.0, args.len()),
-                args.iter().map(|(arg, _)| arg.clone()).collect(),
-            )), name.1)
+            Rc::new(TermX::App(FnName::user(name, args.len()), args))
         }
-        name:ident() { (Rc::new(TermX::App(FnName::user(name.0, 0), vec![])), name.1) }
+        name:ident() { Rc::new(TermX::App(FnName::user(name, 0), vec![])) }
         list:list() { list }
     }
 
-    /// Used for getting the line number
-    rule term_left_paren() -> usize
-        = "(" { state.line() }
-
     pub rule clause() -> (Rule, usize)
-        = head:term() _ "."
-            { (RuleX::new(head.0, vec![]), head.1) }
+        = line:line() head:term() _ "."
+            { (RuleX::new(head, vec![]), line) }
 
         // Conjunction as a binary operator
-        / head:term() _ ":-" _ body:term() _ "."
-            { (RuleX::new(head.0, vec![body.0]), head.1) }
+        / line:line() head:term() _ ":-" _ body:term() _ "."
+            { (RuleX::new(head, vec![body]), line) }
 
         // Headless clauses are converted into `true :- ... .`
-        / ":-" _ body:term() _ "."
+        / line:line() ":-" _ body:term() _ "."
             {
                 let head = Rc::new(TermX::App(FnName::user(FN_NAME_TRUE, 0), vec![]));
-                (RuleX::new(head, vec![body.0]), state.line())
+                (RuleX::new(head, vec![body]), line)
             }
-
-        // Conjunction as native rule structure
-        // / head:term() _ ":-" _ body:comma_sep(<term()>) _ "."
-        //     { (RuleX::new(head.0, body.iter().map(|(arg, _)| arg.clone()).collect()), head.1) }
-        
-        // // Headless clauses are converted into `true :- ... .`
-        // / ":-" _ body:comma_sep(<term()>) _ "."
-        //     {
-        //         let head = Rc::new(TermX::App(FnName::user(FN_NAME_TRUE, 0), vec![]));
-        //         (RuleX::new(head, body.iter().map(|(arg, _)| arg.clone()).collect()), state.line())
-        //     }
 
     /// Returns a program and a map from line number to rule id
     pub rule program() -> (Program, HashMap<usize, RuleId>)
         = _ rules:(clause() ** _) _ {
-            (ProgramX::new(rules.iter().map(|(rule, _)| rule.clone()).collect()),
-            rules.iter().enumerate().map(|(i, (_, line))| (*line, i)).collect())
+            let mut program_rules = vec![];
+            let mut line_map = HashMap::new();
+
+            for (i, (rule, line)) in rules.into_iter().enumerate() {
+                program_rules.push(rule);
+                line_map.insert(line, i);
+            }
+
+            (ProgramX::new(program_rules), line_map)
         }
 
     /// Parser of a trace event
     pub rule event(line_map: &HashMap<usize, RuleId>) -> Event
         = _ id:nat() _ "." _ term:term() _ "by" _ tactic:tactic(line_map) _
-            { Event { id, term: term.0, tactic: tactic } }
+            { Event { id, term: term, tactic: tactic } }
 
     rule nested_nat_list() -> Vec<usize>
         = v:nat() { vec![v] }
@@ -246,9 +233,8 @@ pub fn parse_program(source: impl AsRef<str>, path: impl AsRef<str>) -> Result<(
 /// Parse a Prolog term
 pub fn parse_term(source: impl AsRef<str>) -> Result<Term, ParserError> {
     let state = ParserState::new();
-    let (term, _) = prolog::term(source.as_ref(), &state)
-        .map_err(|e| ParserError(None, e))?;
-    Ok(term)
+    prolog::term(source.as_ref(), &state)
+        .map_err(|e| ParserError(None, e))
 }
 
 /// Parse a trace event

@@ -10,6 +10,7 @@ gen_id(Id) :-
 
 % Log a proof step
 log_proof(Id, Goal) :-
+    gen_id(Id),
     write(Id), write(". "),
     % TODO: ignore_ops(true) will produce things like ==(...)
     write_term(Goal, [quoted(true), numbervars(true)]),
@@ -28,19 +29,17 @@ prove(true, fact) :- !.
 prove((A, B), Id) :- !,
     prove(A, Id1),
     prove(B, Id2),
-    gen_id(Id),
     log_proof(Id, (A, B)),
     write("and("), write(Id1), write(", "), write(Id2), writeln(")").
 
 prove((A; B), Id) :- !,
-    (prove(A, Id1), gen_id(Id), log_proof(Id, (A;B)), write("or-left("), write(Id1), writeln(")");
-     prove(B, Id2), gen_id(Id), log_proof(Id, (A;B)), write("or-right("), write(Id2), writeln(")")).
+    (prove(A, Id1), log_proof(Id, (A;B)), write("or-left("), write(Id1), writeln(")");
+     prove(B, Id2), log_proof(Id, (A;B)), write("or-right("), write(Id2), writeln(")")).
 
 % Special case for maplist
 prove(maplist(Fn, List, Results), Id) :-
     !,
     maplist(prove_map(Fn), List, Results),
-    gen_id(Id),
     log_proof(Id, maplist(Fn, List, Results)),
     writeln("maplist").
 
@@ -51,7 +50,6 @@ prove(forall(member(X, L), Goal), Id) :-
     forall(member(X, L), Goal),
     % If successful, rerun all goals to gather proofs
     findall(Id, (member(X, L), prove(Goal, Id)), Ids),
-    gen_id(Id),
     log_proof(Id, forall(member(X, L), Goal)),
     write("forall-member("), write(Ids), writeln(")").
 
@@ -70,7 +68,6 @@ prove(Goal, Id) :-
     ),
     !,
     Goal,
-    gen_id(Id),
     log_proof(Id, Goal),
     writeln("built-in").
 
@@ -85,7 +82,6 @@ prove(Goal, Id) :-
     clause_property(Ref, line_count(Line)),
 
     % Include file and line number of the rule applied
-    gen_id(Id),
     log_proof(Id, Goal),
     write("apply("), write(BodyId), write(", "),
     % write(File), write(":"),
