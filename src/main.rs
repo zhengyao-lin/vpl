@@ -76,6 +76,8 @@ fn main_args(mut args: Args) -> Result<(), Error> {
 
     let mut validator = TraceValidator::new(&program);
 
+    let mut last_event_id = 0;
+
     // For each line, check if it is a trace event;
     // if so, parse it and send it to the validator
     for line in BufReader::new(swipl_stdout).lines() {
@@ -88,6 +90,7 @@ fn main_args(mut args: Args) -> Result<(), Error> {
 
         match parse_trace_event(&line_str, &line_map) {
             Ok(event) => {
+                last_event_id = event.id;
                 let thm = validator.process_event(&program, &event, args.debug)?;
                 if args.debug {
                     println!("[debug] validated: {}", thm.stmt);
@@ -104,7 +107,7 @@ fn main_args(mut args: Args) -> Result<(), Error> {
     }
 
     // Verify that the goal term is indeed proved
-    if let Some(thm) = validator.thms.last() {
+    if let Ok(thm) = validator.get_theorem(&program, last_event_id) {
         if thm.stmt.eq(&goal) {
             println!("validated goal: {}", &goal);
             Ok(())
