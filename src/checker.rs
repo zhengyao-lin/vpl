@@ -4,12 +4,13 @@ use std::rc::Rc;
 use crate::containers::StringHashMap;
 use crate::proof::*;
 use crate::polyfill::*;
+use crate::matching::*;
 
 // A dynamic builder of proofs with verified checks
 
 verus! {
 
-broadcast use TermX::axiom_view, SpecTerm::axiom_subst;
+broadcast use TermX::axiom_view, SpecTerm::axiom_subst, SpecTerm::axiom_matches;
 
 pub type Var = Rc<str>;
 pub type UserFnName = Rc<str>;
@@ -167,9 +168,7 @@ impl TermX {
             }
         }
     }
-}
-
-impl TermX {
+    
     pub fn eq(&self, other: &Self) -> (res: bool)
         ensures res == (self@ == other@)
     {
@@ -452,6 +451,121 @@ impl Theorem {
         }
     }
 
+    /// Apply and proof-check SpecProof::ForallBase
+    pub fn forall_base(program: &Program, goal: &Term, subproofs: Vec<&Theorem>) -> (res: Option<Theorem>)
+        ensures
+            res matches Some(thm) ==> thm.stmt@ == goal@ && thm.wf(program@)
+    {
+        match rc_as_ref(goal) {
+            TermX::App(FnName::User(name, arity), args) => {
+                if args.len() != *arity {
+                    return None;
+                }
+
+                if !rc_str_eq_str(name, FN_NAME_FORALL) || *arity != 2 {
+                    return None;
+                }
+
+                let pattern = &args[0];
+                let mut valid_insts = 0;
+
+                let ghost filter = |rule: SpecRule|
+                    if let Some(subst) = pattern@.matches(rule.head) {
+                        Some(args[1]@.subst(subst))
+                    } else {
+                        None
+                    };
+
+                // Go through each rule, and match pattern against
+                // the head of the rule. If the matching suceeds,
+                // check if the corresponding subproof is correct
+                for i in 0..program.rules.len()
+                    invariant
+                        args.len() == 2 &&
+                        valid_insts <= i &&
+                        valid_insts <= subproofs.len() &&
+
+                        // filter stays unchanged
+                        (filter == |rule: SpecRule|
+                            if let Some(subst) = pattern@.matches(rule.head) {
+                                Some(args[1]@.subst(subst))
+                            } else {
+                                None
+                            }) &&
+
+                        // Each rule before i satisfies the constraint in the spec (see SpecProof::ForallBase)
+                        (forall |j: int| 0 <= j < i ==> {
+                            let rule = #[trigger] program@.rules[j];
+                            ||| rule.body.len() == 0 && pattern@.matches(rule.head).is_some()
+                            ||| pattern@.not_unifiable(rule.head)
+                        }) &&
+
+                        // The first i rules are corrected processed
+                        filter_map(program@.rules.take(i as int), filter)
+                            =~= subproofs.deep_view().map_values(|thm: SpecTheorem| thm.stmt).take(valid_insts as int)
+                {
+                    let rule = &program.rules[i];
+                    if rule.body.len() != 0 {
+                        // Non-fact rules should not unify with the pattern
+                        if !pattern.not_unifiable(&rule.head) {
+                            return None;
+                        }
+
+                        proof {
+                            pattern@.lemma_non_unifiable_to_non_matching(rule@.head);
+                            lemma_filter_map_skip(program@.rules, filter, i as int);
+                        }
+                    } else {
+                        // Any fact should either be matched by pattern
+                        // or not unifiable (i.e. nothing in between)
+                        let mut subst = Subst::new();
+                        let ghost old_subst = subst@;
+                        if let Ok(..) = TermX::matches_inplace(&mut subst, &pattern, &rule.head) {
+                            // Match instance with the subproof
+                            if valid_insts >= subproofs.len() {
+                                return None;
+                            }
+
+                            if !(&TermX::subst(&args[1], &subst)).eq(&subproofs[valid_insts].stmt) {
+                                return None;
+                            }
+
+                            valid_insts += 1;
+
+                            proof {
+                                // Append the mapped element to the filtered list
+                                lemma_filter_map_no_skip(program@.rules, filter, i as int);
+                                let matches_subst = pattern@.matches(rule@.head).unwrap();
+                                old_subst.lemma_merge_empty_left(matches_subst);
+                            }
+                        } else if !pattern.not_unifiable(&rule.head) {
+                            return None;
+                        } else {
+                            proof {
+                                // No change to the filtered list
+                                lemma_filter_map_skip(program@.rules, filter, i as int);
+                            }
+                        }
+                    }
+                }
+
+                if valid_insts == subproofs.len() {
+                    proof {
+                        assert(program@.rules =~= program@.rules.take(program.rules.len() as int));
+                    }
+                    return Some(Theorem {
+                        stmt: goal.clone(),
+                        proof: Ghost(SpecProof::ForallBase(subproofs.deep_view())),
+                    });
+                }
+            }
+
+            _ => {}
+        }
+
+        None
+    }
+
     /// Try applying the axiom of a domain function for ints, strings, or lists
     pub fn try_built_in(program: &Program, goal: &Term) -> (res: Option<Theorem>)
         ensures
@@ -521,18 +635,19 @@ impl Clone for Theorem {
 
 impl Subst {
     pub fn new() -> (res: Subst)
-        ensures res@.0 =~= Map::<SpecVar, SpecTerm>::empty()
+        ensures res@.0 =~= Map::<SpecVar, SpecTerm>::empty() && res@.is_empty()
     {
         Subst(StringHashMap::new())
     }
 
     pub fn get(&self, var: &Var) -> (res: Option<&Term>)
         ensures
-            if self@.0.contains_key(var@) {
-                res matches Some(term) && term@ == self@.0[var@]
+            self@.contains_var(var@) == res.is_some() &&
+            (if self@.contains_var(var@) {
+                res matches Some(term) && term@ == self@.get(var@)
             } else {
                 res matches None
-            }
+            })
     {
         self.0.get(var)
     }

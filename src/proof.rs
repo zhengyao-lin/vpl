@@ -16,7 +16,6 @@ pub const FN_NAME_FORALL: &'static str = "forall";
 pub const FN_NAME_MEMBER: &'static str = "member";
 pub const FN_NAME_LENGTH: &'static str = "length";
 pub const FN_NAME_PRED_IND: &'static str = "/"; // e.g. functor/3
-
 pub const FN_NAME_ADD: &'static str = "+";
 
 pub type SpecVar = Seq<char>;
@@ -55,6 +54,7 @@ pub struct SpecProgram {
     pub rules: Seq<SpecRule>,
 }
 
+#[verifier::ext_equal]
 pub struct SpecSubst(pub Map<SpecVar, SpecTerm>);
 
 /// A proof includes a statement and its proof tree
@@ -81,16 +81,13 @@ pub enum SpecProof {
     // and L has to be a concrete list
     ForallMember(Seq<SpecTheorem>),
 
+    // Proves goals of the form
+    //   forall(P(...), Q(...))
+    // where P is a base predicate
+    ForallBase(Seq<SpecTheorem>),
+
     /// Built-in function evaluation for integers, strings, and lists
     BuiltIn,
-
-    // // For all base facts, certain query is true
-    // // i.e. proves forall(p(x_1, ..., x_n), q(...))
-    // // where p is a base predicate
-    // ForallBase { subproofs: Seq<SpecTheorem> },
-
-    // TODO: Need an entire class of proof rules for proving
-    // negation of queries (e.g. for conjunction, disjunction, etc.)
 }
 
 impl SpecTerm {
@@ -169,6 +166,60 @@ impl SpecTerm {
             _ => false,
         }
     }
+
+    // /// `self` matches `other` iff there is a substitution `subst`
+    // /// such that `self.subst(subst) == other`
+    // pub open spec fn matches(self, other: SpecTerm) -> bool {
+    //     exists |subst: SpecSubst| #[trigger] self.subst(subst) == other
+    // }
+
+    /// Check if self matches other
+    /// i.e. variables in other are considered constants
+    /// and variables in self are used for unification
+    pub closed spec fn matches(self, other: SpecTerm) -> Option<SpecSubst>;
+    #[verifier::external_body]
+    pub broadcast proof fn axiom_matches(self, other: SpecTerm)
+        ensures #[trigger] self.matches(other) == match (self, other) {
+            (SpecTerm::Var(v), _) => Some(SpecSubst(map!{ v => other })),
+
+            (SpecTerm::Literal(l1), SpecTerm::Literal(l2)) =>
+                if l1 == l2 {
+                    Some(SpecSubst::empty())
+                } else {
+                    None
+                },
+
+            (SpecTerm::App(f1, args1), SpecTerm::App(f2, args2)) =>
+                if f1 == f2 && args1.len() == args2.len() {
+                    SpecTerm::matches_multiple(args1, args2)
+                } else {
+                    None
+                },
+
+            _ => None,
+        }
+    {}
+
+    /// Match multiple terms and merge substitutions
+    pub open spec fn matches_multiple(terms1: Seq<SpecTerm>, terms2: Seq<SpecTerm>) -> Option<SpecSubst>
+        decreases terms1.len()
+    {
+        if terms1.len() != terms2.len() {
+            None
+        } else if terms1.len() == 0 {
+            Some(SpecSubst(map!{}))
+        } else {
+            match terms1[0].matches(terms2[0]) {
+                Some(subst1) => {
+                    match SpecTerm::matches_multiple(terms1.drop_first(), terms2.drop_first()) {
+                        Some(subst2) => subst1.merge(subst2),
+                        None => None,
+                    }
+                }
+                None => None,
+            }
+        }
+    }
 }
 
 impl SpecSubst {
@@ -182,6 +233,32 @@ impl SpecSubst {
 
     pub open spec fn contains_var(self, v: SpecVar) -> bool {
         self.0.contains_key(v)
+    }
+
+    pub open spec fn empty() -> SpecSubst {
+        SpecSubst(Map::empty())
+    }
+
+    pub open spec fn is_empty(self) -> bool {
+        self.dom() == Set::<SpecVar>::empty()
+    }
+
+    /// Two substitutions are mergeable if they agree on the
+    /// intersection of their domains
+    pub open spec fn merge(self, other: SpecSubst) -> Option<SpecSubst> {
+        if forall |v| #[trigger] self.contains_var(v) && other.contains_var(v) ==>
+                self.get(v) == other.get(v) {
+            Some(SpecSubst(Map::new(
+                |v| self.contains_var(v) || other.contains_var(v),
+                |v| if self.contains_var(v) {
+                    self.get(v)
+                } else {
+                    other.get(v)
+                }
+            )))
+        } else {
+            None
+        }
     }
 }
 
@@ -202,6 +279,20 @@ impl SpecProgram {
             (#[trigger] self.rules[i]).head.is_app_of(name)
             ==>
             self.rules[i].is_base_fact()
+    }
+}
+
+/// Similar to iterator's filter_map
+pub open spec fn filter_map<T, S>(s: Seq<T>, f: spec_fn(T) -> Option<S>) -> Seq<S>
+    decreases s.len()
+{
+    if s.len() == 0 {
+        seq![]
+    } else {
+        match f(s[0]) {
+            Some(v) => seq![v] + filter_map(s.drop_first(), f),
+            None => filter_map(s.drop_first(), f),
+        }
     }
 }
 
@@ -274,6 +365,55 @@ impl SpecTheorem {
                     ==> (#[trigger] subproofs[i]).stmt == forall_args[1].subst(SpecSubst(map!{ loop_var => list[i] }))
             }
 
+            SpecProof::ForallBase(subproofs) => {
+                // self.stmt is of the form forall(t1, t2)
+                &&& self.stmt matches SpecTerm::App(SpecFnName::User(name, arity), args)
+                &&& args.len() == arity
+                &&& name == FN_NAME_FORALL.view()
+                &&& arity == 2
+
+                // For all rules, either
+                // - the rule is a fact and matches the predicate
+                // - the head of the rule is not unifiable with the predicate
+                //
+                // NOTE: there might be terms in between (i.e. unifiable but not matching)
+                // we enforce the absence of these case for a simpler spec
+                //
+                // TODO: maybe extend this to full unification?
+                &&& forall |i| 0 <= i < program.rules.len() ==> {
+                    ||| (#[trigger] program.rules[i]).body.len() == 0 &&
+                        args[0].matches(program.rules[i].head).is_some()
+                    ||| args[0].not_unifiable(program.rules[i].head)
+                }
+
+                // First filter rules to those that match the predicate
+                // then check that each filtered rule has the correct proof
+                &&& filter_map(program.rules, |rule: SpecRule| {
+                    if let Some(subst) = args[0].matches(rule.head) {
+                        Some(args[1].subst(subst))
+                    } else {
+                        None
+                    }
+                }) =~= subproofs.map_values(|thm: SpecTheorem| thm.stmt)
+
+                // &&& {
+                //     let matched_rules = program.rules.filter(|rule: SpecRule| args[0].matches(rule.head));
+                
+                //     &&& matched_rules.len() == subproofs.len()
+
+                //     // For each matched fact against t1, the corresponding subproof
+                //     // should be t2 applied to the matching substitution 
+                //     &&& forall |i| #![trigger matched_rules[i]]
+                //         0 <= i < matched_rules.len() ==>
+                //         // Exists a substitution `subst` such that
+                //         // P[subst] = head of the rule
+                //         // Q[subst] = subproof
+                //         (exists |subst: SpecSubst|
+                //             #[trigger] args[0].subst(subst) == matched_rules[i].head &&
+                //             args[1].subst(subst) == subproofs[i].stmt)
+                // }
+            }
+
             // Specifications for the built-in functions
             SpecProof::BuiltIn => {
                 // self.stmt is of the form f(...) where f is a domain function
@@ -315,19 +455,6 @@ impl SpecTheorem {
                     }
                 }
             }
-
-            // ForallBase { subproofs: Seq<SpecTheorem> } => {
-            //     // self.stmt is of the form forall(p(...), q(...))
-            //     &&& self.stmt matches SpecTerm::App(SpecFnName::Forall, forall_args)
-            //     &&& forall_args.len() == 2
-
-            //     // p is a base predicate
-            //     &&& forall_args[0] matches SpecTerm::App(name, args)
-            //     &&& program.is_base_pred(name)
-
-            //     // TODO: for each base fact of p that can unify with p(...)
-            //     // we need to have a subproof of q(...)
-            // }
         }
     }
 }

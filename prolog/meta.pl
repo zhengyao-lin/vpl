@@ -53,6 +53,15 @@ prove(forall(member(X, L), Goal), Id) :-
     log_proof(Id, forall(member(X, L), Goal)),
     write("forall-member("), write(Ids), writeln(")").
 
+% Special case for forall(...)
+prove(forall(Cond, Goal), Id) :-
+    !,
+    forall(Cond, Goal),
+    % If successful, rerun all goals to gather proofs
+    findall(Id, (Cond, prove(Goal, Id)), Ids),
+    log_proof(Id, forall(Cond, Goal)),
+    write("forall-base("), write(Ids), writeln(")").
+
 % Builtin predicates
 prove(Goal, Id) :-
     % predicate_property(Goal, P),

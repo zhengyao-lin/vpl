@@ -8,6 +8,7 @@ mod trace;
 mod display;
 mod parser;
 mod error;
+mod matching;
 
 use std::io::BufReader;
 use std::io::BufRead;

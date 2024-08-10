@@ -218,8 +218,10 @@ peg::parser!(grammar prolog(state: &ParserState) for str {
             { Tactic::OrIntroLeft(left) }
         / "or-right" _ "(" _ right:nat() _ ")"
             { Tactic::OrIntroRight(right) }
-        / "forall-member" _ "(" _ subgoals:nested_nat_list() _ ")"
-            { Tactic::ForallMember { subproof_ids: subgoals } }
+        / "forall-member" _ "(" _ subproofs:nested_nat_list() _ ")"
+            { Tactic::ForallMember(subproofs) }
+        / "forall-base" _ "(" _ subproofs:nested_nat_list() _ ")"
+            { Tactic::ForallBase(subproofs) }
         / "built-in" { Tactic::BuiltIn }
 });
 

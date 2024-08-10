@@ -35,7 +35,8 @@ pub enum Tactic {
     AndIntro(EventId, EventId),
     OrIntroLeft(EventId),
     OrIntroRight(EventId),
-    ForallMember { subproof_ids: Vec<EventId> },
+    ForallMember(Vec<EventId>),
+    ForallBase(Vec<EventId>),
     BuiltIn,
 }
 
@@ -312,7 +313,7 @@ impl TraceValidator {
                 }
             }
 
-            Tactic::ForallMember { subproof_ids } => {
+            Tactic::ForallMember(subproof_ids) => {
                 let mut subproofs: Vec<&Theorem> = vec![];
 
                 // Collect all subproofs via the ids
@@ -326,10 +327,34 @@ impl TraceValidator {
                 }
 
                 if debug {
-                    print("[debug] apply forall_member: "); println(&event.term);
+                    print("[debug] apply forall-member: "); println(&event.term);
                 }
 
                 if let Some(thm) = Theorem::forall_member(program, &event.term, subproofs) {
+                    Ok(self.add_theorem(program, event.id, thm))
+                } else {
+                    Err(TraceError(event.id, "failed to verify proof".to_string()))
+                }
+            }
+
+            Tactic::ForallBase(subproof_ids) => {
+                let mut subproofs: Vec<&Theorem> = vec![];
+
+                // Collect all subproofs via the ids
+                for i in 0..subproof_ids.len()
+                    invariant
+                        subproofs.len() == i &&
+                        self.wf(program@) &&
+                        (forall |j| 0 <= j < i ==> (#[trigger] subproofs[j]).wf(program@))
+                {
+                    subproofs.push(self.get_theorem(program, subproof_ids[i])?);
+                }
+
+                if debug {
+                    print("[debug] apply forall-base: "); println(&event.term);
+                }
+
+                if let Some(thm) = Theorem::forall_base(program, &event.term, subproofs) {
                     Ok(self.add_theorem(program, event.id, thm))
                 } else {
                     Err(TraceError(event.id, "failed to verify proof".to_string()))
