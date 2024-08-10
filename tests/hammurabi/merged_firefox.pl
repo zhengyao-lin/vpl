@@ -21,8 +21,16 @@ sha1_sig_algo("1.3.14.3.2.27"). % dsaSHA1
 sha1_sig_algo("1.3.14.3.2.26"). % sha1NoSign
 sha1_sig_algo("1.2.840.10045.4.1"). % sha1ECDSA
 
-count(L, E, N) :-
-    include(=(E), L, L2), length(L2, N).
+% count(L, E, N) :-
+%     include(=(E), L, L2), length(L2, N).
+
+count([], _, 0).
+count([E|T], E, N) :-
+    count(T, E, N1),
+    N is N1 + 1.
+count([X|T], E, N) :-
+    X \= E,
+    count(T, E, N).
 
 % stringMatch(PatternStr, CommonNameStr):-
 %     var(CommonName),
@@ -2054,13 +2062,19 @@ certVerifiedLeaf(Cert, SANList, EVStatus):-
   ocspResponse(Cert, OcspResponse),
   verifiedLeaf(Fingerprint, SANList, CommonName, Lower, Upper, InnerAlgorithm, BasicConstraints, KeyUsage, ExtKeyUsage, EVStatus, StapledResponse, OcspResponse).
 
+mapStringLower([], []).
+mapStringLower([Name|Names], [Lower|Lowers]):-
+  string_lower(Name, Lower),
+  mapStringLower(Names, Lowers).
+
 certVerifiedChain(Cert):-
   getEVStatus(Cert, EVStatus),
   (
     ( 
       sanExt(Cert, true),
       findall(Name, san(Cert, Name), SANList0),
-      maplist(string_lower, SANList0, SANList)
+      mapStringLower(SANList0, SANList)
+    % maplist(string_lower, SANList0, SANList)
     %   findall(Lower, (
     %     san(Cert, Name),
     %     string_lower(Name, Lower)

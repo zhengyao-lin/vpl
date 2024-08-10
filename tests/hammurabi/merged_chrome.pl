@@ -266,10 +266,18 @@ sha1_sig_algo("1.3.14.3.2.27"). % dsaSHA1
 sha1_sig_algo("1.3.14.3.2.26"). % sha1NoSign
 sha1_sig_algo("1.2.840.10045.4.1"). % sha1ECDSA
 
-count(L, E, N) :-
-    include(=(E), L, L2),
-    % findall(X, (member(X, L), member(X, [E])), L2),
-    length(L2, N).
+% count(L, E, N) :-
+%     include(=(E), L, L2),
+%     % findall(X, (member(X, L), member(X, [E])), L2),
+%     length(L2, N).
+
+count([], _, 0).
+count([E|T], E, N) :-
+    count(T, E, N1),
+    N is N1 + 1.
+count([X|T], E, N) :-
+    X \= E,
+    count(T, E, N).
 
 % stringMatch(PatternStr, CommonNameStr):-
 %     var(CommonName),
@@ -1264,10 +1272,15 @@ certVerifiedLeaf(Cert, SANList):-
   isValidPKI(Cert),
   verifiedLeaf(Fingerprint, SANList, Lower, Upper, InnerAlgorithm, BasicConstraints, KeyUsage, ExtKeyUsage).
 
+mapCleanName([], []).
+mapCleanName([Name|Names], [CleanName|CleanNames]):-
+  cleanName(Name, CleanName),
+  mapCleanName(Names, CleanNames).
+
 certVerifiedChain(Cert):-
   sanExt(Cert, true),
   findall(Name, san(Cert, Name), SANList),
-  maplist(cleanName, SANList, CleanSANList),
+  mapCleanName(SANList, CleanSANList),
   certVerifiedLeaf(Cert, CleanSANList),
   issuer(Cert, Parent),
   certVerifiedNonLeaf(Parent, CleanSANList, 0, Cert).
