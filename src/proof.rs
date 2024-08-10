@@ -244,19 +244,36 @@ impl SpecTerm {
         }
     }
 
-    // /// Evaluates arithmetic operators in the term
-    // /// Only succeeds if term contains only arithmetic
-    // /// expressions and constants without variables
-    // pub open spec eval_arith(self) -> Option<int>
-    // {
-    //     match self {
-    //         SpecTerm::Literal(SpecLiteral::Int(i)) => Some(i),
-    //         SpecTerm::App(SpecFnName::User(name, 2), args) => {
-
-    //         }
-    //         _ => None,
-    //     }
-    // }
+    /// Evaluates arithmetic operators in the term
+    /// Only succeeds if term contains only arithmetic
+    /// expressions and constants without variables
+    pub open spec fn eval_arith(self) -> Option<int>
+        decreases self
+    {
+        if let SpecTerm::Literal(SpecLiteral::Int(i)) = self {
+            Some(i)
+        } else if let Some(args) = self.headed_by(FN_NAME_ADD, 2) {
+            if let (Some(lhs), Some(rhs)) = (args[0].eval_arith(), args[1].eval_arith()) {
+                Some(lhs + rhs)
+            } else {
+                None
+            }
+        } else if let Some(args) = self.headed_by(FN_NAME_SUB, 2) {
+            if let (Some(lhs), Some(rhs)) = (args[0].eval_arith(), args[1].eval_arith()) {
+                Some(lhs - rhs)
+            } else {
+                None
+            }
+        } else if let Some(args) = self.headed_by(FN_NAME_MUL, 2) {
+            if let (Some(lhs), Some(rhs)) = (args[0].eval_arith(), args[1].eval_arith()) {
+                Some(lhs * rhs)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
 }
 
 impl SpecSubst {
@@ -488,6 +505,48 @@ impl SpecTheorem {
                             None
                         }
                     }) =~= list
+                }
+                ||| {
+                    &&& self.stmt.headed_by(FN_NAME_GT, 2) matches Some(args)
+                    &&& args[0].eval_arith() matches Some(lhs)
+                    &&& args[1].eval_arith() matches Some(rhs)
+                    &&& lhs > rhs
+                }
+                ||| {
+                    &&& self.stmt.headed_by(FN_NAME_GE, 2) matches Some(args)
+                    &&& args[0].eval_arith() matches Some(lhs)
+                    &&& args[1].eval_arith() matches Some(rhs)
+                    &&& lhs >= rhs
+                }
+                ||| {
+                    &&& self.stmt.headed_by(FN_NAME_LT, 2) matches Some(args)
+                    &&& args[0].eval_arith() matches Some(lhs)
+                    &&& args[1].eval_arith() matches Some(rhs)
+                    &&& lhs < rhs
+                }
+                ||| {
+                    &&& self.stmt.headed_by(FN_NAME_LE, 2) matches Some(args)
+                    &&& args[0].eval_arith() matches Some(lhs)
+                    &&& args[1].eval_arith() matches Some(rhs)
+                    &&& lhs <= rhs
+                }
+                ||| {
+                    // is/2 only evaluates the RHS
+                    &&& self.stmt.headed_by(FN_NAME_IS, 2) matches Some(args)
+                    &&& args[1].eval_arith() matches Some(rhs)
+                    &&& args[0] == SpecTerm::Literal(SpecLiteral::Int(rhs))
+                }
+                ||| {
+                    &&& self.stmt.headed_by(FN_NAME_EVAL_EQ, 2) matches Some(args)
+                    &&& args[0].eval_arith() matches Some(lhs)
+                    &&& args[1].eval_arith() matches Some(rhs)
+                    &&& lhs == rhs
+                }
+                ||| {
+                    &&& self.stmt.headed_by(FN_NAME_EVAL_NOT_EQ, 2) matches Some(args)
+                    &&& args[0].eval_arith() matches Some(lhs)
+                    &&& args[1].eval_arith() matches Some(rhs)
+                    &&& lhs != rhs
                 }
             }
         }
