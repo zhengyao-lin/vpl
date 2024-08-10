@@ -13,6 +13,7 @@ pub const FN_NAME_EQUIV: &'static str = "=="; // equivalence checks for syntacti
 pub const FN_NAME_NOT_EQUIV: &'static str = "\\==";
 pub const FN_NAME_NOT: &'static str = "\\+";
 pub const FN_NAME_FORALL: &'static str = "forall";
+pub const FN_NAME_FINDALL: &'static str = "findall";        
 pub const FN_NAME_MEMBER: &'static str = "member";
 pub const FN_NAME_LENGTH: &'static str = "length";
 pub const FN_NAME_PRED_IND: &'static str = "/"; // e.g. functor/3
@@ -65,26 +66,31 @@ pub struct SpecTheorem {
 }
 
 pub enum SpecProof {
-    // Apply an instance of an existing rule
+    /// Apply an instance of an existing rule
     ApplyRule { rule_id: SpecRuleId, subst: SpecSubst, subproofs: Seq<SpecTheorem> },
     
-    // Show a, b if we have proven a and b separately
+    /// Show a, b if we have proven a and b separately
     AndIntro(Box<SpecTheorem>, Box<SpecTheorem>),
 
-    // Show a; b if we have proven a or b
+    /// Show a; b if we have proven a or b
     OrIntroLeft(Box<SpecTheorem>),
     OrIntroRight(Box<SpecTheorem>),
 
-    // Proves goals of the form
-    //   forall(member(X, L), <Goal>)
-    // where X has to be a variable
-    // and L has to be a concrete list
+    /// Proves goals of the form
+    ///   forall(member(X, L), <Goal>)
+    /// where X has to be a variable
+    /// and L has to be a concrete list
     ForallMember(Seq<SpecTheorem>),
 
-    // Proves goals of the form
-    //   forall(P(...), Q(...))
-    // where P is a base predicate
+    /// Proves goals of the form
+    ///   forall(P(...), Q(...))
+    /// where P is a base predicate
     ForallBase(Seq<SpecTheorem>),
+
+    // /// Proves goals of the form
+    // ///   findall(Q, P(X), L)
+    // /// where P is a base predicate
+    // FindallBase(Seq<SpecTheorem>),
 
     /// Built-in function evaluation for integers, strings, and lists
     BuiltIn,
@@ -266,23 +272,22 @@ impl SpecSubst {
     }
 }
 
-impl SpecRule {
-    /// Check if the rule is stating a base fact, i.e.,
-    /// the rule has no body and no free variables
-    pub open spec fn is_base_fact(self) -> bool {
-        self.body.len() == 0 &&
-        self.head.free_vars().is_empty()
-    }
-}
+impl SpecRule {}
 
 impl SpecProgram {
-    // Check if all rules headed by `name` is ground and has no body
-    pub open spec fn is_base_pred(self, name: SpecFnName) -> bool {
-        forall |i|
-            0 <= i < self.rules.len() &&
-            (#[trigger] self.rules[i]).head.is_app_of(name)
-            ==>
-            self.rules[i].is_base_fact()
+    /// Check that
+    /// 1. The term can only be unified with base predicates
+    /// 2. In all unifiable cases, the term as a pattern has to match the head of the rule
+    ///    (unification and matching coincides for the term)
+    /// 
+    /// This used as a simplifying assumption for proof-checking forall and findall
+    pub open spec fn only_unifiable_with_base(self, term: SpecTerm) -> bool
+    {
+        forall |i| 0 <= i < self.rules.len() ==> {
+            ||| (#[trigger] self.rules[i]).body.len() == 0 &&
+                term.matches(self.rules[i].head).is_some()
+            ||| term.not_unifiable(self.rules[i].head)
+        }
     }
 }
 
@@ -384,11 +389,7 @@ impl SpecTheorem {
                 // we enforce the absence of these case for a simpler spec
                 //
                 // TODO: maybe extend this to full unification?
-                &&& forall |i| 0 <= i < program.rules.len() ==> {
-                    ||| (#[trigger] program.rules[i]).body.len() == 0 &&
-                        args[0].matches(program.rules[i].head).is_some()
-                    ||| args[0].not_unifiable(program.rules[i].head)
-                }
+                &&& program.only_unifiable_with_base(args[0])
 
                 // First filter rules to those that match the predicate
                 // then check that each filtered rule has the correct proof
@@ -399,23 +400,6 @@ impl SpecTheorem {
                         None
                     }
                 }) =~= subproofs.map_values(|thm: SpecTheorem| thm.stmt)
-
-                // &&& {
-                //     let matched_rules = program.rules.filter(|rule: SpecRule| args[0].matches(rule.head));
-                
-                //     &&& matched_rules.len() == subproofs.len()
-
-                //     // For each matched fact against t1, the corresponding subproof
-                //     // should be t2 applied to the matching substitution 
-                //     &&& forall |i| #![trigger matched_rules[i]]
-                //         0 <= i < matched_rules.len() ==>
-                //         // Exists a substitution `subst` such that
-                //         // P[subst] = head of the rule
-                //         // Q[subst] = subproof
-                //         (exists |subst: SpecSubst|
-                //             #[trigger] args[0].subst(subst) == matched_rules[i].head &&
-                //             args[1].subst(subst) == subproofs[i].stmt)
-                // }
             }
 
             // Specifications for the built-in functions
@@ -461,6 +445,28 @@ impl SpecTheorem {
                         // NOTE: this might be innefficient to check if implemented naively
                         &&& forall |i| 0 <= i < program.rules.len() ==>
                             (#[trigger] program.rules[i]).head.not_unifiable(args[0])
+                    }
+                    ||| {
+                        // A special case of findall where the goal is a base predicate
+                        // see https://www.swi-prolog.org/pldoc/man?predicate=findall/3
+                        &&& name == FN_NAME_FINDALL.view()
+                        &&& arity == 3
+                        
+                        // The third argument is a concrete list
+                        &&& args[2].as_list() matches Some(list)
+
+                        // Same constraint as in ForallBase
+                        &&& program.only_unifiable_with_base(args[1])
+
+                        &&& filter_map(program.rules, |rule: SpecRule| {
+                            // Match args[1] first, then use the substitution
+                            // to instantiate args[0]
+                            if let Some(subst) = args[1].matches(rule.head) {
+                                Some(args[0].subst(subst))
+                            } else {
+                                None
+                            }
+                        }) =~= list
                     }
                 }
             }

@@ -451,6 +451,129 @@ impl Theorem {
         }
     }
 
+    /// Proof-check base case of findall
+    pub fn findall_base(program: &Program, goal: &Term) -> (res: Option<Theorem>)
+        ensures
+            res matches Some(thm) ==> thm.stmt@ == goal@ && thm.wf(program@)
+    {
+        match rc_as_ref(goal) {
+            TermX::App(FnName::User(name, arity), args) => {
+                if args.len() != *arity {
+                    return None;
+                }
+
+                if !rc_str_eq_str(name, FN_NAME_FINDALL) || *arity != 3 {
+                    return None;
+                }
+
+                let template = &args[0];
+                let pattern = &args[1];
+                let list_opt = (&args[2]).as_list();
+
+                // Third arg has to be a concrete list
+                if list_opt.is_none() {
+                    return None;
+                }
+
+                let list = list_opt.unwrap();
+
+                let mut valid_insts = 0;
+                let ghost filter = |rule: SpecRule|
+                    if let Some(subst) = pattern@.matches(rule.head) {
+                        Some(template@.subst(subst))
+                    } else {
+                        None
+                    };
+
+                // Check that each element in the list matches the template when substituted
+                // with the pattern
+                // TODO: extract the common part of this loop along with Theorem::forall_base
+                for i in 0..program.rules.len()
+                    invariant
+                        args.len() == 3 &&
+                        valid_insts <= i &&
+                        valid_insts <= list.len() &&
+
+                        // filter stays unchanged
+                        (filter == |rule: SpecRule|
+                            if let Some(subst) = pattern@.matches(rule.head) {
+                                Some(template@.subst(subst))
+                            } else {
+                                None
+                            }) &&
+
+                        // Each rule before i satisfies the constraint in the spec (see SpecProof::ForallBase)
+                        (forall |j: int| 0 <= j < i ==> {
+                            let rule = #[trigger] program@.rules[j];
+                            ||| rule.body.len() == 0 && pattern@.matches(rule.head).is_some()
+                            ||| pattern@.not_unifiable(rule.head)
+                        }) &&
+
+                        // The first i rules are corrected processed
+                        filter_map(program@.rules.take(i as int), filter)
+                            =~= list.deep_view().take(valid_insts as int)
+                {
+                    let rule = &program.rules[i];
+                    if rule.body.len() != 0 {
+                        // Non-fact rules should not unify with the pattern
+                        if !pattern.not_unifiable(&rule.head) {
+                            return None;
+                        }
+
+                        proof {
+                            pattern@.lemma_non_unifiable_to_non_matching(rule@.head);
+                            lemma_filter_map_skip(program@.rules, filter, i as int);
+                        }
+                    } else {
+                        // Any fact should either be matched by pattern
+                        // or not unifiable (i.e. nothing in between)
+                        let mut subst = Subst::new();
+                        let ghost old_subst = subst@;
+                        if let Ok(..) = TermX::match_terms(&mut subst, &pattern, &rule.head) {
+                            // Match instance with the subproof
+                            if valid_insts >= list.len() {
+                                return None;
+                            }
+
+                            if !(&TermX::subst(template, &subst)).eq(&list[valid_insts]) {
+                                return None;
+                            }
+
+                            valid_insts += 1;
+
+                            proof {
+                                // Append the mapped element to the filtered list
+                                lemma_filter_map_no_skip(program@.rules, filter, i as int);
+                                let matches_subst = pattern@.matches(rule@.head).unwrap();
+                                old_subst.lemma_merge_empty_left(matches_subst);
+                            }
+                        } else if !pattern.not_unifiable(&rule.head) {
+                            return None;
+                        } else {
+                            proof {
+                                // No change to the filtered list
+                                lemma_filter_map_skip(program@.rules, filter, i as int);
+                            }
+                        }
+                    }
+                }
+                
+                if valid_insts == list.len() {
+                    proof {
+                        assert(program@.rules =~= program@.rules.take(program.rules.len() as int));
+                    }
+                    Some(Theorem {
+                        stmt: goal.clone(),
+                        proof: Ghost(SpecProof::BuiltIn),
+                    })
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
+    }
+
     /// Apply and proof-check SpecProof::ForallBase
     pub fn forall_base(program: &Program, goal: &Term, subproofs: Vec<&Theorem>) -> (res: Option<Theorem>)
         ensures
@@ -617,6 +740,8 @@ impl Theorem {
                     }
 
                     return Some(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::BuiltIn) });
+                } else if let Some(thm) = Self::findall_base(program, goal) {
+                    return Some(thm);
                 }
             }
             _ => {}
