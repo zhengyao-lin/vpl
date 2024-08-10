@@ -243,11 +243,15 @@ impl SpecSubst {
         self.dom() == Set::<SpecVar>::empty()
     }
 
+    pub open spec fn mergeable(self, other: SpecSubst) -> bool {
+        forall |v| #[trigger] self.contains_var(v) && other.contains_var(v) ==>
+            self.get(v) == other.get(v)
+    }
+
     /// Two substitutions are mergeable if they agree on the
     /// intersection of their domains
     pub open spec fn merge(self, other: SpecSubst) -> Option<SpecSubst> {
-        if forall |v| #[trigger] self.contains_var(v) && other.contains_var(v) ==>
-                self.get(v) == other.get(v) {
+        if self.mergeable(other) {
             Some(SpecSubst(Map::new(
                 |v| self.contains_var(v) || other.contains_var(v),
                 |v| if self.contains_var(v) {

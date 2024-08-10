@@ -6,6 +6,7 @@ use crate::polyfill::*;
 
 // Verified implementation of a matching algorithm
 // (matching = one-sided unification)
+// TODO: too messy, clean up these proofs
 
 verus! {
 
@@ -21,8 +22,8 @@ impl SpecSubst {
     // Merging is associative
     pub proof fn lemma_merge_assoc(subst1: SpecSubst, subst2: SpecSubst, subst3: SpecSubst)
         requires
+            // All merges are well-defined
             subst1.merge(subst2).is_some() &&
-            subst2.merge(subst3).is_some() &&
             subst1.merge(subst2).unwrap().merge(subst3).is_some()
         
         ensures
@@ -54,92 +55,136 @@ impl SpecSubst {
 }
 
 impl SpecTerm {
+
     /// If self is not unifiable with other, then they should not match either
     pub proof fn lemma_non_unifiable_to_non_matching(self, other: SpecTerm)
         requires self.not_unifiable(other)
         ensures self.matches(other).is_none()
+        decreases self
     {
         match (self, other) {
             (SpecTerm::Literal(l1), SpecTerm::Literal(l2)) => {}
+            (SpecTerm::App(f1, args1), SpecTerm::App(f2, args2)) => {
 
-            // Distinct head symbol, or non-unifiable subterms
-            (SpecTerm::App(f1, args1), SpecTerm::App(f2, args2)) => admit(),
-
+                if f1 == f2 && args1.len() == args2.len() {
+                    // Choose the non-unifiable index and induct on it
+                    let i = choose |i| 0 <= i < args1.len() && (#[trigger] args1[i]).not_unifiable(#[trigger] args2[i]);
+                    args1[i].lemma_non_unifiable_to_non_matching(args2[i]);
+                    Self::lemma_not_matches_multiple(args1, args2, i);
+                }
+            }
             _ => {}
         }
     }
 
-    // pub proof fn lemma_non_unifiable_to_non_matching_multiple(terms1: Seq<SpecTerm>, terms2: Seq<SpecTerm>)
-    // {
-    //     admit();
-    // }
-
-    // pub proof fn lemma_matches_multiple(terms1: Seq<SpecTerm>, terms2: Seq<SpecTerm>)
-    //     requires SpecTerm::matches_multiple(terms1, terms2).is_some()
-    //     ensures (forall |i| #![auto] 0 <= i < terms1.len() ==> terms1[i].matches(terms2[i]).is_some())
-    //     decreases terms1.len()
-    // {
-    //     if terms1.len() == terms2.len() && terms1.len() != 0 {
-    //         Self::lemma_matches_multiple(terms1.drop_first(), terms2.drop_first());
-    //         assert(forall |i| #![auto] 1 <= i < terms1.len() ==> terms1[i].matches(terms2[i]).is_some());
-    //         admit();
-    //     }
-    // }
-
-    pub proof fn lemma_not_matches_multiple(terms1: Seq<SpecTerm>, terms2: Seq<SpecTerm>, i: int)
-        requires terms1[i].matches(terms2[i]).is_none()
-        ensures SpecTerm::matches_multiple(terms1, terms2).is_none()
+    /// If two seqs of terms match, then each pair should also match
+    pub proof fn lemma_matches_multiple(terms1: Seq<SpecTerm>, terms2: Seq<SpecTerm>, i: int)
+        requires
+            0 <= i < terms1.len() &&
+            SpecTerm::matches_multiple(terms1, terms2).is_some()
+        ensures terms1[i].matches(terms2[i]).is_some()
+        decreases i
     {
-        admit();
+        if i != 0 {
+            Self::lemma_matches_multiple(terms1.drop_first(), terms2.drop_first(), i - 1);
+        }
     }
 
-    pub proof fn lemma_matches_multiple_extend(terms1: Seq<SpecTerm>, terms2: Seq<SpecTerm>, term1: SpecTerm, term2: SpecTerm)
-        ensures
-            SpecTerm::matches_multiple(terms1, terms2) matches Some(subst1) ==>
-            (term1.matches(term2) matches Some(subst2) ==>
-                SpecTerm::matches_multiple(terms1 + seq![term1], terms2 + seq![term2]) matches Some(subst3) &&
-                Some(subst3) =~= subst1.merge(subst2))
+    /// Contrapositive of lemma_matches_multiple
+    pub proof fn lemma_not_matches_multiple(terms1: Seq<SpecTerm>, terms2: Seq<SpecTerm>, i: int)
+        requires
+            0 <= i < terms1.len() &&
+            0 <= i < terms2.len() &&
+            terms1[i].matches(terms2[i]).is_none()
+
+        ensures SpecTerm::matches_multiple(terms1, terms2).is_none()
+    {
+        if SpecTerm::matches_multiple(terms1, terms2).is_some() {
+            Self::lemma_matches_multiple(terms1, terms2, i);
+        }
+    }
+
+    /// If two seqs of terms match, then each pair should also match
+    pub proof fn lemma_matches_multiple_individual_match(terms1: Seq<SpecTerm>, terms2: Seq<SpecTerm>)
+        requires SpecTerm::matches_multiple(terms1, terms2).is_some()
+        ensures forall |i| 0 <= i < terms1.len() ==> (#[trigger] terms1[i]).matches(terms2[i]).is_some()
         decreases terms1.len()
     {
-        // if terms1.len() == terms2.len() {
-        //     reveal_with_fuel(SpecTerm::matches_multiple, 2);
-        //     if terms1.len() == 0 {
-        //         assert(terms1 + seq![term1] =~= seq![term1]);
-        //         assert(terms2 + seq![term2] =~= seq![term2]);
-        //     } else {
-        //         Self::lemma_matches_multiple_extend(terms1.drop_first(), terms2.drop_first(), term1, term2);
-        //         assert(terms1 + seq![term1] =~= seq![terms1[0]] + (terms1.drop_first() + seq![term1]));
-        //         assert(terms2 + seq![term2] =~= seq![terms2[0]] + (terms2.drop_first() + seq![term2]));
-        //         admit();
-        //     }
-        // }
+        if terms1.len() != 0 {
+            Self::lemma_matches_multiple_individual_match(terms1.drop_first(), terms2.drop_first());
+            assert(forall |i| #![auto] 1 <= i < terms1.len() ==> terms1[i] == terms1.drop_first()[i - 1]);
+            assert(forall |i| #![auto] 1 <= i < terms2.len() ==> terms2[i] == terms2.drop_first()[i - 1]);
+        }
+    }
+
+    /// If two seqs of terms match, we can extend it by adding one more pair
+    /// assuming no issue from the merge
+    /// 
+    /// TODO: this lemma looks horrible.
+    pub proof fn lemma_matches_multiple_extend(terms1: Seq<SpecTerm>, terms2: Seq<SpecTerm>, term1: SpecTerm, term2: SpecTerm)
+        requires
+            SpecTerm::matches_multiple(terms1, terms2).is_some() &&
+            term1.matches(term2).is_some() // &&
+            // SpecTerm::matches_multiple(terms1, terms2).unwrap().merge(term1.matches(term2).unwrap()).is_some()
+
+        ensures
+            // (terms1.len() != 0 ==> SpecTerm::matches_multiple(terms1.drop_first(), terms2.drop_first()).is_some()) &&
+
+            SpecTerm::matches_multiple(terms1 + seq![term1], terms2 + seq![term2])
+                =~= SpecTerm::matches_multiple(terms1, terms2).unwrap().merge(term1.matches(term2).unwrap())
+
+        decreases terms1.len()
+    {
         admit();
     }
 
     /// The matching substitution of terms1 and terms2
     /// should subsume the matching substitution of terms1[i] and terms2[i]
     pub proof fn lemma_matches_multiple_subsume(terms1: Seq<SpecTerm>, terms2: Seq<SpecTerm>, i: int)
-        requires 0 <= i < terms1.len()
-        ensures
-            SpecTerm::matches_multiple(terms1, terms2) matches Some(subst1) ==>
-            (terms1[i].matches(terms2[i]) matches Some(subst2) ==> subst1.subsumes(subst2))
+        requires
+            0 <= i < terms1.len() &&
+            SpecTerm::matches_multiple(terms1, terms2).is_some() &&
+            terms1[i].matches(terms2[i]).is_some()
+
+        ensures ({
+            let subst1 = SpecTerm::matches_multiple(terms1, terms2).unwrap();
+            let subst2 = terms1[i].matches(terms2[i]).unwrap();
+            subst1.subsumes(subst2)
+        })
+
+        decreases i
     {
-        admit();
+        if i != 0 {
+            Self::lemma_matches_multiple_subsume(terms1.drop_first(), terms2.drop_first(), i - 1);
+        }
     }
 
     /// If there are two indices i, j such that the matching substitution
     /// of (terms1[i], terms2[i]) and (terms1[j], terms2[j])
     /// are different, then SpecTerm::matches_multiple should fail
     pub proof fn lemma_conflict_to_merge_fail(terms1: Seq<SpecTerm>, terms2: Seq<SpecTerm>, i: int, j: int, conflict_var: SpecVar)
-        ensures
-            terms1[i].matches(terms2[i]) matches Some(subst1) ==>
-            (terms1[j].matches(terms2[j]) matches Some(subst2) ==>
-                (subst1.contains_var(conflict_var) &&
+        requires
+            0 <= i < terms1.len() &&
+            0 <= j < terms1.len() &&
+            terms1[i].matches(terms2[i]).is_some() &&
+            terms1[j].matches(terms2[j]).is_some() &&
+            // Exists a merge conflict
+            ({
+                let subst1 = terms1[i].matches(terms2[i]).unwrap();
+                let subst2 = terms1[j].matches(terms2[j]).unwrap();
+
+                subst1.contains_var(conflict_var) &&
                 subst2.contains_var(conflict_var) &&
-                subst1.get(conflict_var) != subst2.get(conflict_var) ==>
-                SpecTerm::matches_multiple(terms1, terms2).is_none()))
+                subst1.get(conflict_var) != subst2.get(conflict_var)
+            })
+
+        ensures SpecTerm::matches_multiple(terms1, terms2).is_none()
     {
-        admit();
+        // Proof by contradiction
+        if SpecTerm::matches_multiple(terms1, terms2).is_some() {
+            Self::lemma_matches_multiple_subsume(terms1, terms2, i);
+            Self::lemma_matches_multiple_subsume(terms1, terms2, j);
+        }
     }
 }
 
