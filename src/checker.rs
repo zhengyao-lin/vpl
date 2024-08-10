@@ -28,6 +28,7 @@ pub enum FnName {
     User(UserFnName, Arity),
     Nil,
     Cons,
+    Directive,
 }
 
 #[derive(Debug)]
@@ -80,6 +81,7 @@ impl FnName {
                 rc_str_eq(name1, name2) && arity1 == arity2,
             (FnName::Nil, FnName::Nil) => true,
             (FnName::Cons, FnName::Cons) => true,
+            (FnName::Directive, FnName::Directive) => true,
             _ => false,
         }
     }
@@ -93,6 +95,7 @@ impl Clone for FnName {
             FnName::User(name, arity) => FnName::User(name.clone(), *arity),
             FnName::Nil => FnName::Nil,
             FnName::Cons => FnName::Cons,
+            FnName::Directive => FnName::Directive,
         }
     }
 }

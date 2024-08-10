@@ -43,6 +43,10 @@ pub enum SpecFnName {
     // List nil/0 and cons/2
     Nil,
     Cons,
+
+    // A special symbol for denoting headless clauses/directives
+    // e.g. <Directive> :- ...
+    Directive,
 }
 
 pub enum SpecLiteral {
@@ -183,12 +187,6 @@ impl SpecTerm {
             _ => false,
         }
     }
-
-    // /// `self` matches `other` iff there is a substitution `subst`
-    // /// such that `self.subst(subst) == other`
-    // pub open spec fn matches(self, other: SpecTerm) -> bool {
-    //     exists |subst: SpecSubst| #[trigger] self.subst(subst) == other
-    // }
 
     /// Check if self matches other
     /// i.e. variables in other are considered constants
@@ -432,7 +430,6 @@ impl SpecTheorem {
             }
 
             SpecProof::ForallBase(subproofs) => {
-                // self.stmt is of the form forall(t1, t2)
                 &&& self.stmt.headed_by(FN_NAME_FORALL, 2) matches Some(args)
 
                 // For all rules, either
@@ -456,9 +453,8 @@ impl SpecTheorem {
                 }) =~= subproofs.map_values(|thm: SpecTheorem| thm.stmt)
             }
 
-            // Specifications for the built-in functions
+            // Specifications for built-in functions
             SpecProof::BuiltIn => {
-                // self.stmt is of the form f(...) where f is a domain function
                 ||| {
                     &&& self.stmt.headed_by(FN_NAME_EQ, 2) matches Some(args)
                     &&& args[0] == args[1]

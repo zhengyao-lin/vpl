@@ -14,6 +14,7 @@ impl View for FnName {
             FnName::User(name, arity) => SpecFnName::User(name.view(), *arity as int),
             FnName::Nil => SpecFnName::Nil,
             FnName::Cons => SpecFnName::Cons,
+            FnName::Directive => SpecFnName::Directive,
         }
     }
 }

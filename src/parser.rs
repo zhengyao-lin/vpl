@@ -253,7 +253,7 @@ peg::parser!(grammar prolog(state: &ParserState) for str {
         // Headless clauses are converted into `true :- ... .`
         / line:line() ":-" _ body:term() _ "."
             {
-                let head = Rc::new(TermX::App(FnName::user(FN_NAME_TRUE, 0), vec![]));
+                let head = Rc::new(TermX::App(FnName::Directive, vec![]));
                 (RuleX::new(head, vec![body]), line)
             }
 

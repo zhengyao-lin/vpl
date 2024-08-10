@@ -88,20 +88,21 @@ prove(Goal, Id) :-
     clause_property(Ref, line_count(Line)),
     % clause_property(Ref, file(File)),
     
-    (clause_property(Ref, fact)
-    ->
-        % If it's a fact, simplify the tactic and just use the "fact" tactic
+    (   clause_property(Ref, fact)
+    
+    ->  % If it's a fact, simplify the tactic and just use the "fact" tactic
         % (otherwise it might generate a new "true" tactic)
         log_proof(Id, Goal),
         write("fact("), write(Line), writeln(")")
-    ;
-        % Otherwise, apply the body
+
+    ;   % Otherwise, apply the body
         prove(Body, BodyId),
         log_proof(Id, Goal),
         write("apply("), write(BodyId), write(", "),
         % write(File), write(":"),
         write(Line),
-        writeln(")")).
+        writeln(")")
+    ).
 
 prove(Goal) :-
     prove(Goal, _).

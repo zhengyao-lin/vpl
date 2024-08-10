@@ -8,17 +8,24 @@ impl fmt::Display for FnName {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             FnName::User(name, _) => {
-                if name.chars().all(|c| c.is_alphanumeric() || c == '_' || c == ':') {
-                    write!(f, "{}", name)
-                } else {
-                    write!(f, "'{}'", escape_string(name, '\''))
+                if let Some(first) = name.chars().next() {
+                    if first.is_ascii_lowercase() &&
+                        name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == ':') {
+                        // Only print the name unescaped if it starts with a-z and
+                        // only contains a-z, A-Z, 0-9, _, and :
+                        return write!(f, "{}", name);
+                    }
                 }
+                
+                write!(f, "'{}'", escape_string(name, '\''))
             },
 
             // According to https://www.swi-prolog.org/pldoc/man?section=ext-lists
             // [] /= '[]', but functor([1, 2], '[|]', _) is true.
             FnName::Nil => write!(f, "[]"),
             FnName::Cons => write!(f, "'[|]'"),
+
+            FnName::Directive => write!(f, ""),
         }
     }
 }
@@ -35,7 +42,13 @@ impl fmt::Display for Literal {
 impl fmt::Display for TermX {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            TermX::Var(v) => write!(f, "{}", v),
+            TermX::Var(v) => {
+                if v.starts_with('%') {
+                    write!(f, "_")
+                } else {
+                    write!(f, "{}", v)
+                }
+            },
             TermX::Literal(lit) => write!(f, "{}", lit),
             TermX::App(FnName::Nil, args) if args.len() == 0 => {
                 write!(f, "[]")
@@ -73,8 +86,13 @@ impl fmt::Display for RuleX {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.head)?;
 
-        if self.body.len() != 0 {
+        if let TermX::App(FnName::Directive, ..) = self.head.as_ref() {
+            write!(f, ":- ")?;
+        } else if self.body.len() != 0 {
             write!(f, " :- ")?;
+        }
+
+        if self.body.len() != 0 {
             for (i, term) in self.body.iter().enumerate() {
                 if i == 0 {
                     write!(f, "{}", term)?;
