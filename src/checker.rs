@@ -380,40 +380,50 @@ impl Theorem {
         }
     }
 
+    /// A helper function to check the arity and name
+    /// of the head symbol of the term; and returns the arguments
+    fn check_symbol_arity<'a, 'b>(term: &'a Term, expected_name: &'b str, expected_arity: usize) -> (res: Option<&'a Vec<Term>>)
+        ensures res matches Some(returned_args) ==> {
+            &&& term@ matches SpecTerm::App(SpecFnName::User(name, arity), args)
+            &&& args.len() == arity
+            &&& name == expected_name.view()
+            &&& arity == expected_arity
+            &&& args =~= returned_args.deep_view()
+        }
+    {
+        match rc_as_ref(term) {
+            TermX::App(FnName::User(name, arity), args) =>
+                if *arity == args.len() &&
+                    rc_str_eq_str(name, expected_name) &&
+                    *arity == expected_arity {
+                    Some(args)
+                } else {
+                    None
+                },
+            _ => None,
+        }
+    }
+
     /// Construct a proof for forall(member(loop_var, list_term), goal), see SpecProof::ForallMember for more detail
     pub fn forall_member(program: &Program, outer_goal: &Term, subproofs: Vec<&Theorem>) -> (res: Option<Theorem>)
         ensures
             res matches Some(thm) ==> thm.stmt@ == outer_goal@ && thm.wf(program@)
     {
         // Check that outer_goal is of the form forall(member(loop_var, list_term), goal)
-        let (loop_var, list_term, goal) = match rc_as_ref(outer_goal) {
-            TermX::App(f, forall_args) => {
-                if !f.eq(&FnName::user(FN_NAME_FORALL, 2)) || forall_args.len() != 2 {
+        let (loop_var, list_term, goal) =
+            if let Some(forall_args) = Self::check_symbol_arity(outer_goal, FN_NAME_FORALL, 2) {
+                if let Some(member_args) = Self::check_symbol_arity(&forall_args[0], FN_NAME_MEMBER, 2) {
+                    if let TermX::Var(loop_var) = rc_as_ref(&member_args[0]) {
+                        (loop_var, &member_args[1], &forall_args[1])
+                    } else {
+                        return None;
+                    }
+                } else {
                     return None;
                 }
-
-                // Check member(..)
-                match rc_as_ref(&forall_args[0]) {
-                    TermX::App(f2, member_args) => {
-                        if !f2.eq(&FnName::user(FN_NAME_MEMBER, 2)) || member_args.len() != 2 {
-                            return None;
-                        }
-
-                        let loop_var = match rc_as_ref(&member_args[0]) {
-                            TermX::Var(v) => v,
-                            _ => return None,
-                        };
-
-                        let list_term = &member_args[1];
-                        let goal = &forall_args[1];
-
-                        (loop_var, list_term, goal)
-                    }
-                    _ => return None,
-                }
-            }
-            _ => return None,
-        };
+            } else {
+                return None;
+            };
 
         match list_term.as_list() {
             None => None,
@@ -451,127 +461,131 @@ impl Theorem {
         }
     }
 
+    /// Match pattern against every head of a rule
+    /// and check the assumption that each rule head (program.only_unifiable_with_base)
+    /// - Either is matched by pattern and is a fact
+    /// - Or is not unifiable with pattern
+    /// 
+    /// Essentially this exhausts all possible solutions to pattern
+    /// and substitute that solution into template,
+    /// assuming that the pattern is headed by a "base" predicate symbol
+    fn match_subst_base_predicates(program: &Program, pattern: &Term, template: &Term) -> (res: Option<Vec<Term>>)
+        ensures
+            res matches Some(insts) ==> {
+                &&& program@.only_unifiable_with_base(pattern@)
+                &&& filter_map(program@.rules, |rule: SpecRule| {
+                    if let Some(subst) = pattern@.matches(rule.head) {
+                        Some(template@.subst(subst))
+                    } else {
+                        None
+                    }
+                }) =~= insts.deep_view()
+            }
+    {
+        let ghost filter = |rule: SpecRule| {
+            if let Some(subst) = pattern@.matches(rule.head) {
+                Some(template@.subst(subst))
+            } else {
+                None
+            }
+        };
+
+        let mut insts = vec![];
+
+        for i in 0..program.rules.len()
+            invariant
+                // filter stays unchanged
+                (filter == |rule: SpecRule| {
+                    if let Some(subst) = pattern@.matches(rule.head) {
+                        Some(template@.subst(subst))
+                    } else {
+                        None
+                    }
+                }) &&
+
+                // A prefix version of program.only_unifiable_with_base
+                (forall |j: int| 0 <= j < i ==>
+                    (#[trigger] program@.rules[j]).matching_or_not_unifiable(pattern@)) &&
+
+                // The first i rules are corrected processed
+                filter_map(program@.rules.take(i as int), filter) =~= insts.deep_view()
+        {
+            let rule = &program.rules[i];
+            if rule.body.len() != 0 {
+                // Non-fact rules should not unify with the pattern
+                if !pattern.not_unifiable(&rule.head) {
+                    return None;
+                }
+
+                proof {
+                    pattern@.lemma_non_unifiable_to_non_matching(rule@.head);
+                    lemma_filter_map_skip(program@.rules, filter, i as int);
+                }
+            } else {
+                // Any fact should either be matched by pattern
+                // or not unifiable (i.e. nothing in between)
+                let mut subst = Subst::new();
+                let ghost old_subst = subst@;
+                if let Ok(..) = TermX::match_terms(&mut subst, &pattern, &rule.head) {
+                    insts.push(TermX::subst(template, &subst));
+
+                    proof {
+                        // Append the mapped element to the filtered list
+                        lemma_filter_map_no_skip(program@.rules, filter, i as int);
+                        let matches_subst = pattern@.matches(rule@.head).unwrap();
+                        old_subst.lemma_merge_empty_left(matches_subst);
+                    }
+                } else if !pattern.not_unifiable(&rule.head) {
+                    return None;
+                } else {
+                    proof {
+                        // No change to the filtered list
+                        lemma_filter_map_skip(program@.rules, filter, i as int);
+                    }
+                }
+            }
+        }
+
+        assert(program@.rules.take(program.rules.len() as int) == program@.rules);
+
+        Some(insts)
+    }
+
     /// Proof-check base case of findall
     pub fn findall_base(program: &Program, goal: &Term) -> (res: Option<Theorem>)
         ensures
             res matches Some(thm) ==> thm.stmt@ == goal@ && thm.wf(program@)
     {
-        match rc_as_ref(goal) {
-            TermX::App(FnName::User(name, arity), args) => {
-                if args.len() != *arity {
-                    return None;
-                }
+        if let Some(args) = Self::check_symbol_arity(goal, FN_NAME_FINDALL, 3) {
+            let template = &args[0];
+            let pattern = &args[1];
 
-                if !rc_str_eq_str(name, FN_NAME_FINDALL) || *arity != 3 {
-                    return None;
-                }
+            if let Some(list) = (&args[2]).as_list() {
+                if let Some(insts) = Self::match_subst_base_predicates(program, pattern, template) {
+                    // Check that the instances coincides with the list
+                    if insts.len() != list.len() {
+                        return None;
+                    }
 
-                let template = &args[0];
-                let pattern = &args[1];
-                let list_opt = (&args[2]).as_list();
-
-                // Third arg has to be a concrete list
-                if list_opt.is_none() {
-                    return None;
-                }
-
-                let list = list_opt.unwrap();
-
-                let mut valid_insts = 0;
-                let ghost filter = |rule: SpecRule|
-                    if let Some(subst) = pattern@.matches(rule.head) {
-                        Some(template@.subst(subst))
-                    } else {
-                        None
-                    };
-
-                // Check that each element in the list matches the template when substituted
-                // with the pattern
-                // TODO: extract the common part of this loop along with Theorem::forall_base
-                for i in 0..program.rules.len()
-                    invariant
-                        args.len() == 3 &&
-                        valid_insts <= i &&
-                        valid_insts <= list.len() &&
-
-                        // filter stays unchanged
-                        (filter == |rule: SpecRule|
-                            if let Some(subst) = pattern@.matches(rule.head) {
-                                Some(template@.subst(subst))
-                            } else {
-                                None
-                            }) &&
-
-                        // Each rule before i satisfies the constraint in the spec (see SpecProof::ForallBase)
-                        (forall |j: int| 0 <= j < i ==> {
-                            let rule = #[trigger] program@.rules[j];
-                            ||| rule.body.len() == 0 && pattern@.matches(rule.head).is_some()
-                            ||| pattern@.not_unifiable(rule.head)
-                        }) &&
-
-                        // The first i rules are corrected processed
-                        filter_map(program@.rules.take(i as int), filter)
-                            =~= list.deep_view().take(valid_insts as int)
-                {
-                    let rule = &program.rules[i];
-                    if rule.body.len() != 0 {
-                        // Non-fact rules should not unify with the pattern
-                        if !pattern.not_unifiable(&rule.head) {
+                    for i in 0..insts.len()
+                        invariant
+                            insts.len() == list.len() &&
+                            (forall |j| #![auto] 0 <= j < i ==> insts[j]@ == list[j]@)
+                    {
+                        if !(&insts[i]).eq(list[i]) {
                             return None;
                         }
-
-                        proof {
-                            pattern@.lemma_non_unifiable_to_non_matching(rule@.head);
-                            lemma_filter_map_skip(program@.rules, filter, i as int);
-                        }
-                    } else {
-                        // Any fact should either be matched by pattern
-                        // or not unifiable (i.e. nothing in between)
-                        let mut subst = Subst::new();
-                        let ghost old_subst = subst@;
-                        if let Ok(..) = TermX::match_terms(&mut subst, &pattern, &rule.head) {
-                            // Match instance with the subproof
-                            if valid_insts >= list.len() {
-                                return None;
-                            }
-
-                            if !(&TermX::subst(template, &subst)).eq(&list[valid_insts]) {
-                                return None;
-                            }
-
-                            valid_insts += 1;
-
-                            proof {
-                                // Append the mapped element to the filtered list
-                                lemma_filter_map_no_skip(program@.rules, filter, i as int);
-                                let matches_subst = pattern@.matches(rule@.head).unwrap();
-                                old_subst.lemma_merge_empty_left(matches_subst);
-                            }
-                        } else if !pattern.not_unifiable(&rule.head) {
-                            return None;
-                        } else {
-                            proof {
-                                // No change to the filtered list
-                                lemma_filter_map_skip(program@.rules, filter, i as int);
-                            }
-                        }
                     }
-                }
-                
-                if valid_insts == list.len() {
-                    proof {
-                        assert(program@.rules =~= program@.rules.take(program.rules.len() as int));
-                    }
-                    Some(Theorem {
+
+                    return Some(Theorem {
                         stmt: goal.clone(),
                         proof: Ghost(SpecProof::BuiltIn),
-                    })
-                } else {
-                    None
+                    });
                 }
             }
-            _ => None,
         }
+
+        None
     }
 
     /// Apply and proof-check SpecProof::ForallBase
@@ -579,111 +593,31 @@ impl Theorem {
         ensures
             res matches Some(thm) ==> thm.stmt@ == goal@ && thm.wf(program@)
     {
-        match rc_as_ref(goal) {
-            TermX::App(FnName::User(name, arity), args) => {
-                if args.len() != *arity {
+        if let Some(args) = Self::check_symbol_arity(goal, FN_NAME_FORALL, 2) {
+            let pattern = &args[0];
+            let template = &args[1];
+
+            if let Some(insts) = Self::match_subst_base_predicates(program, pattern, template) {
+                if insts.len() != subproofs.len() {
                     return None;
                 }
 
-                if !rc_str_eq_str(name, FN_NAME_FORALL) || *arity != 2 {
-                    return None;
-                }
-
-                let pattern = &args[0];
-                let mut valid_insts = 0;
-
-                let ghost filter = |rule: SpecRule|
-                    if let Some(subst) = pattern@.matches(rule.head) {
-                        Some(args[1]@.subst(subst))
-                    } else {
-                        None
-                    };
-
-                // Go through each rule, and match pattern against
-                // the head of the rule. If the matching suceeds,
-                // check if the corresponding subproof is correct
-                for i in 0..program.rules.len()
+                // Check that the instances match the statements of the subproofs
+                for i in 0..insts.len()
                     invariant
-                        args.len() == 2 &&
-                        valid_insts <= i &&
-                        valid_insts <= subproofs.len() &&
-
-                        // filter stays unchanged
-                        (filter == |rule: SpecRule|
-                            if let Some(subst) = pattern@.matches(rule.head) {
-                                Some(args[1]@.subst(subst))
-                            } else {
-                                None
-                            }) &&
-
-                        // Each rule before i satisfies the constraint in the spec (see SpecProof::ForallBase)
-                        (forall |j: int| 0 <= j < i ==> {
-                            let rule = #[trigger] program@.rules[j];
-                            ||| rule.body.len() == 0 && pattern@.matches(rule.head).is_some()
-                            ||| pattern@.not_unifiable(rule.head)
-                        }) &&
-
-                        // The first i rules are corrected processed
-                        filter_map(program@.rules.take(i as int), filter)
-                            =~= subproofs.deep_view().map_values(|thm: SpecTheorem| thm.stmt).take(valid_insts as int)
+                        insts.len() == subproofs.len() &&
+                        (forall |j| #![auto] 0 <= j < i ==> insts[j]@ == subproofs[j].stmt@)
                 {
-                    let rule = &program.rules[i];
-                    if rule.body.len() != 0 {
-                        // Non-fact rules should not unify with the pattern
-                        if !pattern.not_unifiable(&rule.head) {
-                            return None;
-                        }
-
-                        proof {
-                            pattern@.lemma_non_unifiable_to_non_matching(rule@.head);
-                            lemma_filter_map_skip(program@.rules, filter, i as int);
-                        }
-                    } else {
-                        // Any fact should either be matched by pattern
-                        // or not unifiable (i.e. nothing in between)
-                        let mut subst = Subst::new();
-                        let ghost old_subst = subst@;
-                        if let Ok(..) = TermX::match_terms(&mut subst, &pattern, &rule.head) {
-                            // Match instance with the subproof
-                            if valid_insts >= subproofs.len() {
-                                return None;
-                            }
-
-                            if !(&TermX::subst(&args[1], &subst)).eq(&subproofs[valid_insts].stmt) {
-                                return None;
-                            }
-
-                            valid_insts += 1;
-
-                            proof {
-                                // Append the mapped element to the filtered list
-                                lemma_filter_map_no_skip(program@.rules, filter, i as int);
-                                let matches_subst = pattern@.matches(rule@.head).unwrap();
-                                old_subst.lemma_merge_empty_left(matches_subst);
-                            }
-                        } else if !pattern.not_unifiable(&rule.head) {
-                            return None;
-                        } else {
-                            proof {
-                                // No change to the filtered list
-                                lemma_filter_map_skip(program@.rules, filter, i as int);
-                            }
-                        }
+                    if !(&insts[i]).eq(&subproofs[i].stmt) {
+                        return None;
                     }
                 }
 
-                if valid_insts == subproofs.len() {
-                    proof {
-                        assert(program@.rules =~= program@.rules.take(program.rules.len() as int));
-                    }
-                    return Some(Theorem {
-                        stmt: goal.clone(),
-                        proof: Ghost(SpecProof::ForallBase(subproofs.deep_view())),
-                    });
-                }
+                return Some(Theorem {
+                    stmt: goal.clone(),
+                    proof: Ghost(SpecProof::ForallBase(subproofs.deep_view())),
+                });
             }
-
-            _ => {}
         }
 
         None
@@ -694,57 +628,52 @@ impl Theorem {
         ensures
             res matches Some(thm) ==> thm.stmt@ == goal@ && thm.wf(program@)
     {
-        match rc_as_ref(goal) {
-            TermX::App(FnName::User(name, arity), args) => {
-                if args.len() != *arity {
-                    return None;
-                }
-
-                if (rc_str_eq_str(name, FN_NAME_EQ) || rc_str_eq_str(name, FN_NAME_EQUIV)) && *arity == 2 {
-                    if (&args[0]).eq(&args[1]) {
-                        return Some(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::BuiltIn) });
-                    }
-                } else if rc_str_eq_str(name, FN_NAME_NOT_EQ) && *arity == 2 {
-                    if (&args[0]).not_unifiable(&args[1]) {
-                        return Some(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::BuiltIn) });
-                    }
-                } else if rc_str_eq_str(name, FN_NAME_NOT_EQUIV) && *arity == 2 {
-                    if !(&args[0]).eq(&args[1]) {
-                        return Some(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::BuiltIn) });
-                    }
-                } else if rc_str_eq_str(name, FN_NAME_LENGTH) && *arity == 2 {
-                    // length(L, N) iff length of L is N
-                    if let (Some(list), TermX::Literal(Literal::Int(i))) = ((&args[0]).as_list(), rc_as_ref(&args[1])) {
-                        // TODO: better way to check overflow
-                        if *i >= 0 && *i <= u32::MAX as i64 && list.len() == *i as usize {
-                            return Some(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::BuiltIn) });
-                        }
-                    }
-                } else if rc_str_eq_str(name, FN_NAME_MEMBER) && *arity == 2 {
-                    // member(X, L) iff X is in L
-                    if let Some(list) = (&args[1]).as_list() {
-                        if (&args[0]).is_member(&list) {
-                            return Some(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::BuiltIn) });
-                        }
-                    }
-                } else if rc_str_eq_str(name, FN_NAME_NOT) && *arity == 1 {
-                    // \+P holds if P is not unifiable with head of any rule
-                    for i in 0..program.rules.len()
-                        invariant
-                            args.len() == 1 &&
-                            forall |j| 0 <= j < i ==> (#[trigger] program.rules[j]).head@.not_unifiable(args[0]@)
-                    {
-                        if !(&program.rules[i].head).not_unifiable(&args[0]) {
-                            return None;
-                        }
-                    }
-
+        if let Some(args) = Self::check_symbol_arity(goal, FN_NAME_EQ, 2) {
+            if (&args[0]).eq(&args[1]) {
+                return Some(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::BuiltIn) });
+            }
+        } else if let Some(args) = Self::check_symbol_arity(goal, FN_NAME_EQUIV, 2) {
+            if (&args[0]).eq(&args[1]) {
+                return Some(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::BuiltIn) });
+            }
+        } else if let Some(args) = Self::check_symbol_arity(goal, FN_NAME_NOT_EQ, 2) {
+            if (&args[0]).not_unifiable(&args[1]) {
+                return Some(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::BuiltIn) });
+            }
+        } else if let Some(args) = Self::check_symbol_arity(goal, FN_NAME_NOT_EQUIV, 2) {
+            if !(&args[0]).eq(&args[1]) {
+                return Some(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::BuiltIn) });
+            }
+        } else if let Some(args) = Self::check_symbol_arity(goal, FN_NAME_LENGTH, 2) {
+            // length(L, N) iff length of L is N
+            if let (Some(list), TermX::Literal(Literal::Int(i))) = ((&args[0]).as_list(), rc_as_ref(&args[1])) {
+                // TODO: better way to check overflow
+                if *i >= 0 && *i <= u32::MAX as i64 && list.len() == *i as usize {
                     return Some(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::BuiltIn) });
-                } else if let Some(thm) = Self::findall_base(program, goal) {
-                    return Some(thm);
                 }
             }
-            _ => {}
+        } else if let Some(args) = Self::check_symbol_arity(goal, FN_NAME_MEMBER, 2) {
+            // member(X, L) iff X is in L
+            if let Some(list) = (&args[1]).as_list() {
+                if (&args[0]).is_member(&list) {
+                    return Some(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::BuiltIn) });
+                }
+            }
+        } else if let Some(args) = Self::check_symbol_arity(goal, FN_NAME_NOT, 1) {
+            // \+P holds if P is not unifiable with head of any rule
+            for i in 0..program.rules.len()
+                invariant
+                    args.len() == 1 &&
+                    forall |j| 0 <= j < i ==> (#[trigger] program.rules[j]).head@.not_unifiable(args[0]@)
+            {
+                if !(&program.rules[i].head).not_unifiable(&args[0]) {
+                    return None;
+                }
+            }
+
+            return Some(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::BuiltIn) });
+        } else if let Some(_) = Self::check_symbol_arity(goal, FN_NAME_FINDALL, 3) {
+            return Self::findall_base(program, goal);
         }
 
         None

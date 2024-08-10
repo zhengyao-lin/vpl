@@ -111,6 +111,7 @@ fn main_args(mut args: Args) -> Result<(), Error> {
         }
     }
     
+    // TODO: kill the process if the trace validator loop fails
     if !swipl.wait()?.success() {
         return Err(Error::Other("swipl exited with failure".to_string()));
     }

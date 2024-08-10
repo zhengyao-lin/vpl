@@ -272,7 +272,20 @@ impl SpecSubst {
     }
 }
 
-impl SpecRule {}
+impl SpecRule {
+    /// A technical constraint that a term either
+    /// matches the rule head and the rule is a fact
+    /// or the term is not unifiable with the head
+    /// 
+    /// e.g. cannot be the case that
+    /// - The term matches the head but the rule is not a fact.
+    /// - The term does not match the head but it's unifiable with the head
+    pub open spec fn matching_or_not_unifiable(self, term: SpecTerm) -> bool
+    {
+        ||| self.body.len() == 0 && term.matches(self.head).is_some()
+        ||| term.not_unifiable(self.head)
+    }
+}
 
 impl SpecProgram {
     /// Check that
@@ -283,11 +296,8 @@ impl SpecProgram {
     /// This used as a simplifying assumption for proof-checking forall and findall
     pub open spec fn only_unifiable_with_base(self, term: SpecTerm) -> bool
     {
-        forall |i| 0 <= i < self.rules.len() ==> {
-            ||| (#[trigger] self.rules[i]).body.len() == 0 &&
-                term.matches(self.rules[i].head).is_some()
-            ||| term.not_unifiable(self.rules[i].head)
-        }
+        forall |i| 0 <= i < self.rules.len() ==>
+            (#[trigger] self.rules[i]).matching_or_not_unifiable(term)
     }
 }
 
