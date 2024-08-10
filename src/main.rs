@@ -64,8 +64,8 @@ fn validate_trace(args: &Args, program: &Program, line_map: &HashMap<usize, Rule
         let line_str = line?;
         
         if args.debug {
-            println!("[debug] ==============================================================");
-            println!("[debug] event {}", &line_str);
+            eprintln!("[debug] ==============================================================");
+            eprintln!("[debug] event {}", &line_str);
         }
 
         match parse_trace_event(&line_str, &line_map) {
@@ -73,11 +73,11 @@ fn validate_trace(args: &Args, program: &Program, line_map: &HashMap<usize, Rule
                 last_event_id = event.id;
                 let thm = validator.process_event(&program, &event, args.debug)?;
                 if args.debug {
-                    println!("[debug] validated: {}", thm.stmt);
+                    eprintln!("[debug] validated: {}", thm.stmt);
                 }
             }
             Err(err) => {
-                println!("[warning] failed to parse trace event \"{}\": {}", &line_str, err);
+                println!("[error] failed to parse trace event \"{}\": {}", &line_str, err);
             }
         }
     }
@@ -104,9 +104,9 @@ fn main_args(mut args: Args) -> Result<(), Error> {
     let goal = parse_term(&args.goal)?;
 
     if args.debug || args.dry {
-        println!("[debug] parsed program:");
+        eprintln!("[debug] parsed program:");
         for rule in &program.rules {
-            println!("[debug]   {}", rule);
+            eprintln!("[debug]   {}", rule);
         }
     }
 
@@ -120,7 +120,7 @@ fn main_args(mut args: Args) -> Result<(), Error> {
         .stdout(Stdio::piped());
 
     if args.debug || args.dry {
-        println!("[debug] running swipl command: {:?}", &swipl_cmd);
+        eprintln!("[debug] running swipl command: {:?}", &swipl_cmd);
     }
 
     if args.dry {

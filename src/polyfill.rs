@@ -103,4 +103,24 @@ pub fn println_debug<T: Debug>(s: T) {
     println!("{:?}", s);
 }
 
+#[verifier::external_body]
+pub fn eprint<T: Display>(s: T) {
+    eprint!("{}", s);
+}
+
+#[verifier::external_body]
+pub fn eprintln<T: Display>(s: T) {
+    eprintln!("{}", s);
+}
+
+#[verifier::external_body]
+pub fn eprint_debug<T: Debug>(s: T) {
+    eprint!("{:?}", s);
+}
+
+#[verifier::external_body]
+pub fn eprintln_debug<T: Debug>(s: T) {
+    eprintln!("{:?}", s);
+}
+
 }

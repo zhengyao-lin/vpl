@@ -147,7 +147,7 @@ impl TraceValidator {
                 }
 
                 if debug {
-                    print("[debug] applying rule: "); println(rule);
+                    eprint("[debug] applying rule: "); eprintln(rule);
                 }
 
                 // Figure out the substitution for the rule application
@@ -172,7 +172,7 @@ impl TraceValidator {
                     subproofs.push(self.get_theorem(program, subproof_ids[i])?);
                     
                     if debug {
-                        print("[debug]   with subproof: "); println(&subproofs[i].stmt);
+                        eprint("[debug]   with subproof: "); eprintln(&subproofs[i].stmt);
                     }
 
                     if let Err(err) = TermX::match_terms(&mut subst, &rule.body[i], &subproofs[i].stmt) {
@@ -181,7 +181,7 @@ impl TraceValidator {
                 }
 
                 if debug {
-                    print("[debug] matching substitution: "); println(&subst);
+                    eprint("[debug] matching substitution: "); eprintln(&subst);
                 }
 
                 // Apply and proof-check the final result 
@@ -272,7 +272,7 @@ impl TraceValidator {
                 }
 
                 if debug {
-                    print("[debug] apply forall-member: "); println(&event.term);
+                    eprint("[debug] apply forall-member: "); eprintln(&event.term);
                 }
 
                 if let Some(thm) = Theorem::forall_member(program, &event.term, subproofs) {
@@ -296,7 +296,7 @@ impl TraceValidator {
                 }
 
                 if debug {
-                    print("[debug] apply forall-base: "); println(&event.term);
+                    eprint("[debug] apply forall-base: "); eprintln(&event.term);
                 }
 
                 if let Some(thm) = Theorem::forall_base(program, &event.term, subproofs) {
