@@ -120,6 +120,7 @@ peg::parser!(grammar prolog(state: &ParserState) for str {
     rule ident() -> &'input str
         = name:quiet!{$(['a'..='z' | 'A'..='Z']['_' | ':' | 'a'..='z' | 'A'..='Z' | '0'..='9']*)} { name }
         / "'" name:$(ident_char()*) "'" { name }
+        / name:$"*" { name }
         / expected!("identifier")
 
     rule var() -> &'input str
@@ -224,6 +225,12 @@ peg::parser!(grammar prolog(state: &ParserState) for str {
             Rc::new(TermX::App(FnName::User(unescape_string(name).into(), args.len()), args))
         }
         name:ident() { Rc::new(TermX::App(FnName::User(unescape_string(name).into(), 0), vec![])) }
+        
+        // Special cases of parsing certain special operators
+        // TODO: not complete
+        "=" _ "(" _ args:comma_sep(<small_term()>) _ ")" {
+            Rc::new(TermX::App(FnName::user(FN_NAME_EQ, args.len()), args))
+        }
         list:list() { list }
     }
 

@@ -267,7 +267,9 @@ sha1_sig_algo("1.3.14.3.2.26"). % sha1NoSign
 sha1_sig_algo("1.2.840.10045.4.1"). % sha1ECDSA
 
 count(L, E, N) :-
-    include('='(E), L, L2), length(L2, N).
+    include(=(E), L, L2),
+    % findall(X, (member(X, L), member(X, [E])), L2),
+    length(L2, N).
 
 % stringMatch(PatternStr, CommonNameStr):-
 %     var(CommonName),
@@ -292,9 +294,9 @@ stringMatch(PatternStr, CommonNameStr):-
     )).
 
 stringMatch(PatternStr, CommonNameStr):-
-    CommonName = Pattern,
     string_chars(PatternStr, Pattern),
     string_chars(CommonNameStr, CommonName),
+    CommonName = Pattern,
     Pattern \= ['*' , '.' | _].
 
 % domain name matches one of the names in SAN
@@ -313,8 +315,7 @@ isTimeValid(Lower, Upper):-
 
 % Basic Constraints checks
 % CA bit set
-isCA(BasicConstraints):-
-    BasicConstraints = [true, _].
+isCA([true, _]).
 
 getBasicConstraints(Cert, BasicConstraints):-
     basicConstraintsExt(Cert, false),
@@ -923,6 +924,10 @@ cleanName(Name, Cleaned) :-
   LastChar = ".",
   sub_string(Decoded, 0, _, 1, Cleaned).
 
+cleanNameConstraintValid(Name) :-
+  cleanName(Name, Cleaned),
+  nameConstraintValid(Cleaned).
+
 % Name-constrained name (any)
 dnsNameValid(Name, PermittedNames, ExcludedNames) :-
   length(PermittedNames, PermittedNamesLength),
@@ -932,12 +937,9 @@ dnsNameValid(Name, PermittedNames, ExcludedNames) :-
   (
     (
       PermittedNamesLength > 0,
-      forall(member(PermittedName, PermittedNames), (
-        cleanName(PermittedName, CleanPermittedName),
-        nameConstraintValid(CleanPermittedName)
-      )),
-      member(PermittedName, PermittedNames),
-      cleanName(PermittedName, CleanPermittedName),
+      forall(member(PermittedName, PermittedNames), cleanNameConstraintValid(PermittedName)),
+      member(PermittedName1, PermittedNames),
+      cleanName(PermittedName1, CleanPermittedName),
       namePermitted(Name, CleanPermittedName)
     );
     PermittedNamesLength = 0
@@ -1077,12 +1079,10 @@ notCrlSet(F):-
 notCrlSet(F):-
     nonvar(F), \+crlSet(F).
 
-pathLengthValid(_, BasicConstraints):-
-  BasicConstraints = [_, Limit],
+pathLengthValid(_, [_, Limit]):-
   Limit == none.
 
-pathLengthValid(CertsSoFar, BasicConstraints):-
-  BasicConstraints = [_, Limit],
+pathLengthValid(CertsSoFar, [_, Limit]):-
   Limit \= none, CertsSoFar =< Limit.
 
 verifiedRoot(Fingerprint, Lower, Upper, BasicConstraints, KeyUsage, ExtKeyUsage, ChildFingerprint):-
@@ -1090,7 +1090,16 @@ verifiedRoot(Fingerprint, Lower, Upper, BasicConstraints, KeyUsage, ExtKeyUsage,
   checkKeyCertSign(KeyUsage),
   isTimeValid(Lower, Upper),
   isChromeRoot(Fingerprint),
-  \+badSymantec(Fingerprint, ChildFingerprint, Lower),
+
+  % Rewritten to the following
+  % \+badSymantec(Fingerprint, ChildFingerprint, Lower),
+  (
+    \+trusted(Fingerprint);
+    \+symantecRoot(Fingerprint);
+    symantecException(ChildFingerprint);
+    \+symantecUntrusted(Lower)
+  ),
+
   isCA(BasicConstraints),
   % Trust anchor WITH CONSTRAINTS
   extKeyUsageValid(ExtKeyUsage).

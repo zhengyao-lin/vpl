@@ -42,6 +42,12 @@ pub fn rc_as_ref<T: View>(rc: &Rc<T>) -> (res: &T)
     rc.as_ref()
 }
 
+#[verifier::external_body]
+pub fn str_to_lowercase(s: &str) -> String
+{
+    s.to_lowercase()
+}
+
 /// By Travis
 pub fn vec_map<T, U>(v: &Vec<T>, f: impl Fn(&T) -> U) -> (res: Vec<U>)
     requires

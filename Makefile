@@ -1,5 +1,8 @@
 # Add external dependencies here
-DEPS = peg clap thiserror
+# To add a new dependency, run
+#   cargo add <dep>
+# Then add <dep> to this list
+DEPS = peg clap thiserror urlencoding
 
 .PHONY: debug
 debug: target/debug/vpl

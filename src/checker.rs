@@ -1,6 +1,8 @@
 use vstd::prelude::*;
 use std::rc::Rc;
 
+use urlencoding;
+
 use crate::containers::StringHashMap;
 use crate::proof::*;
 use crate::polyfill::*;
@@ -763,6 +765,39 @@ impl Theorem {
             }
         }
 
+        Self::unverified_builtins(program, goal)
+    }
+
+    /// Some unverified built-in functions due to lack of specs
+    /// TODO: move this to the verified check
+    #[verifier::external_body]
+    fn unverified_builtins(program: &Program, goal: &Term) -> (res: Option<Theorem>)
+        ensures
+            res matches Some(thm) ==> thm.stmt@ == goal@ && thm.wf(program@)
+    {
+        if let Some(args) = goal.headed_by("string_lower", 2) {
+            if let (
+                TermX::Literal(Literal::String(s1)),
+                TermX::Literal(Literal::String(s2)),
+            ) = (rc_as_ref(&args[0]), rc_as_ref(&args[1])) {
+                if s1.to_lowercase() == s2.as_ref() {
+                    return Some(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::BuiltIn) });
+                }
+            }
+        } else if let Some(args) = goal.headed_by("uri_encoded", 3) {
+            if let (
+                TermX::App(FnName::User(s1, 0), ..),
+                TermX::Literal(Literal::String(s2)),
+            ) = (rc_as_ref(&args[1]), rc_as_ref(&args[2])) {
+                // TODO: fix this
+                if urlencoding::encode(s1) == s2.as_ref() {
+                    return Some(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::BuiltIn) });
+                }
+            }
+        }
+
+        // print("unsupported built-in: "); println(goal);
+        // return Some(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::BuiltIn) });
         None
     }
 }

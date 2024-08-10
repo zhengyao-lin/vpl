@@ -73,7 +73,7 @@ fn validate_trace(args: &Args, program: &Program, line_map: &HashMap<usize, Rule
                 }
             }
             Err(err) => {
-                eprintln!("[error] failed to parse trace event \"{}\": {}", &line_str, err);
+                Err(Error::Other(format!("[error] failed to parse trace event \"{}\": {}", &line_str, err)))?
             }
         }
     }
