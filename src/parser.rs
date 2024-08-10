@@ -12,25 +12,17 @@ use crate::trace::*;
 /// when displaying, all variables starting with % is replaced with _
 pub const ANON_VAR_PREFIX: &'static str = "%";
 
-struct ParserState {
-    line: Cell<usize>,
+struct ParserState<'a> {
+    source: &'a str,
     anon_var_counter: Cell<usize>,
 }
 
-impl ParserState {
-    fn new() -> ParserState {
+impl ParserState<'_> {
+    fn new(source: &str) -> ParserState {
         ParserState {
-            line: Cell::new(1),
+            source,
             anon_var_counter: Cell::new(0),
         }
-    }
-
-    fn line(&self) -> usize {
-        self.line.get()
-    }
-
-    fn inc_line(&self) {
-        self.line.set(self.line.get() + 1);
     }
 
     fn fresh_anon_var(&self) -> String {
@@ -108,15 +100,12 @@ pub fn escape_string(s: &str, quote: char) -> String
 peg::parser!(grammar prolog(state: &ParserState) for str {
     rule ignore()
         // whitespaces
-        = quiet!{[' ' | '\t' | '\r']}
-        / quiet!{"\n"} { state.inc_line(); }
+        = quiet!{[' ' | '\t' | '\r' | '\n']}
         // Inline comments
         / "%" [^'\n']*
         / "#!" [^'\n']*
 
     rule _ = ignore()*
-
-    rule line() -> usize = { state.line() }
 
     /// Comma separated list without extra trailing comma
     rule comma_sep<T>(x: rule<T>) -> Vec<T> = v:(x() ** (_ "," _)) { v }
@@ -128,7 +117,6 @@ peg::parser!(grammar prolog(state: &ParserState) for str {
     rule ident_char() = "\\'" / [^'\'']
     rule string_char() = "\\\"" / [^'"']
 
-    /// Returns the slice and the line number
     rule ident() -> &'input str
         = name:quiet!{$(['a'..='z' | 'A'..='Z']['_' | ':' | 'a'..='z' | 'A'..='Z' | '0'..='9']*)} { name }
         / "'" name:$(ident_char()*) "'" { name }
@@ -218,8 +206,6 @@ peg::parser!(grammar prolog(state: &ParserState) for str {
         t1:(@) _ "/" _ t2:@ { Rc::new(TermX::App(FnName::user(FN_NAME_PRED_IND, 2), vec![t1, t2])) }
         --
 
-        // Same as ( t ) but we need to get the line number
-        // of the first parenthesis
         "(" _ t:term() _ ")" { t }
 
         var:var() { TermX::var_str(var) }
@@ -231,7 +217,6 @@ peg::parser!(grammar prolog(state: &ParserState) for str {
 
         // Literals
         i:int() { Rc::new(TermX::Literal(Literal::Int(i))) }
-        // TODO: string may range multiple lines, fix the line number
         s:string() { Rc::new(TermX::Literal(Literal::String(unescape_string(s).into()))) }
 
         // Application (including atoms and lists)
@@ -243,18 +228,18 @@ peg::parser!(grammar prolog(state: &ParserState) for str {
     }
 
     pub rule clause() -> (Rule, usize)
-        = line:line() head:term() _ "."
-            { (RuleX::new(head, vec![]), line) }
+        = pos:position!() head:term() _ "."
+            { (RuleX::new(head, vec![]), pos) }
 
         // Conjunction as a binary operator
-        / line:line() head:term() _ ":-" _ body:term() _ "."
-            { (RuleX::new(head, vec![body]), line) }
+        / pos:position!() head:term() _ ":-" _ body:term() _ "."
+            { (RuleX::new(head, vec![body]), pos) }
 
         // Headless clauses are converted into `true :- ... .`
-        / line:line() ":-" _ body:term() _ "."
+        / pos:position!() ":-" _ body:term() _ "."
             {
                 let head = Rc::new(TermX::App(FnName::Directive, vec![]));
-                (RuleX::new(head, vec![body]), line)
+                (RuleX::new(head, vec![body]), pos)
             }
 
     /// Returns a program and a map from line number to rule id
@@ -263,9 +248,23 @@ peg::parser!(grammar prolog(state: &ParserState) for str {
             let mut program_rules = vec![];
             let mut line_map = HashMap::new();
 
-            for (i, (rule, line)) in rules.into_iter().enumerate() {
+            let mut last_pos = 0;
+            let mut num_lines = 1; // 1 + number of newline symbols in &source[0..last_pos]
+
+            for (i, (rule, pos)) in rules.into_iter().enumerate() {
+                // Convert position to line number
+                assert!(pos >= last_pos);
+                
+                // Need to count how many newline symbols
+                // there are in [last_pos, pos)
+                let new_lines = state.source[last_pos..pos]
+                    .chars().filter(|c| *c == '\n').count();
+
+                last_pos = pos;
+                num_lines += new_lines;
+
                 program_rules.push(rule);
-                line_map.insert(line, i);
+                line_map.insert(num_lines, i);
             }
 
             (ProgramX::new(program_rules), line_map)
@@ -315,20 +314,20 @@ pub struct ParserError(pub Option<String>, pub peg::error::ParseError<peg::str::
 /// Parse a Prolog program source
 /// Returns a program and a map from line numbers to rule ids
 pub fn parse_program(source: impl AsRef<str>, path: impl AsRef<str>) -> Result<(Program, HashMap<usize, RuleId>), ParserError> {
-    let state = ParserState::new();
+    let state = ParserState::new(source.as_ref());
     prolog::program(source.as_ref(), &state).map_err(|e| ParserError(Some(path.as_ref().to_string()), e))
 }
 
 /// Parse a Prolog term
 pub fn parse_term(source: impl AsRef<str>) -> Result<Term, ParserError> {
-    let state = ParserState::new();
+    let state = ParserState::new(source.as_ref());
     prolog::term(source.as_ref(), &state)
         .map_err(|e| ParserError(None, e))
 }
 
 /// Parse a trace event
 pub fn parse_trace_event(source: impl AsRef<str>, line_map: &HashMap<usize, RuleId>) -> Result<Event, ParserError> {
-    let state = ParserState::new();
+    let state = ParserState::new(source.as_ref());
     prolog::event(source.as_ref(), &state, &line_map).map_err(|e| ParserError(None, e))
 }
 

@@ -10,9 +10,9 @@ mod parser;
 mod error;
 mod matching;
 
-use std::io::BufReader;
+use std::io;
 use std::io::BufRead;
-use std::process::{ExitCode, Command, Child, Stdio};
+use std::process::{ExitCode, Command, Stdio, ChildStdout};
 use std::collections::HashMap;
 use std::fs;
 
@@ -50,17 +50,13 @@ struct Args {
     dry: bool,
 }
 
-fn validate_trace(args: &Args, program: &Program, line_map: &HashMap<usize, RuleId>, goal: &Term, swipl_proc: &mut Child) -> Result<(), Error> {
-    let mut swipl_stdout = swipl_proc.stdout.take()
-        .ok_or(Error::Other("failed to open swipl stdout".to_string()))?;
-
+fn validate_trace(args: &Args, program: &Program, line_map: &HashMap<usize, RuleId>, goal: &Term, swipl_stdout: &mut ChildStdout) -> Result<(), Error> {
     let mut validator = TraceValidator::new(program);
-
     let mut last_event_id = 0;
 
     // For each line, check if it is a trace event;
     // if so, parse it and send it to the validator
-    for line in BufReader::new(swipl_stdout).lines() {
+    for line in io::BufReader::new(swipl_stdout).lines() {
         let line_str = line?;
         
         if args.debug {
@@ -77,7 +73,7 @@ fn validate_trace(args: &Args, program: &Program, line_map: &HashMap<usize, Rule
                 }
             }
             Err(err) => {
-                println!("[error] failed to parse trace event \"{}\": {}", &line_str, err);
+                eprintln!("[error] failed to parse trace event \"{}\": {}", &line_str, err);
             }
         }
     }
@@ -128,8 +124,10 @@ fn main_args(mut args: Args) -> Result<(), Error> {
     }
 
     let mut swipl = swipl_cmd.spawn()?;
+    let mut swipl_stdout = swipl.stdout.take()
+        .ok_or(Error::Other("failed to open swipl stdout".to_string()))?;
     
-    match validate_trace(&args, &program, &line_map, &goal, &mut swipl) {
+    match validate_trace(&args, &program, &line_map, &goal, &mut swipl_stdout) {
         Ok(()) => {
             if !swipl.wait()?.success() {
                 Err(Error::Other("swipl exited with failure".to_string()))
@@ -138,9 +136,15 @@ fn main_args(mut args: Args) -> Result<(), Error> {
             }
         }
         Err(err) => {
+            // Consume and throw away rest of the stdout,
+            // so that swipl doesn't block
+            io::copy(&mut swipl_stdout, &mut io::sink())?;
+            
             if !swipl.wait()?.success() {
+                eprintln!("[error] {}", err);
                 Err(Error::Other("swipl exited with failure".to_string()))
             } else {
+                eprintln!("swipl exited successfully");
                 Err(err)
             }
         }
