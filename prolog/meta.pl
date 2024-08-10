@@ -24,7 +24,9 @@ prove_map(Fn, X, Y) :-
 
 % prove(Goal, Id) tries to prove Goal and if success,
 % the proof that Goal is true is associated with node Id
-prove(true, fact) :- !.
+prove(true, Id) :- !,
+    log_proof(Id, true),
+    writeln("true").
 
 prove((A, B), Id) :- !,
     prove(A, Id1),
@@ -82,20 +84,24 @@ prove(Goal, Id) :-
 
 % Otherwise we try user-defined rule application
 prove(Goal, Id) :-
-    % \+(predicate_property(Goal, built_in); predicate_property(Goal, meta_predicate(_))),
     clause(Goal, Body, Ref),
-    prove(Body, BodyId),
-
-    % Get clause information
-    % clause_property(Ref, file(File)),
     clause_property(Ref, line_count(Line)),
-
-    % Include file and line number of the rule applied
-    log_proof(Id, Goal),
-    write("apply("), write(BodyId), write(", "),
-    % write(File), write(":"),
-    write(Line),
-    writeln(")").
+    % clause_property(Ref, file(File)),
+    
+    (clause_property(Ref, fact)
+    ->
+        % If it's a fact, simplify the tactic and just use the "fact" tactic
+        % (otherwise it might generate a new "true" tactic)
+        log_proof(Id, Goal),
+        write("fact("), write(Line), writeln(")")
+    ;
+        % Otherwise, apply the body
+        prove(Body, BodyId),
+        log_proof(Id, Goal),
+        write("apply("), write(BodyId), write(", "),
+        % write(File), write(":"),
+        write(Line),
+        writeln(")")).
 
 prove(Goal) :-
     prove(Goal, _).

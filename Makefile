@@ -26,7 +26,7 @@ target/release/lib%.rlib: Cargo.toml
 test: debug
 	for test in tests/*.pl; do \
 		printf "%s: " $$test; \
-        target/debug/vpl $$test go 2>/dev/null || exit 1; \
+        target/debug/vpl $$test go || exit 1; \
     done
 
 .PHONY: clean

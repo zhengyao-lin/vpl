@@ -138,10 +138,11 @@ fn main_args(mut args: Args) -> Result<(), Error> {
             }
         }
         Err(err) => {
-            // Failed, kill the swipl process
-            swipl.kill()?;
-            println!("swipl process killed");
-            Err(err)
+            if !swipl.wait()?.success() {
+                Err(Error::Other("swipl exited with failure".to_string()))
+            } else {
+                Err(err)
+            }
         }
     }
 }

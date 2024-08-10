@@ -144,6 +144,7 @@ peg::parser!(grammar prolog(state: &ParserState) for str {
         --
         t1:(@) _ "+" _ t2:@ { Rc::new(TermX::App(FnName::user(FN_NAME_ADD, 2), vec![t1, t2])) }
         t1:(@) _ "-" _ t2:@ { Rc::new(TermX::App(FnName::user(FN_NAME_SUB, 2), vec![t1, t2])) }
+        --
         t1:(@) _ "*" _ t2:@ { Rc::new(TermX::App(FnName::user(FN_NAME_MUL, 2), vec![t1, t2])) }
         t1:(@) _ "/" _ t2:@ { Rc::new(TermX::App(FnName::user(FN_NAME_PRED_IND, 2), vec![t1, t2])) }
         --
@@ -219,10 +220,12 @@ peg::parser!(grammar prolog(state: &ParserState) for str {
         }
 
     rule tactic(line_map: &HashMap<usize, RuleId>) -> Tactic
-        = "apply" _ "(" _ "fact" _ "," _ id:rule_id(&line_map) _ ")"
+        = "fact" _ "(" _ id:rule_id(&line_map) _ ")"
             { Tactic::Apply { rule_id: id, subproof_ids: vec![] } }
         / "apply" _ "(" _ subgoals:nested_nat_list() _ "," _ id:rule_id(&line_map) _ ")"
             { Tactic::Apply { rule_id: id, subproof_ids: subgoals } }
+        / "true"
+            { Tactic::TrueIntro }
         / "and" _ "(" _ left:nat() _ "," _ right:nat() _ ")"
             { Tactic::AndIntro(left, right) }
         / "or-left" _ "(" _ left:nat() _ ")"

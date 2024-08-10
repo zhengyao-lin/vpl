@@ -79,6 +79,9 @@ pub enum SpecProof {
     /// Apply an instance of an existing rule
     ApplyRule { rule_id: SpecRuleId, subst: SpecSubst, subproofs: Seq<SpecTheorem> },
     
+    /// Proves true
+    TrueIntro,
+
     /// Show a, b if we have proven a and b separately
     AndIntro(Box<SpecTheorem>, Box<SpecTheorem>),
 
@@ -173,6 +176,9 @@ impl SpecTerm {
                 f1 != f2 ||
                 args1.len() != args2.len() ||
                 (exists |i| 0 <= i < args1.len() && (#[trigger] args1[i]).not_unifiable(#[trigger] args2[i])),
+
+            (SpecTerm::Literal(..), SpecTerm::App(..)) => true,
+            (SpecTerm::App(..), SpecTerm::Literal(..)) => true,
 
             _ => false,
         }
@@ -386,6 +392,10 @@ impl SpecTheorem {
                 // NOTE: we do not require subst to cover all free variables in the rule
                 // because we need to allow proofs for terms such as forall(p(x), q(x)),
                 // in which x can remain as a variable.
+            }
+
+            SpecProof::TrueIntro => {
+                self.stmt.headed_by(FN_NAME_TRUE, 0).is_some()
             }
 
             SpecProof::AndIntro(left, right) => {

@@ -32,6 +32,7 @@ pub struct Event {
 #[derive(Debug)]
 pub enum Tactic {
     Apply { rule_id: RuleId, subproof_ids: Vec<EventId> },
+    TrueIntro,
     AndIntro(EventId, EventId),
     OrIntroLeft(EventId),
     OrIntroRight(EventId),
@@ -204,6 +205,15 @@ impl TraceValidator {
                     }
                 } else {
                     Err(TraceError(event.id, "failed to verify proof".to_string()))
+                }
+            }
+
+            Tactic::TrueIntro => {
+                let thm = Theorem::true_intro(program);
+                if (&thm.stmt).eq(&event.term) {
+                    Ok(self.add_theorem(program, event.id, thm))
+                } else {
+                    Err(TraceError(event.id, "incorrect matching algorithm".to_string()))
                 }
             }
 

@@ -280,6 +280,9 @@ impl TermX {
                 false
             }
 
+            (TermX::Literal(..), TermX::App(..)) => true,
+            (TermX::App(..), TermX::Literal(..)) => true,
+
             _ => false,
         }
     }
@@ -303,6 +306,38 @@ impl TermX {
                     None
                 },
             _ => None,
+        }
+    }
+
+    /// Corresponds to SpecTerm::eval_arith
+    /// In addition, this function needs to check for overflow
+    pub fn eval_arith(&self) -> (res: Option<i64>)
+        // NOTE: Since i64 may overflow, if we get res == None
+        // we can't deduce that the spec should also be None
+        ensures res matches Some(i) ==> self@.eval_arith() == Some(i as int)
+    {
+        if let TermX::Literal(Literal::Int(i)) = self {
+            Some(*i)
+        } else if let Some(args) = self.headed_by(FN_NAME_ADD, 2) {
+            if let (Some(lhs), Some(rhs)) = ((&args[0]).eval_arith(), (&args[1]).eval_arith()) {
+                lhs.checked_add(rhs)
+            } else {
+                None
+            }
+        } else if let Some(args) = self.headed_by(FN_NAME_SUB, 2) {
+            if let (Some(lhs), Some(rhs)) = ((&args[0]).eval_arith(), (&args[1]).eval_arith()) {
+                lhs.checked_sub(rhs)
+            } else {
+                None
+            }
+        } else if let Some(args) = self.headed_by(FN_NAME_MUL, 2) {
+            if let (Some(lhs), Some(rhs)) = ((&args[0]).eval_arith(), (&args[1]).eval_arith()) {
+                lhs.checked_mul(rhs)
+            } else {
+                None
+            }
+        } else {
+            None
         }
     }
 }
@@ -367,6 +402,15 @@ impl Theorem {
                 subproofs: subproofs.deep_view(),
             }),
         })
+    }
+
+    pub fn true_intro(program: &Program) -> (res: Theorem)
+        ensures res.wf(program@)
+    {
+        Theorem {
+            stmt: TermX::app(&FnName::user(FN_NAME_TRUE, 0), vec![]),
+            proof: Ghost(SpecProof::TrueIntro),
+        }
     }
 
     /// Introduce (a, b) given proofs of both a and b
@@ -672,6 +716,48 @@ impl Theorem {
             return Some(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::BuiltIn) });
         } else if let Some(_) = goal.headed_by(FN_NAME_FINDALL, 3) {
             return Self::findall_base(program, goal);
+        } else if let Some(args) = goal.headed_by(FN_NAME_GT, 2) {
+            if let (Some(lhs), Some(rhs)) = ((&args[0]).eval_arith(), (&args[1]).eval_arith()) {
+                if lhs > rhs {
+                    return Some(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::BuiltIn) });
+                }
+            }
+        } else if let Some(args) = goal.headed_by(FN_NAME_GE, 2) {
+            if let (Some(lhs), Some(rhs)) = ((&args[0]).eval_arith(), (&args[1]).eval_arith()) {
+                if lhs >= rhs {
+                    return Some(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::BuiltIn) });
+                }
+            }
+        } else if let Some(args) = goal.headed_by(FN_NAME_LT, 2) {
+            if let (Some(lhs), Some(rhs)) = ((&args[0]).eval_arith(), (&args[1]).eval_arith()) {
+                if lhs < rhs {
+                    return Some(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::BuiltIn) });
+                }
+            }
+        } else if let Some(args) = goal.headed_by(FN_NAME_LE, 2) {
+            if let (Some(lhs), Some(rhs)) = ((&args[0]).eval_arith(), (&args[1]).eval_arith()) {
+                if lhs <= rhs {
+                    return Some(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::BuiltIn) });
+                }
+            }
+        } else if let Some(args) = goal.headed_by(FN_NAME_IS, 2) {
+            if let Some(rhs) = (&args[1]).eval_arith() {
+                if (&args[0]).eq(&Rc::new(TermX::Literal(Literal::Int(rhs)))) {
+                    return Some(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::BuiltIn) });
+                }
+            }
+        } else if let Some(args) = goal.headed_by(FN_NAME_EVAL_EQ, 2) {
+            if let (Some(lhs), Some(rhs)) = ((&args[0]).eval_arith(), (&args[1]).eval_arith()) {
+                if lhs == rhs {
+                    return Some(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::BuiltIn) });
+                }
+            }
+        } else if let Some(args) = goal.headed_by(FN_NAME_EVAL_NOT_EQ, 2) {
+            if let (Some(lhs), Some(rhs)) = ((&args[0]).eval_arith(), (&args[1]).eval_arith()) {
+                if lhs != rhs {
+                    return Some(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::BuiltIn) });
+                }
+            }
         }
 
         None
