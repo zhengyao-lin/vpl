@@ -133,8 +133,18 @@ peg::parser!(grammar prolog(state: &ParserState) for str {
         t1:@ _ "\\=" _ t2:(@) { Rc::new(TermX::App(FnName::user(FN_NAME_NOT_EQ, 2), vec![t1, t2])) }
         t1:@ _ "==" _ t2:(@) { Rc::new(TermX::App(FnName::user(FN_NAME_EQUIV, 2), vec![t1, t2])) }
         t1:@ _ "\\==" _ t2:(@) { Rc::new(TermX::App(FnName::user(FN_NAME_NOT_EQUIV, 2), vec![t1, t2])) }
+
+        t1:@ _ ">" _ t2:(@) { Rc::new(TermX::App(FnName::user(FN_NAME_GT, 2), vec![t1, t2])) }
+        t1:@ _ ">=" _ t2:(@) { Rc::new(TermX::App(FnName::user(FN_NAME_GE, 2), vec![t1, t2])) }
+        t1:@ _ "<" _ t2:(@) { Rc::new(TermX::App(FnName::user(FN_NAME_LT, 2), vec![t1, t2])) }
+        t1:@ _ "=<" _ t2:(@) { Rc::new(TermX::App(FnName::user(FN_NAME_LE, 2), vec![t1, t2])) }
+        t1:@ _ "is" _ t2:(@) { Rc::new(TermX::App(FnName::user(FN_NAME_IS, 2), vec![t1, t2])) }
+        t1:@ _ "=:=" _ t2:(@) { Rc::new(TermX::App(FnName::user(FN_NAME_EVAL_EQ, 2), vec![t1, t2])) }
+        t1:@ _ "=\\=" _ t2:(@) { Rc::new(TermX::App(FnName::user(FN_NAME_EVAL_NOT_EQ, 2), vec![t1, t2])) }
         --
         t1:(@) _ "+" _ t2:@ { Rc::new(TermX::App(FnName::user(FN_NAME_ADD, 2), vec![t1, t2])) }
+        t1:(@) _ "-" _ t2:@ { Rc::new(TermX::App(FnName::user(FN_NAME_SUB, 2), vec![t1, t2])) }
+        t1:(@) _ "*" _ t2:@ { Rc::new(TermX::App(FnName::user(FN_NAME_MUL, 2), vec![t1, t2])) }
         t1:(@) _ "/" _ t2:@ { Rc::new(TermX::App(FnName::user(FN_NAME_PRED_IND, 2), vec![t1, t2])) }
         --
 

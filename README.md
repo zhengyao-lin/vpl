@@ -86,8 +86,9 @@ TODO:
 - [x] Anonymous variables
 - [x] Nested conjunctions and disjunctions
 - [x] `forall(member(X, L), ..)`
-- [ ] `\+base_pred(..)`
-- [ ] `findall(X, base_pred(..., X), ..)`
+- [x] `\+base_pred(..)`
+- [x] `forall(base_pred(...), ..)`
+- [x] `findall(X, base_pred(..., X), ..)`
 - [ ] Other required special cases of `\+`, `forall`, `findall`
 - [ ] Private clauses in modules
 - [ ] Adapt to optimizations done by the compiler

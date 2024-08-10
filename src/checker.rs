@@ -283,6 +283,28 @@ impl TermX {
             _ => false,
         }
     }
+
+    /// A helper function to check the arity and name
+    /// of the head symbol of the term; and returns the arguments
+    /// Corresponds to SpecTerm::headed_by
+    pub fn headed_by<'a, 'b>(&'a self, expected_name: &'b str, expected_arity: usize) -> (res: Option<&'a Vec<Term>>)
+        ensures match res {
+            Some(res) => Some(res.deep_view()) == self@.headed_by(expected_name, expected_arity as int),
+            None => self@.headed_by(expected_name, expected_arity as int).is_none(),
+        }
+    {
+        match self {
+            TermX::App(FnName::User(name, arity), args) =>
+                if *arity == args.len() &&
+                    rc_str_eq_str(name, expected_name) &&
+                    *arity == expected_arity {
+                    Some(args)
+                } else {
+                    None
+                },
+            _ => None,
+        }
+    }
 }
 
 impl RuleX {
@@ -380,30 +402,6 @@ impl Theorem {
         }
     }
 
-    /// A helper function to check the arity and name
-    /// of the head symbol of the term; and returns the arguments
-    fn check_symbol_arity<'a, 'b>(term: &'a Term, expected_name: &'b str, expected_arity: usize) -> (res: Option<&'a Vec<Term>>)
-        ensures res matches Some(returned_args) ==> {
-            &&& term@ matches SpecTerm::App(SpecFnName::User(name, arity), args)
-            &&& args.len() == arity
-            &&& name == expected_name.view()
-            &&& arity == expected_arity
-            &&& args =~= returned_args.deep_view()
-        }
-    {
-        match rc_as_ref(term) {
-            TermX::App(FnName::User(name, arity), args) =>
-                if *arity == args.len() &&
-                    rc_str_eq_str(name, expected_name) &&
-                    *arity == expected_arity {
-                    Some(args)
-                } else {
-                    None
-                },
-            _ => None,
-        }
-    }
-
     /// Construct a proof for forall(member(loop_var, list_term), goal), see SpecProof::ForallMember for more detail
     pub fn forall_member(program: &Program, outer_goal: &Term, subproofs: Vec<&Theorem>) -> (res: Option<Theorem>)
         ensures
@@ -411,8 +409,8 @@ impl Theorem {
     {
         // Check that outer_goal is of the form forall(member(loop_var, list_term), goal)
         let (loop_var, list_term, goal) =
-            if let Some(forall_args) = Self::check_symbol_arity(outer_goal, FN_NAME_FORALL, 2) {
-                if let Some(member_args) = Self::check_symbol_arity(&forall_args[0], FN_NAME_MEMBER, 2) {
+            if let Some(forall_args) = outer_goal.headed_by(FN_NAME_FORALL, 2) {
+                if let Some(member_args) = (&forall_args[0]).headed_by(FN_NAME_MEMBER, 2) {
                     if let TermX::Var(loop_var) = rc_as_ref(&member_args[0]) {
                         (loop_var, &member_args[1], &forall_args[1])
                     } else {
@@ -556,7 +554,7 @@ impl Theorem {
         ensures
             res matches Some(thm) ==> thm.stmt@ == goal@ && thm.wf(program@)
     {
-        if let Some(args) = Self::check_symbol_arity(goal, FN_NAME_FINDALL, 3) {
+        if let Some(args) = goal.headed_by(FN_NAME_FINDALL, 3) {
             let template = &args[0];
             let pattern = &args[1];
 
@@ -593,7 +591,7 @@ impl Theorem {
         ensures
             res matches Some(thm) ==> thm.stmt@ == goal@ && thm.wf(program@)
     {
-        if let Some(args) = Self::check_symbol_arity(goal, FN_NAME_FORALL, 2) {
+        if let Some(args) = goal.headed_by(FN_NAME_FORALL, 2) {
             let pattern = &args[0];
             let template = &args[1];
 
@@ -628,23 +626,23 @@ impl Theorem {
         ensures
             res matches Some(thm) ==> thm.stmt@ == goal@ && thm.wf(program@)
     {
-        if let Some(args) = Self::check_symbol_arity(goal, FN_NAME_EQ, 2) {
+        if let Some(args) = goal.headed_by(FN_NAME_EQ, 2) {
             if (&args[0]).eq(&args[1]) {
                 return Some(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::BuiltIn) });
             }
-        } else if let Some(args) = Self::check_symbol_arity(goal, FN_NAME_EQUIV, 2) {
+        } else if let Some(args) = goal.headed_by(FN_NAME_EQUIV, 2) {
             if (&args[0]).eq(&args[1]) {
                 return Some(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::BuiltIn) });
             }
-        } else if let Some(args) = Self::check_symbol_arity(goal, FN_NAME_NOT_EQ, 2) {
+        } else if let Some(args) = goal.headed_by(FN_NAME_NOT_EQ, 2) {
             if (&args[0]).not_unifiable(&args[1]) {
                 return Some(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::BuiltIn) });
             }
-        } else if let Some(args) = Self::check_symbol_arity(goal, FN_NAME_NOT_EQUIV, 2) {
+        } else if let Some(args) = goal.headed_by(FN_NAME_NOT_EQUIV, 2) {
             if !(&args[0]).eq(&args[1]) {
                 return Some(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::BuiltIn) });
             }
-        } else if let Some(args) = Self::check_symbol_arity(goal, FN_NAME_LENGTH, 2) {
+        } else if let Some(args) = goal.headed_by(FN_NAME_LENGTH, 2) {
             // length(L, N) iff length of L is N
             if let (Some(list), TermX::Literal(Literal::Int(i))) = ((&args[0]).as_list(), rc_as_ref(&args[1])) {
                 // TODO: better way to check overflow
@@ -652,14 +650,14 @@ impl Theorem {
                     return Some(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::BuiltIn) });
                 }
             }
-        } else if let Some(args) = Self::check_symbol_arity(goal, FN_NAME_MEMBER, 2) {
+        } else if let Some(args) = goal.headed_by(FN_NAME_MEMBER, 2) {
             // member(X, L) iff X is in L
             if let Some(list) = (&args[1]).as_list() {
                 if (&args[0]).is_member(&list) {
                     return Some(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::BuiltIn) });
                 }
             }
-        } else if let Some(args) = Self::check_symbol_arity(goal, FN_NAME_NOT, 1) {
+        } else if let Some(args) = goal.headed_by(FN_NAME_NOT, 1) {
             // \+P holds if P is not unifiable with head of any rule
             for i in 0..program.rules.len()
                 invariant
@@ -672,7 +670,7 @@ impl Theorem {
             }
 
             return Some(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::BuiltIn) });
-        } else if let Some(_) = Self::check_symbol_arity(goal, FN_NAME_FINDALL, 3) {
+        } else if let Some(_) = goal.headed_by(FN_NAME_FINDALL, 3) {
             return Self::findall_base(program, goal);
         }
 

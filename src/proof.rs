@@ -17,7 +17,17 @@ pub const FN_NAME_FINDALL: &'static str = "findall";
 pub const FN_NAME_MEMBER: &'static str = "member";
 pub const FN_NAME_LENGTH: &'static str = "length";
 pub const FN_NAME_PRED_IND: &'static str = "/"; // e.g. functor/3
+
 pub const FN_NAME_ADD: &'static str = "+";
+pub const FN_NAME_SUB: &'static str = "-";
+pub const FN_NAME_MUL: &'static str = "*";
+pub const FN_NAME_GT: &'static str = ">";
+pub const FN_NAME_GE: &'static str = ">=";
+pub const FN_NAME_LT: &'static str = "<";
+pub const FN_NAME_LE: &'static str = "=<";
+pub const FN_NAME_IS: &'static str = "is"; // is evaluates only the RHS
+pub const FN_NAME_EVAL_EQ: &'static str = "=:="; // =:= evaluates both sides
+pub const FN_NAME_EVAL_NOT_EQ: &'static str = "=\\=";
 
 pub type SpecVar = Seq<char>;
 pub type SpecUserFnName = Seq<char>;
@@ -86,11 +96,6 @@ pub enum SpecProof {
     ///   forall(P(...), Q(...))
     /// where P is a base predicate
     ForallBase(Seq<SpecTheorem>),
-
-    // /// Proves goals of the form
-    // ///   findall(Q, P(X), L)
-    // /// where P is a base predicate
-    // FindallBase(Seq<SpecTheorem>),
 
     /// Built-in function evaluation for integers, strings, and lists
     BuiltIn,
@@ -226,6 +231,32 @@ impl SpecTerm {
             }
         }
     }
+
+    /// Check if the term is headed by the given user symbol
+    /// with specified arity. If so return the arguments
+    pub open spec fn headed_by(self, expected_name: &str, expected_arity: int) -> Option<Seq<SpecTerm>> {
+        match self {
+            SpecTerm::App(SpecFnName::User(name, arity), args)
+                if name == expected_name.view() &&
+                arity == expected_arity &&
+                args.len() == expected_arity => Some(args),
+            _ => None,
+        }
+    }
+
+    // /// Evaluates arithmetic operators in the term
+    // /// Only succeeds if term contains only arithmetic
+    // /// expressions and constants without variables
+    // pub open spec eval_arith(self) -> Option<int>
+    // {
+    //     match self {
+    //         SpecTerm::Literal(SpecLiteral::Int(i)) => Some(i),
+    //         SpecTerm::App(SpecFnName::User(name, 2), args) => {
+
+    //         }
+    //         _ => None,
+    //     }
+    // }
 }
 
 impl SpecSubst {
@@ -341,24 +372,18 @@ impl SpecTheorem {
             }
 
             SpecProof::AndIntro(left, right) => {
-                &&& self.stmt matches SpecTerm::App(f, args)
-                &&& f == SpecFnName::User(FN_NAME_AND.view(), 2)
-                &&& args.len() == 2
+                &&& self.stmt.headed_by(FN_NAME_AND, 2) matches Some(args)
                 &&& left.stmt == args[0]
                 &&& right.stmt == args[1]
             }
 
             SpecProof::OrIntroLeft(subproof) => {
-                &&& self.stmt matches SpecTerm::App(f, args)
-                &&& f == SpecFnName::User(FN_NAME_OR.view(), 2)
-                &&& args.len() == 2
+                &&& self.stmt.headed_by(FN_NAME_OR, 2) matches Some(args)
                 &&& subproof.stmt == args[0]
             }
 
             SpecProof::OrIntroRight(subproof) => {
-                &&& self.stmt matches SpecTerm::App(f, args)
-                &&& f == SpecFnName::User(FN_NAME_OR.view(), 2)
-                &&& args.len() == 2
+                &&& self.stmt.headed_by(FN_NAME_OR, 2) matches Some(args)
                 &&& subproof.stmt == args[1]
             }
 
@@ -367,13 +392,8 @@ impl SpecTheorem {
                 //   forall(member(X, L), <Goal>)
                 // where X has to be a variable
                 // and L has to be a concrete list
-                &&& self.stmt matches SpecTerm::App(f, forall_args)
-                &&& f == SpecFnName::User(FN_NAME_FORALL.view(), 2)
-                &&& forall_args.len() == 2
-                &&& forall_args[0] matches SpecTerm::App(f2, member_args)
-                &&& f2 == SpecFnName::User(FN_NAME_MEMBER.view(), 2)
-                &&& member_args.len() == 2
-
+                &&& self.stmt.headed_by(FN_NAME_FORALL, 2) matches Some(forall_args)
+                &&& forall_args[0].headed_by(FN_NAME_MEMBER, 2) matches Some(member_args)
                 &&& member_args[0] matches SpecTerm::Var(loop_var)
                 &&& member_args[1].as_list() matches Some(list)
 
@@ -386,10 +406,7 @@ impl SpecTheorem {
 
             SpecProof::ForallBase(subproofs) => {
                 // self.stmt is of the form forall(t1, t2)
-                &&& self.stmt matches SpecTerm::App(SpecFnName::User(name, arity), args)
-                &&& args.len() == arity
-                &&& name == FN_NAME_FORALL.view()
-                &&& arity == 2
+                &&& self.stmt.headed_by(FN_NAME_FORALL, 2) matches Some(args)
 
                 // For all rules, either
                 // - the rule is a fact and matches the predicate
@@ -415,69 +432,62 @@ impl SpecTheorem {
             // Specifications for the built-in functions
             SpecProof::BuiltIn => {
                 // self.stmt is of the form f(...) where f is a domain function
-                &&& self.stmt matches SpecTerm::App(SpecFnName::User(name, arity), args)
-                &&& args.len() == arity
-                &&& {
-                    ||| {
-                        &&& (name == FN_NAME_EQ.view() || name == FN_NAME_EQUIV.view())
-                        &&& arity == 2
-                        &&& args[0] == args[1]
-                    }
-                    ||| {
-                        &&& (name == FN_NAME_NOT_EQ.view())
-                        &&& arity == 2
-                        &&& args[0].not_unifiable(args[1])
-                    }
-                    ||| {
-                        &&& (name == FN_NAME_NOT_EQUIV.view())
-                        &&& arity == 2
-                        &&& args[0] != args[1]
-                    }
-                    ||| {
-                        &&& name == FN_NAME_LENGTH.view()
-                        &&& arity == 2
-                        &&& args[0].as_list() matches Some(list)
-                        &&& args[1] matches SpecTerm::Literal(SpecLiteral::Int(len))
-                        &&& list.len() == len
-                    }
-                    ||| {
-                        &&& name == FN_NAME_MEMBER.view()
-                        &&& arity == 2
-                        &&& true
-                    }
-                    ||| {
-                        // Base case for negation
-                        // If the term is not unifiable with any rule head
-                        // then the negation of the term holds
-                        &&& name == FN_NAME_NOT.view()
-                        &&& args.len() == 1
-                        
-                        // NOTE: this might be innefficient to check if implemented naively
-                        &&& forall |i| 0 <= i < program.rules.len() ==>
-                            (#[trigger] program.rules[i]).head.not_unifiable(args[0])
-                    }
-                    ||| {
-                        // A special case of findall where the goal is a base predicate
-                        // see https://www.swi-prolog.org/pldoc/man?predicate=findall/3
-                        &&& name == FN_NAME_FINDALL.view()
-                        &&& arity == 3
-                        
-                        // The third argument is a concrete list
-                        &&& args[2].as_list() matches Some(list)
+                ||| {
+                    &&& self.stmt.headed_by(FN_NAME_EQ, 2) matches Some(args)
+                    &&& args[0] == args[1]
+                }
+                ||| {
+                    &&& self.stmt.headed_by(FN_NAME_EQUIV, 2) matches Some(args)
+                    &&& args[0] == args[1]
+                }
+                ||| {
+                    &&& self.stmt.headed_by(FN_NAME_NOT_EQ, 2) matches Some(args)
+                    &&& args[0].not_unifiable(args[1])
+                }
+                ||| {
+                    &&& self.stmt.headed_by(FN_NAME_NOT_EQUIV, 2) matches Some(args)
+                    &&& args[0] != args[1]
+                }
+                ||| {
+                    &&& self.stmt.headed_by(FN_NAME_LENGTH, 2) matches Some(args)
+                    &&& args[0].as_list() matches Some(list)
+                    &&& args[1] matches SpecTerm::Literal(SpecLiteral::Int(len))
+                    &&& list.len() == len
+                }
+                ||| {
+                    &&& self.stmt.headed_by(FN_NAME_MEMBER, 2) matches Some(args)
+                    &&& args[1].as_list() matches Some(list)
+                    &&& list.contains(args[0])
+                }
+                ||| {
+                    // Base case for negation
+                    // If the term is not unifiable with any rule head
+                    // then the negation of the term holds
+                    &&& self.stmt.headed_by(FN_NAME_NOT, 1) matches Some(args)
+                    
+                    // NOTE: this might be innefficient to check if implemented naively
+                    &&& forall |i| 0 <= i < program.rules.len() ==>
+                        (#[trigger] program.rules[i]).head.not_unifiable(args[0])
+                }
+                ||| {
+                    // A special case of findall where the goal is a base predicate
+                    // see https://www.swi-prolog.org/pldoc/man?predicate=findall/3
+                    &&& self.stmt.headed_by(FN_NAME_FINDALL, 3) matches Some(args)
+                    
+                    // The third argument is a concrete list
+                    &&& args[2].as_list() matches Some(list)
 
-                        // Same constraint as in ForallBase
-                        &&& program.only_unifiable_with_base(args[1])
-
-                        &&& filter_map(program.rules, |rule: SpecRule| {
-                            // Match args[1] first, then use the substitution
-                            // to instantiate args[0]
-                            if let Some(subst) = args[1].matches(rule.head) {
-                                Some(args[0].subst(subst))
-                            } else {
-                                None
-                            }
-                        }) =~= list
-                    }
+                    // Same constraint as in ForallBase
+                    &&& program.only_unifiable_with_base(args[1])
+                    &&& filter_map(program.rules, |rule: SpecRule| {
+                        // Match args[1] first, then use the substitution
+                        // to instantiate args[0]
+                        if let Some(subst) = args[1].matches(rule.head) {
+                            Some(args[0].subst(subst))
+                        } else {
+                            None
+                        }
+                    }) =~= list
                 }
             }
         }
