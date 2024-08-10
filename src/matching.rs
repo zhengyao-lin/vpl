@@ -52,6 +52,16 @@ impl SpecSubst {
             subst1.merge(subst2) matches Some(subst) ==>
             subst.subsumes(subst1) && subst.subsumes(subst2)
     {}
+
+    /// If subst1 and subst2 are mergeable, and subst1 subsumes subst3
+    /// then subst1 and subst3 are mergeable
+    pub proof fn lemma_merge_monotone_wrt_subsume(subst1: SpecSubst, subst2: SpecSubst, subst3: SpecSubst)
+        requires
+            subst1.merge(subst2).is_some() &&
+            subst1.subsumes(subst3)
+
+        ensures subst1.merge(subst3).is_some()
+    {}
 }
 
 impl SpecTerm {
@@ -119,23 +129,73 @@ impl SpecTerm {
 
     /// If two seqs of terms match, we can extend it by adding one more pair
     /// assuming no issue from the merge
-    /// 
-    /// TODO: this lemma looks horrible.
     pub proof fn lemma_matches_multiple_extend(terms1: Seq<SpecTerm>, terms2: Seq<SpecTerm>, term1: SpecTerm, term2: SpecTerm)
         requires
             SpecTerm::matches_multiple(terms1, terms2).is_some() &&
-            term1.matches(term2).is_some() // &&
-            // SpecTerm::matches_multiple(terms1, terms2).unwrap().merge(term1.matches(term2).unwrap()).is_some()
+            term1.matches(term2).is_some() &&
+            // SpecTerm::matches_multiple(terms1 + seq![term1], terms2 + seq![term2]).is_some()
+            SpecTerm::matches_multiple(terms1, terms2).unwrap().merge(term1.matches(term2).unwrap()).is_some()
 
         ensures
-            // (terms1.len() != 0 ==> SpecTerm::matches_multiple(terms1.drop_first(), terms2.drop_first()).is_some()) &&
+            // Required additional IH for induction
+            (terms1.len() != 0 ==> SpecTerm::matches_multiple(
+                terms1.drop_first() + seq![term1],
+                terms2.drop_first() + seq![term2],
+            ).is_some()) &&
 
             SpecTerm::matches_multiple(terms1 + seq![term1], terms2 + seq![term2])
                 =~= SpecTerm::matches_multiple(terms1, terms2).unwrap().merge(term1.matches(term2).unwrap())
 
         decreases terms1.len()
     {
-        admit();
+        let ext_terms1 = terms1 + seq![term1];
+        let ext_terms2 = terms2 + seq![term2];
+
+        let ext_terms1_tail = terms1.drop_first() + seq![term1];
+        let ext_terms2_tail = terms2.drop_first() + seq![term2];
+
+        reveal_with_fuel(SpecTerm::matches_multiple, 2);
+
+        if terms1.len() != 0 {
+            assert(ext_terms1.drop_first() =~= ext_terms1_tail);
+            assert(ext_terms2.drop_first() =~= ext_terms2_tail);
+
+            Self::lemma_matches_multiple(terms1, terms2, 0);
+
+            // 0 .. terms1.len()
+            let old_subst = SpecTerm::matches_multiple(terms1, terms2).unwrap();
+            // at terms1.len()
+            let tail_subst = term1.matches(term2).unwrap();
+            // at 0
+            let head_subst = terms1[0].matches(terms2[0]).unwrap();
+            // 1 .. terms1.len()
+            let mid_subst = SpecTerm::matches_multiple(terms1.drop_first(), terms2.drop_first()).unwrap();
+
+            // assert(old_subst.merge(tail_subst).is_some());
+            // let final_subst = old_subst.merge(tail_subst).unwrap();
+
+            assert(old_subst.subsumes(mid_subst));
+
+            SpecSubst::lemma_merge_monotone_wrt_subsume(old_subst, tail_subst, mid_subst);
+            Self::lemma_matches_multiple_extend(terms1.drop_first(), terms2.drop_first(), term1, term2);
+            
+            // assert(SpecTerm::matches_multiple(ext_terms1_tail, ext_terms2_tail).is_some());
+            let ext_tail_subst = SpecTerm::matches_multiple(ext_terms1_tail, ext_terms2_tail).unwrap();
+
+            // WTS: LHS == RHS, where
+            // LHS = head_subst.merge(ext_tail_subst)
+            // RHS = old_subst.merge(tail_subst)
+
+            // By IH, ext_tail_subst == mid_subst.merge(tail_subst)
+
+            let mid_tail_subst = mid_subst.merge(tail_subst).unwrap();
+            SpecSubst::lemma_merge_assoc(head_subst, mid_subst, tail_subst);
+
+            // assert(ext_tail_subst == mid_tail_subst);
+            // assert(head_subst.merge(ext_tail_subst) == head_subst.merge(mid_tail_subst));
+            // assert(head_subst.merge(mid_subst).unwrap() == old_subst);
+            // assert(head_subst.merge(mid_tail_subst) == old_subst.merge(tail_subst));
+        }
     }
 
     /// The matching substitution of terms1 and terms2
@@ -331,14 +391,13 @@ impl TermX {
                                 assert(args1.deep_view().take(i + 1 as int) =~= args1.deep_view().take(i as int) + seq![args1[i as int]@]);
                                 assert(args2.deep_view().take(i + 1 as int) =~= args2.deep_view().take(i as int) + seq![args2[i as int]@]);
                                 
+                                SpecSubst::lemma_merge_assoc(old(subst)@, subst1, subst2);
                                 SpecTerm::lemma_matches_multiple_extend(
                                     args1.deep_view().take(i as int),
                                     args2.deep_view().take(i as int),
                                     args1[i as int]@,
                                     args2[i as int]@,
                                 );
-
-                                SpecSubst::lemma_merge_assoc(old(subst)@, subst1, subst2);
                             }
                         }
                         Err(msg) => {
