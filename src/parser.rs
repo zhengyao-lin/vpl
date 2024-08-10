@@ -40,6 +40,70 @@ impl ParserState {
     }
 }
 
+enum UnescapeState {
+    Normal,
+    Escape,
+}
+
+/// Unescape a string
+/// e.g. "\\n" => "\n"
+/// Incomplete, see https://www.swi-prolog.org/pldoc/man?section=charescapes
+/// TODO: verify
+pub fn unescape_string(s: &str) -> String
+{
+    let mut res = String::new();
+    let mut state = UnescapeState::Normal;
+
+    for c in s.chars() {
+        match state {
+            UnescapeState::Normal => {
+                if c == '\\' {
+                    state = UnescapeState::Escape;
+                } else {
+                    res.push(c);
+                }
+            }
+            UnescapeState::Escape => {
+                match c {
+                    'n' => res.push('\n'),
+                    'r' => res.push('\r'),
+                    't' => res.push('\t'),
+                    _ => res.push(c),
+                }
+                state = UnescapeState::Normal;
+            }
+        }
+    }
+
+    res
+}
+
+/// Escape a string for printing
+/// e.g. "\n" => "\\n"
+/// Quotes are not included in the result
+/// but if a character matches the quote,
+/// it will be escaped
+/// TODO: verify
+pub fn escape_string(s: &str, quote: char) -> String
+{
+    let mut res = String::new();
+    for c in s.chars() {
+        match c {
+            '\n' => res.push_str("\\n"),
+            '\r' => res.push_str("\\r"),
+            '\t' => res.push_str("\\t"),
+            '\\' => res.push_str("\\\\"),
+            _ => if c == quote {
+                res.push('\\');
+                res.push(c);
+            } else {
+                res.push(c)
+            },
+        }
+    }
+    res
+}
+
 // Grammar of Prolog
 peg::parser!(grammar prolog(state: &ParserState) for str {
     rule ignore()
@@ -48,6 +112,7 @@ peg::parser!(grammar prolog(state: &ParserState) for str {
         / quiet!{"\n"} { state.inc_line(); }
         // Inline comments
         / "%" [^'\n']*
+        / "#!" [^'\n']*
 
     rule _ = ignore()*
 
@@ -59,10 +124,14 @@ peg::parser!(grammar prolog(state: &ParserState) for str {
     /// Same as comma_sep, but requires at least one element
     rule comma_sep_plus<T>(x: rule<T>) -> Vec<T> = v:(x() ++ (_ "," _)) { v }
 
+    /// Escape quotes
+    rule ident_char() = "\\'" / [^'\'']
+    rule string_char() = "\\\"" / [^'"']
+
     /// Returns the slice and the line number
     rule ident() -> &'input str
-        = name:quiet!{$(['a'..='z' | 'A'..='Z']['_' | 'a'..='z' | 'A'..='Z' | '0'..='9']*)} { name }
-        / "'" name:$([^'\'']*) "'" { name }
+        = name:quiet!{$(['a'..='z' | 'A'..='Z']['_' | ':' | 'a'..='z' | 'A'..='Z' | '0'..='9']*)} { name }
+        / "'" name:$(ident_char()*) "'" { name }
         / expected!("identifier")
 
     rule var() -> &'input str
@@ -81,7 +150,7 @@ peg::parser!(grammar prolog(state: &ParserState) for str {
     /// TODO: handle escape strings and newlines
     /// also see https://www.swi-prolog.org/pldoc/man?section=charescapes
     rule string() -> &'input str
-        = "\"" s:$([^'"']*) "\"" { s }
+        = "\"" s:$(string_char()*) "\"" { s }
         / expected!("string")
 
     /// Prolog lists, e.g., [], [a,b|[]], [a,b,c]
@@ -151,7 +220,7 @@ peg::parser!(grammar prolog(state: &ParserState) for str {
 
         // Same as ( t ) but we need to get the line number
         // of the first parenthesis
-        "(" t:term() ")" { t }
+        "(" _ t:term() _ ")" { t }
 
         var:var() { TermX::var_str(var) }
         
@@ -163,13 +232,13 @@ peg::parser!(grammar prolog(state: &ParserState) for str {
         // Literals
         i:int() { Rc::new(TermX::Literal(Literal::Int(i))) }
         // TODO: string may range multiple lines, fix the line number
-        s:string() { Rc::new(TermX::Literal(Literal::String(s.into()))) }
+        s:string() { Rc::new(TermX::Literal(Literal::String(unescape_string(s).into()))) }
 
         // Application (including atoms and lists)
         name:ident() _ "(" _ args:comma_sep(<small_term()>) _ ")" {
-            Rc::new(TermX::App(FnName::user(name, args.len()), args))
+            Rc::new(TermX::App(FnName::User(unescape_string(name).into(), args.len()), args))
         }
-        name:ident() { Rc::new(TermX::App(FnName::user(name, 0), vec![])) }
+        name:ident() { Rc::new(TermX::App(FnName::User(unescape_string(name).into(), 0), vec![])) }
         list:list() { list }
     }
 

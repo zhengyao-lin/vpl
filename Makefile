@@ -24,7 +24,7 @@ target/release/lib%.rlib: Cargo.toml
 
 .PHONY: test
 test: debug
-	for test in tests/*.pl; do \
+	@for test in tests/*.pl; do \
 		printf "%s: " $$test; \
         target/debug/vpl $$test go || exit 1; \
     done

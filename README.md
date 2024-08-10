@@ -81,7 +81,7 @@ TODO:
 - [x] Strings
 - [x] Lists
 - [ ] Built-in functions for strings, lists
-- [ ] Arithmetic
+- [x] Arithmetic
 - [x] Disjunction `;`
 - [x] Anonymous variables
 - [x] Nested conjunctions and disjunctions
@@ -89,6 +89,7 @@ TODO:
 - [x] `\+base_pred(..)`
 - [x] `forall(base_pred(...), ..)`
 - [x] `findall(X, base_pred(..., X), ..)`
+- [ ] Handle the module system better when loading files
 - [ ] Other required special cases of `\+`, `forall`, `findall`
 - [ ] Private clauses in modules
 - [ ] Adapt to optimizations done by the compiler

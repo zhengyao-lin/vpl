@@ -2,16 +2,16 @@ use std::fmt;
 
 use crate::proof::*;
 use crate::checker::*;
+use crate::parser::escape_string;
 
 impl fmt::Display for FnName {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             FnName::User(name, _) => {
-                if name.chars().all(|c| c.is_alphanumeric() || c == '_') {
+                if name.chars().all(|c| c.is_alphanumeric() || c == '_' || c == ':') {
                     write!(f, "{}", name)
                 } else {
-                    // TODO: escape string
-                    write!(f, "'{}'", name)
+                    write!(f, "'{}'", escape_string(name, '\''))
                 }
             },
 
@@ -27,8 +27,7 @@ impl fmt::Display for Literal {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Literal::Int(i) => write!(f, "{}", i),
-            // TODO: escapte s
-            Literal::String(s) => write!(f, "\"{}\"", s),
+            Literal::String(s) => write!(f, "\"{}\"", escape_string(s, '"')),
         }
     }
 }
