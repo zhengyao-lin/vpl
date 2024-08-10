@@ -290,8 +290,7 @@ pub proof fn lemma_filter_map_no_skip<T, S>(s: Seq<T>, f: spec_fn(T) -> Option<S
 
 impl TermX {
     /// Corresponds to SpecTerm::matches
-    /// TODO: merge this with TraceValidator::merge_terms
-    pub fn matches_inplace(subst: &mut Subst, pattern: &Term, inst: &Term) -> (res: Result<(), String>)
+    pub fn match_terms(subst: &mut Subst, pattern: &Term, inst: &Term) -> (res: Result<(), String>)
         ensures
             // Succeeds only if both pattern matching and merging
             // with the original substitution are successful
@@ -373,7 +372,7 @@ impl TermX {
                     proof {
                         SpecSubst::lemma_merge_subsume(subst@, args1[i as int]@.matches(args2[i as int]@).unwrap());
                     }
-                    match TermX::matches_inplace(subst, &args1[i], &args2[i]) {
+                    match TermX::match_terms(subst, &args1[i], &args2[i]) {
                         Ok(..) => {
                             // Essentially we need to use the associativity of merging here
                             // since in the code, we do

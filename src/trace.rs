@@ -67,61 +67,6 @@ impl TraceValidator {
 
     // pub closed spec fn match_terms_trigger(subst: &Subst, term1: SpecTerm, term2: SpecTerm);
 
-    /**
-     * Perform matching of pattern against inst
-     * only set variables in pattern
-     * 
-     * Store new substitutions in subst, fail if a key already exists
-     * and has an inconsistent value
-     */
-    pub fn match_terms(subst: &mut Subst, pattern: &Term, inst: &Term) -> (res: Result<(), String>)
-        // ensures res matches Ok(_) ==> pattern@.subst(subst@) == inst@
-    {
-        match (rc_as_ref(pattern), rc_as_ref(inst)) {
-            (TermX::Var(var), _) => {
-                if let Some(existing) = subst.get(var) {
-                    if !existing.eq(inst) {
-                        Err("inconsistent substitution".to_string())
-                    } else {
-                        Ok(())
-                    }
-                } else {
-                    subst.insert(var.clone(), inst.clone());
-                    Ok(())
-                }
-            }
-
-            (TermX::Literal(l1), TermX::Literal(l2)) => {
-                if !l1.eq(l2) {
-                    Err("unmatched literals".to_string())
-                } else {
-                    Ok(())
-                }
-            }
-
-            (TermX::App(f1, args1), TermX::App(f2, args2)) => {
-                if !f1.eq(f2) {
-                    return Err("unmatched function symbol".to_string());
-                }
-
-                if args1.len() != args2.len() {
-                    return Err("unmatched argument length".to_string());
-                }
-
-                // Match each subterm
-                for i in 0..args1.len()
-                    invariant args1.len() == args2.len()
-                {
-                    TraceValidator::match_terms(subst, &args1[i], &args2[i])?;
-                }
-
-                Ok(())
-            }
-
-            _ => Err("unmatched terms".to_string()),
-        }
-    }
-
     pub fn add_theorem(&mut self, program: &Program, event_id: EventId, thm: Theorem) -> (res: &Theorem)
         requires old(self).wf(program@) && thm.wf(program@)
         ensures
@@ -210,7 +155,7 @@ impl TraceValidator {
                 let mut subproofs: Vec<&Theorem> = vec![];
 
                 // Match rule head against goal first
-                if let Err(err) = TraceValidator::match_terms(&mut subst, &rule.head, &event.term) {
+                if let Err(err) = TermX::match_terms(&mut subst, &rule.head, &event.term) {
                     return Err(TraceError(event.id, err));
                 }
             
@@ -230,7 +175,7 @@ impl TraceValidator {
                         print("[debug]   with subproof: "); println(&subproofs[i].stmt);
                     }
 
-                    if let Err(err) = TraceValidator::match_terms(&mut subst, &rule.body[i], &subproofs[i].stmt) {
+                    if let Err(err) = TermX::match_terms(&mut subst, &rule.body[i], &subproofs[i].stmt) {
                         return Err(TraceError(event.id, err));
                     }
                 }

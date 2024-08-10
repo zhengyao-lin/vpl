@@ -520,7 +520,7 @@ impl Theorem {
                         // or not unifiable (i.e. nothing in between)
                         let mut subst = Subst::new();
                         let ghost old_subst = subst@;
-                        if let Ok(..) = TermX::matches_inplace(&mut subst, &pattern, &rule.head) {
+                        if let Ok(..) = TermX::match_terms(&mut subst, &pattern, &rule.head) {
                             // Match instance with the subproof
                             if valid_insts >= subproofs.len() {
                                 return None;
@@ -579,6 +579,10 @@ impl Theorem {
 
                 if (rc_str_eq_str(name, FN_NAME_EQ) || rc_str_eq_str(name, FN_NAME_EQUIV)) && *arity == 2 {
                     if (&args[0]).eq(&args[1]) {
+                        return Some(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::BuiltIn) });
+                    }
+                } else if rc_str_eq_str(name, FN_NAME_NOT_EQ) && *arity == 2 {
+                    if (&args[0]).not_unifiable(&args[1]) {
                         return Some(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::BuiltIn) });
                     }
                 } else if rc_str_eq_str(name, FN_NAME_NOT_EQUIV) && *arity == 2 {

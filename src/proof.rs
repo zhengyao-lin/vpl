@@ -430,6 +430,11 @@ impl SpecTheorem {
                         &&& args[0] == args[1]
                     }
                     ||| {
+                        &&& (name == FN_NAME_NOT_EQ.view())
+                        &&& arity == 2
+                        &&& args[0].not_unifiable(args[1])
+                    }
+                    ||| {
                         &&& (name == FN_NAME_NOT_EQUIV.view())
                         &&& arity == 2
                         &&& args[0] != args[1]
