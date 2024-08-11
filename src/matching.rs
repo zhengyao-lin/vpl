@@ -291,7 +291,7 @@ pub proof fn lemma_filter_map_no_skip<T, S>(s: Seq<T>, f: spec_fn(T) -> Option<S
 
 impl TermX {
     /// Corresponds to SpecTerm::matches
-    pub fn match_terms(subst: &mut Subst, pattern: &Term, inst: &Term) -> (res: Result<(), String>)
+    pub fn match_terms(subst: &mut Subst, pattern: &Term, inst: &Term) -> (res: Result<(), ProofError>)
         ensures
             // Succeeds only if both pattern matching and merging
             // with the original substitution are successful
@@ -312,7 +312,7 @@ impl TermX {
             (TermX::Var(var), _) => {
                 if let Some(existing) = subst.get(var) {
                     if !existing.eq(inst) {
-                        Err("inconsistent substitution".to_string())
+                        proof_err!("inconsistent substitution for ", var, ": ", existing, " vs ", inst)
                     } else {
                         Ok(())
                     }
@@ -324,7 +324,7 @@ impl TermX {
 
             (TermX::Literal(l1), TermX::Literal(l2)) => {
                 if !l1.eq(l2) {
-                    Err("unmatched literals".to_string())
+                    proof_err!("unmatched literals: ", l1, " vs ", l2)
                 } else {
                     Ok(())
                 }
@@ -332,11 +332,11 @@ impl TermX {
 
             (TermX::App(f1, args1), TermX::App(f2, args2)) => {
                 if !f1.eq(f2) {
-                    return Err("unmatched function symbol".to_string());
+                    return proof_err!("unmatched symbols: ", f1, " vs ", f2);
                 }
 
                 if args1.len() != args2.len() {
-                    return Err("unmatched argument length".to_string());
+                    return proof_err!("unmatched argument length");
                 }
 
                 // Match each subterm
@@ -446,7 +446,7 @@ impl TermX {
                 Ok(())
             }
 
-            _ => Err("unmatched terms".to_string()),
+            _ => proof_err!("unmatched terms: ", pattern, " vs ", inst),
         }
     }
     

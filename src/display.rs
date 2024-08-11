@@ -3,7 +3,7 @@ use std::rc::Rc;
 
 use crate::proof::*;
 use crate::checker::*;
-use crate::parser::escape_string;
+use crate::parser::{escape_string, ParserError};
 
 fn fmt_symbol(symbol: &Rc<str>, f: &mut fmt::Formatter) -> fmt::Result {
     if let Some(first) = symbol.chars().next() {
@@ -124,13 +124,13 @@ impl fmt::Display for Subst {
     }
 }
 
-impl fmt::Display for crate::trace::TraceError {
+impl fmt::Display for ProofError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "failed to verify event {}: {}", self.0, self.1)
+        write!(f, "{}", self.0)
     }
 }
 
-impl fmt::Display for crate::parser::ParserError {
+impl fmt::Display for ParserError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self.0 {
             Some(path) => write!(f, "{}", path)?,

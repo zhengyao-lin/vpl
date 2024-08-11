@@ -41,9 +41,6 @@ pub enum Tactic {
     BuiltIn,
 }
 
-#[derive(Debug)]
-pub struct TraceError(pub EventId, pub String);
-
 /**
  * TraceValidator dynamically reads in events and construct a Theorem for each event
  * and also stores the theorem for future rule applications
@@ -80,18 +77,18 @@ impl TraceValidator {
         &self.thms.get(&event_id).unwrap()
     }
 
-    pub fn get_theorem(&self, program: &Program, event_id: EventId) -> (res: Result<&Theorem, TraceError>)
+    pub fn get_theorem(&self, program: &Program, event_id: EventId) -> (res: Result<&Theorem, ProofError>)
         requires self.wf(program@)
         ensures res matches Ok(thm) ==> thm.wf(program@)
     {
         if let Some(thm) = self.thms.get(&event_id) {
             Ok(thm)
         } else {
-            Err(TraceError(event_id, "theorem does not exist".to_string()))
+            proof_err!("theorem ", event_id, " does not exist")
         }
     }
 
-    pub fn remove_theorem(&mut self, program: &Program, event_id: EventId) -> (res: Result<Theorem, TraceError>)
+    pub fn remove_theorem(&mut self, program: &Program, event_id: EventId) -> (res: Result<Theorem, ProofError>)
         requires old(self).wf(program@)
         ensures
             self.wf(program@),
@@ -106,13 +103,13 @@ impl TraceValidator {
         if let Some(thm) = self.thms.remove(&event_id) {
             Ok(thm)
         } else {
-            Err(TraceError(event_id, "theorem does not exist".to_string()))
+            proof_err!("theorem ", event_id, " does not exist")
         }
     }
 
     /// Process an event and construct a Theorem with the same statement claimed in the event
     /// Retuen the Theorem object if successful
-    pub fn process_event(&mut self, program: &Program, event: &Event, debug: bool) -> (res: Result<&Theorem, TraceError>)
+    pub fn process_event(&mut self, program: &Program, event: &Event, debug: bool) -> (res: Result<&Theorem, ProofError>)
         requires
             old(self).wf(program@),
             !old(self).thms@.contains_key(event.id),
@@ -138,17 +135,18 @@ impl TraceValidator {
             // Try to convert the event to a theorem via Theorem::apply_rule
             Tactic::Apply { rule_id, subproof_ids } => {
                 if *rule_id >= program.rules.len() {
-                    return Err(TraceError(event.id, "rule does not exist".to_string()));
+                    return proof_err!("rule ", rule_id, " does not exist");
                 }
 
                 let rule = &program.rules[*rule_id];
 
                 if subproof_ids.len() != rule.body.len() {
-                    return Err(TraceError(event.id, "incorrect rule application".to_string()));
+                    return proof_err!("incorrect number of subproofs");
+
                 }
 
                 if debug {
-                    eprint("[debug] applying rule: "); eprintln(rule);
+                    eprintln_join!("[debug] applying rule: ", rule);
                 }
 
                 // Figure out the substitution for the rule application
@@ -156,9 +154,7 @@ impl TraceValidator {
                 let mut subproofs: Vec<&Theorem> = vec![];
 
                 // Match rule head against goal first
-                if let Err(err) = TermX::match_terms(&mut subst, &rule.head, &event.term) {
-                    return Err(TraceError(event.id, err));
-                }
+                TermX::match_terms(&mut subst, &rule.head, &event.term)?;
             
                 // Match each rule body against existing subproof
                 for i in 0..subproof_ids.len()
@@ -176,35 +172,29 @@ impl TraceValidator {
                         eprint("[debug]   with subproof: "); eprintln(&subproofs[i].stmt);
                     }
 
-                    if let Err(err) = TermX::match_terms(&mut subst, &rule.body[i], &subproofs[i].stmt) {
-                        return Err(TraceError(event.id, err));
-                    }
+                    TermX::match_terms(&mut subst, &rule.body[i], &subproofs[i].stmt)?;
                 }
 
                 if debug {
                     eprint("[debug] matching substitution: "); eprintln(&subst);
                 }
 
-                // Apply and proof-check the final result 
-                if let Some(thm) = Theorem::apply_rule(program, *rule_id, &subst, subproofs) {
-                    // TODO: this should be guaranteed if the matching algorithm is correct
-                    // prove more about matching to conclude this without the dynamic check.
-                    if (&thm.stmt).eq(&event.term) {
-                        // Remove the used subproofs to save memory
-                        for i in 0..subproof_ids.len()
-                            invariant self.wf(program@)
-                        {
-                            if subproof_ids[i] != event.id {
-                                self.remove_theorem(program, subproof_ids[i])?;
-                            }
-                        }
+                // Apply and proof-check the final result
+                let thm = Theorem::apply_rule(program, *rule_id, &subst, subproofs)?;
 
-                        Ok(self.add_theorem(program, event.id, thm))
-                    } else {
-                        Err(TraceError(event.id, "incorrect matching algorithm".to_string()))
+                if (&thm.stmt).eq(&event.term) {
+                    // Remove the used subproofs to save memory
+                    for i in 0..subproof_ids.len()
+                        invariant self.wf(program@)
+                    {
+                        if subproof_ids[i] != event.id {
+                            self.remove_theorem(program, subproof_ids[i])?;
+                        }
                     }
+
+                    Ok(self.add_theorem(program, event.id, thm))
                 } else {
-                    Err(TraceError(event.id, "failed to verify proof".to_string()))
+                    proof_err!("incorrect proved result: expecting ", &event.term, ", got ", &thm.stmt)
                 }
             }
 
@@ -212,7 +202,7 @@ impl TraceValidator {
                 if let Some(thm) = Theorem::true_intro(program, &event.term) {
                     Ok(self.add_theorem(program, event.id, thm))
                 } else {
-                    Err(TraceError(event.id, "failed to check true intro".to_string()))
+                    proof_err!("failed to check true intro")
                 }
             }
 
@@ -229,7 +219,7 @@ impl TraceValidator {
                     self.remove_theorem(program, *right_id)?;
                     Ok(self.add_theorem(program, event.id, thm))
                 } else {
-                    Err(TraceError(event.id, "incorrect matching algorithm".to_string()))
+                    proof_err!("incorrect proved result: expecting ", &event.term, ", got ", &thm.stmt)
                 }
             }
 
@@ -242,11 +232,11 @@ impl TraceValidator {
                             self.remove_theorem(program, *subproof_id)?;
                             Ok(self.add_theorem(program, event.id, thm))
                         } else {
-                            Err(TraceError(event.id, "incorrect matching algorithm".to_string()))
+                            proof_err!("incorrect proved result: expecting ", &event.term, ", got ", &thm.stmt)
                         }
                     }
 
-                    _ => Err(TraceError(event.id, "incorrect goal".to_string())),
+                    _ => proof_err!("OrIntroLeft does not apply to the goal ", &event.term),
                 }
             }
 
@@ -259,11 +249,11 @@ impl TraceValidator {
                             self.remove_theorem(program, *subproof_id)?;
                             Ok(self.add_theorem(program, event.id, thm))
                         } else {
-                            Err(TraceError(event.id, "incorrect matching algorithm".to_string()))
+                            proof_err!("incorrect proved result: expecting ", &event.term, ", got ", &thm.stmt)
                         }
                     }
 
-                    _ => Err(TraceError(event.id, "incorrect goal".to_string())),
+                    _ => proof_err!("OrIntroRight does not apply to the goal ", &event.term),
                 }
             }
 
@@ -281,14 +271,11 @@ impl TraceValidator {
                 }
 
                 if debug {
-                    eprint("[debug] apply forall-member: "); eprintln(&event.term);
+                    eprintln_join!("[debug] apply forall-member: ", &event.term);
                 }
 
-                if let Some(thm) = Theorem::forall_member(program, &event.term, subproofs) {
-                    Ok(self.add_theorem(program, event.id, thm))
-                } else {
-                    Err(TraceError(event.id, "failed to verify proof".to_string()))
-                }
+                let thm = Theorem::forall_member(program, &event.term, subproofs)?;
+                Ok(self.add_theorem(program, event.id, thm))
             }
 
             Tactic::ForallBase(subproof_ids) => {
@@ -305,34 +292,20 @@ impl TraceValidator {
                 }
 
                 if debug {
-                    eprint("[debug] apply forall-base: "); eprintln(&event.term);
+                    eprintln_join!("[debug] apply forall-base: ", &event.term);
                 }
 
-                if let Some(thm) = Theorem::forall_base(program, &event.term, subproofs) {
-                    Ok(self.add_theorem(program, event.id, thm))
-                } else {
-                    Err(TraceError(event.id, "failed to verify proof".to_string()))
-                }
+                let thm = Theorem::forall_base(program, &event.term, subproofs)?;
+                Ok(self.add_theorem(program, event.id, thm))
             }
 
             Tactic::BuiltIn => {
                 if let TermX::App(FnName::User(name, arity), args) = rc_as_ref(&event.term) {
-                    if *arity != args.len() {
-                        return Err(TraceError(event.id, "incorrect unmatched arity".to_string()));
-                    }
-
-                    if let Some(thm) = Theorem::try_built_in(program, &event.term) {
-                        if (&thm.stmt).eq(&event.term) {
-                            return Ok(self.add_theorem(program, event.id, thm));
-                        } else {
-                            return Err(TraceError(event.id, "incorrect matching algorithm".to_string()));
-                        }
-                    } else {
-                        return Err(TraceError(event.id, "unsupported or unable to check built-in".to_string()));
-                    }
+                    let thm = Theorem::try_built_in(program, &event.term)?;
+                    return Ok(self.add_theorem(program, event.id, thm));
                 }
 
-                Err(TraceError(event.id, "unsupported built-in".to_string()))
+                proof_err!("incorrect goal for BuiltIn: ", &event.term)
             }
         }
     }

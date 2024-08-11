@@ -218,7 +218,7 @@ impl Solver {
                 subproofs.push(&cur_solution.proof);
             }
 
-            if let Some(thm) = Theorem::apply_rule(program, self.cur_rule_id, &solution_subst, subproofs) {
+            if let Ok(thm) = Theorem::apply_rule(program, self.cur_rule_id, &solution_subst, subproofs) {
                 let solution = Solution {
                     subst: solution_subst,
                     proof: thm,
