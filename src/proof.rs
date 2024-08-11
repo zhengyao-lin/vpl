@@ -376,6 +376,19 @@ pub open spec fn filter_map<T, S>(s: Seq<T>, f: spec_fn(T) -> Option<S>) -> Seq<
     }
 }
 
+/// Join elements of list by sep
+pub open spec fn seq_join<T>(list: Seq<Seq<T>>, sep: Seq<T>) -> Seq<T>
+    decreases list.len()
+{
+    if list.len() == 0 {
+        seq![]
+    } else if list.len() == 1 {
+        list[0]
+    } else {
+        seq_join(list.drop_last(), sep) + sep + list.last()
+    }
+}
+
 impl SpecTheorem {
     /// Defines whether a proof is well-formed
     pub open spec fn wf(self, program: SpecProgram) -> bool
@@ -599,6 +612,29 @@ impl SpecTheorem {
                     &&& args[0].as_list() matches Some(list)
                     &&& args[1].as_list() matches Some(reverse)
                     &&& list.reverse() =~= reverse
+                }
+
+                ||| {
+                    &&& self.stmt.headed_by(FN_NAME_SPLIT_STRING, 4) matches Some(args)
+                    &&& args[0] matches SpecTerm::Literal(SpecLiteral::String(string))
+                    &&& args[1] matches SpecTerm::Literal(SpecLiteral::String(separator))
+                    &&& args[2] matches SpecTerm::Literal(SpecLiteral::String(padding))
+                    &&& args[3].as_list() matches Some(results)
+
+                    // TODO: right now we only support the special case where the padding is empty
+                    // and the separator is a single character
+                    //
+                    // See https://www.swi-prolog.org/pldoc/man?predicate=split_string/4 for the general case
+                    &&& separator.len() == 1
+                    &&& padding.len() == 0
+
+                    &&& (forall |i| 0 <= i < results.len()
+                        ==> #[trigger] results[i] matches SpecTerm::Literal(SpecLiteral::String(_)))
+
+                    &&& seq_join(
+                        Seq::new(results.len(), |i| results[i]->Literal_0->String_0),
+                        separator
+                    ) =~= string
                 }
 
                 // TODO: nonvar and var are a bit sketchy.

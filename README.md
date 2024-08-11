@@ -93,3 +93,4 @@ TODO:
 - [ ] Private clauses in modules
 - [ ] Adapt to optimizations done by the compiler
 - [ ] Right now we conflate atom and nullary applications (e.g. `hey` vs `hey()`); need to fix this
+- [ ] More error messages for failed validation

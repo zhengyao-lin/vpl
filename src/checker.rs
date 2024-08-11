@@ -671,6 +671,8 @@ impl Theorem {
     }
 
     /// Try applying the axiom of a domain function for ints, strings, or lists
+    /// 
+    /// TODO: break up this gigantic if statement
     pub fn try_built_in(program: &Program, goal: &Term) -> (res: Option<Theorem>)
         ensures
             res matches Some(thm) ==> thm.stmt@ == goal@ && thm.wf(program@)
@@ -900,6 +902,55 @@ impl Theorem {
                     return Some(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::BuiltIn) });
                 }
                 _ => return None,
+            }
+        } else if let Some(args) = goal.headed_by(FN_NAME_SPLIT_STRING, 4) {
+            match (
+                rc_as_ref(&args[0]),
+                rc_as_ref(&args[1]),
+                rc_as_ref(&args[2]),
+            ) {
+                (
+                    TermX::Literal(Literal::String(string)),
+                    TermX::Literal(Literal::String(sep)),
+                    TermX::Literal(Literal::String(padding)),
+                ) => if sep.unicode_len() == 1 && padding.unicode_len() == 0 {
+                    if let Some(list) = (&args[3]).as_list() {
+                        let mut split_strs: Vec<&str> = Vec::new();
+
+                        // Check that each element in args[3] is a string literal
+                        // and store it into split_strs
+                        for i in 0..list.len()
+                            invariant
+                                i == split_strs.len(),
+                                forall |j| 0 <= j < i ==> #[trigger] list[j]@ =~= SpecTerm::Literal(SpecLiteral::String(split_strs[j]@)),
+                        {
+                            match rc_as_ref(&list[i]) {
+                                TermX::Literal(Literal::String(split)) => {
+                                    split_strs.push(rc_str_to_str(split));
+                                }
+                                _ => return None,
+                            }
+                        }
+
+                        assert(split_strs@.map_values(|s: &str| s@)
+                            =~= Seq::new(list.deep_view().len(), |i| list.deep_view()[i]->Literal_0->String_0));
+
+                        // Join all the substrings in split_strs with the separator
+                        let joined_string = join_strs(&split_strs, rc_str_to_str(sep));
+
+                        if !rc_str_eq_str(string, joined_string.as_str()) {
+                            return None;
+                        }
+
+                        return Some(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::BuiltIn) });
+                    } else {
+                        return None;
+                    }
+                }
+
+                // There are cases not handled, so we continue
+                // and optionally notify the user about unproved built-in
+                _ => {}
             }
         }
 

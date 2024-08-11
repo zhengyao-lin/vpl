@@ -3,6 +3,8 @@ use std::rc::Rc;
 use std::fmt::Display;
 use std::fmt::Debug;
 
+use crate::proof::seq_join;
+
 // Verus specs for some std functions
 
 verus! {
@@ -129,6 +131,13 @@ pub fn eprintln_debug<T: Debug>(s: T) {
     eprintln!("{:?}", s);
 }
 
+#[verifier::external_body]
+pub fn string_new() -> (res: String)
+    ensures res@ == Seq::<char>::empty()
+{
+    String::new()
+}
+
 /// Copied from Verus example
 pub fn vec_reverse<T: DeepView>(v: &mut Vec<&T>)
     ensures
@@ -149,6 +158,37 @@ pub fn vec_reverse<T: DeepView>(v: &mut Vec<&T>)
         v.set(n, y);
         v.set(length - n - 1, x);
     }
+}
+
+/// Join a list of strings by the separator `sep`
+pub fn join_strs(list: &Vec<&str>, sep: &str) -> (res: String)
+    ensures
+        res@ =~= seq_join(list@.map_values(|v: &str| v.view()), sep@),
+{
+    let mut res = string_new();
+    assert(res@ =~= seq![]);
+
+    let ghost list_deep_view = list@.map_values(|v: &str| v.view());
+
+    for i in 0..list.len()
+        invariant
+            list_deep_view.len() == list.len(),
+            forall |i| #![auto] 0 <= i < list.len() ==> list_deep_view[i] == list[i]@,
+            res@ =~= seq_join(list_deep_view.take(i as int), sep@),
+    {
+        if i != 0 {
+            let ghost old_res = res@;
+            res.append(sep);
+            res.append(list[i]);
+            assert(list_deep_view.take((i + 1) as int).drop_last() =~= list_deep_view.take(i as int));
+        } else {
+            res.append(list[i]);
+        }
+    }
+
+    assert(list_deep_view.take(list.len() as int) =~= list_deep_view);
+
+    res
 }
 
 }
