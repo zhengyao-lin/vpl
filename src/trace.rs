@@ -114,21 +114,15 @@ impl TraceValidator {
             old(self).wf(program@),
             !old(self).thms@.contains_key(event.id),
 
-            // For simplicity, we assume that the event id coincides with the index of the event
-            // event.id == old(self).thms.len()
-
         ensures
             res matches Ok(thm) ==> (
                 self.wf(program@) &&
                 thm.wf(program@) &&
                 
                 self.thms@.contains_key(event.id) &&
-                self.thms@[event.id].stmt@ == event.term@ &&
+                self.thms@[event.id] == thm &&
+
                 event.term@ == thm.stmt@
-            
-                // self.thms has exact one more element
-                // self.thms.len() == old(self).thms.len() + 1 &&
-                // (forall |i| 0 <= i < old(self).thms.len() ==> old(self).thms[i] == self.thms[i])
             )
     {
         match &event.tactic {
@@ -169,7 +163,7 @@ impl TraceValidator {
                     subproofs.push(self.get_theorem(program, subproof_ids[i])?);
                     
                     if debug {
-                        eprint("[debug]   with subproof: "); eprintln(&subproofs[i].stmt);
+                        eprint("[debug]   subproof: "); eprintln(&subproofs[i].stmt);
                     }
 
                     TermX::match_terms(&mut subst, &rule.body[i], &subproofs[i].stmt)?;
@@ -199,10 +193,11 @@ impl TraceValidator {
             }
 
             Tactic::TrueIntro => {
-                if let Some(thm) = Theorem::true_intro(program, &event.term) {
+                let thm = Theorem::true_intro(program, &event.term)?;
+                if (&thm.stmt).eq(&event.term) {
                     Ok(self.add_theorem(program, event.id, thm))
                 } else {
-                    proof_err!("failed to check true intro")
+                    proof_err!("incorrect proved result: expecting ", &event.term, ", got ", &thm.stmt)
                 }
             }
 
@@ -224,36 +219,26 @@ impl TraceValidator {
             }
 
             Tactic::OrIntroLeft(subproof_id) => {
-                match rc_as_ref(&event.term) {
-                    TermX::App(f, args) if f.eq(&FnName::user(FN_NAME_OR, 2)) && args.len() == 2 => {
-                        let thm = Theorem::or_intro_left(program, self.get_theorem(program, *subproof_id)?, &args[1]);
+                let args = (&event.term).headed_by(FN_NAME_OR, 2)?;
+                let thm = Theorem::or_intro_left(program, self.get_theorem(program, *subproof_id)?, &args[1]);
 
-                        if (&thm.stmt).eq(&event.term) {
-                            self.remove_theorem(program, *subproof_id)?;
-                            Ok(self.add_theorem(program, event.id, thm))
-                        } else {
-                            proof_err!("incorrect proved result: expecting ", &event.term, ", got ", &thm.stmt)
-                        }
-                    }
-
-                    _ => proof_err!("OrIntroLeft does not apply to the goal ", &event.term),
+                if (&thm.stmt).eq(&event.term) {
+                    self.remove_theorem(program, *subproof_id)?;
+                    Ok(self.add_theorem(program, event.id, thm))
+                } else {
+                    proof_err!("incorrect proved result: expecting ", &event.term, ", got ", &thm.stmt)
                 }
             }
 
             Tactic::OrIntroRight(subproof_id) => {
-                match rc_as_ref(&event.term) {
-                    TermX::App(f, args) if f.eq(&FnName::user(FN_NAME_OR, 2)) && args.len() == 2 => {
-                        let thm = Theorem::or_intro_right(program, &args[0], self.get_theorem(program, *subproof_id)?);
+                let args = (&event.term).headed_by(FN_NAME_OR, 2)?;
+                let thm = Theorem::or_intro_right(program, &args[0], self.get_theorem(program, *subproof_id)?);
 
-                        if (&thm.stmt).eq(&event.term) {
-                            self.remove_theorem(program, *subproof_id)?;
-                            Ok(self.add_theorem(program, event.id, thm))
-                        } else {
-                            proof_err!("incorrect proved result: expecting ", &event.term, ", got ", &thm.stmt)
-                        }
-                    }
-
-                    _ => proof_err!("OrIntroRight does not apply to the goal ", &event.term),
+                if (&thm.stmt).eq(&event.term) {
+                    self.remove_theorem(program, *subproof_id)?;
+                    Ok(self.add_theorem(program, event.id, thm))
+                } else {
+                    proof_err!("incorrect proved result: expecting ", &event.term, ", got ", &thm.stmt)
                 }
             }
 

@@ -68,19 +68,15 @@ impl fmt::Display for TermX {
             }
             TermX::App(name, args) => {
                 write!(f, "{}", name)?;
-                if args.len() != 0 {
-                    write!(f, "(")?;
-                    for (i, arg) in args.iter().enumerate() {
-                        if i == 0 {
-                            write!(f, "{}", arg)?;
-                        } else {
-                            write!(f, ", {}", arg)?;
-                        }
+                write!(f, "(")?;
+                for (i, arg) in args.iter().enumerate() {
+                    if i == 0 {
+                        write!(f, "{}", arg)?;
+                    } else {
+                        write!(f, ", {}", arg)?;
                     }
-                    write!(f, ")")
-                } else {
-                    Ok(())
                 }
+                write!(f, ")")
             }
         }
     }

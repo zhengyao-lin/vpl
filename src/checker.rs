@@ -80,7 +80,7 @@ pub struct ProofError(pub String);
 #[macro_export]
 macro_rules! proof_err {
     ($($args:expr),+) => {
-        Err(ProofError(join!($($args),+)))
+        Err(ProofError(join!(file!(), ":", line!(), ": ", $($args),+)))
     };
 }
 #[allow(unused_imports)]
@@ -288,6 +288,15 @@ impl TermX {
         }
     }
 
+    pub fn as_var(&self) -> (res: Result<&Var, ProofError>)
+        ensures res matches Ok(v) ==> self@ =~= SpecTerm::Var(v@)
+    {
+        match self {
+            TermX::Var(v) => Ok(v),
+            _ => proof_err!("expecting variable: ", self),
+        }
+    }
+
     /// Check if `self` occurs in the list of terms
     pub fn is_member(&self, list: &Vec<&Term>) -> (res: bool)
         ensures res == list.deep_view().contains(self@)
@@ -343,10 +352,10 @@ impl TermX {
     /// A helper function to check the arity and name
     /// of the head symbol of the term; and returns the arguments
     /// Corresponds to SpecTerm::headed_by
-    pub fn headed_by<'a, 'b>(&'a self, expected_name: &'b str, expected_arity: usize) -> (res: Option<&'a Vec<Term>>)
+    pub fn headed_by<'a, 'b>(&'a self, expected_name: &'b str, expected_arity: usize) -> (res: Result<&'a Vec<Term>, ProofError>)
         ensures match res {
-            Some(res) => Some(res.deep_view()) == self@.headed_by(expected_name, expected_arity as int),
-            None => self@.headed_by(expected_name, expected_arity as int).is_none(),
+            Ok(res) => Some(res.deep_view()) == self@.headed_by(expected_name, expected_arity as int),
+            Err(..) => self@.headed_by(expected_name, expected_arity as int).is_none(),
         }
     {
         match self {
@@ -354,11 +363,11 @@ impl TermX {
                 if *arity == args.len() &&
                     rc_str_eq_str(name, expected_name) &&
                     *arity == expected_arity {
-                    Some(args)
+                    Ok(args)
                 } else {
-                    None
+                    proof_err!("expecting symbol ", expected_name, " with ", expected_arity, ", got: ", self)
                 },
-            _ => None,
+            _ => proof_err!("expecting application, got: ", self),
         }
     }
 
@@ -371,21 +380,21 @@ impl TermX {
     {
         if let TermX::Literal(Literal::Int(i)) = self {
             Ok(*i)
-        } else if let Some(args) = self.headed_by(FN_NAME_ADD, 2) {
+        } else if let Ok(args) = self.headed_by(FN_NAME_ADD, 2) {
             if let Some(res) = (&args[0]).eval_arith()?.checked_add((&args[1]).eval_arith()?) {
                 Ok(res)
             } else {
                 proof_err!("potential overflow in ", self)
             }
 
-        } else if let Some(args) = self.headed_by(FN_NAME_SUB, 2) {
+        } else if let Ok(args) = self.headed_by(FN_NAME_SUB, 2) {
             if let Some(res) = (&args[0]).eval_arith()?.checked_sub((&args[1]).eval_arith()?) {
                 Ok(res)
             } else {
                 proof_err!("potential overflow in ", self)
             }
 
-        } else if let Some(args) = self.headed_by(FN_NAME_MUL, 2) {
+        } else if let Ok(args) = self.headed_by(FN_NAME_MUL, 2) {
             if let Some(res) = (&args[0]).eval_arith()?.checked_mul((&args[1]).eval_arith()?) {
                 Ok(res)
             } else {
@@ -463,16 +472,16 @@ impl Theorem {
         })
     }
 
-    pub fn true_intro(program: &Program, goal: &Term) -> (res: Option<Theorem>)
-        ensures res matches Some(thm) ==> thm.stmt@ == goal@ && thm.wf(program@)
+    pub fn true_intro(program: &Program, goal: &Term) -> (res: Result<Theorem, ProofError>)
+        ensures res matches Ok(thm) ==> thm.stmt@ == goal@ && thm.wf(program@)
     {
-        if goal.headed_by(FN_NAME_TRUE, 0).is_some() || goal.eq(&TermX::atom(FN_NAME_TRUE)) {
-            Some(Theorem {
+        if goal.headed_by(FN_NAME_TRUE, 0).is_ok() || goal.eq(&TermX::atom(FN_NAME_TRUE)) {
+            Ok(Theorem {
                 stmt: goal.clone(),
                 proof: Ghost(SpecProof::TrueIntro),
             })
         } else {
-            None
+            proof_err!("true intro does not apply to goal: ", goal)
         }
     }
 
@@ -490,10 +499,14 @@ impl Theorem {
     /// Introduce (a; b) given a proof a
     pub fn or_intro_left(program: &Program, subproof: &Theorem, right: &Term) -> (res: Theorem)
         requires subproof.wf(program@)
-        ensures res.wf(program@)
+        ensures
+            res.wf(program@),
+            res@.stmt == SpecTerm::App(SpecFnName::User(FN_NAME_OR.view(), 2), seq![subproof@.stmt, right@]),
     {
+        let disjunct = vec![subproof.stmt.clone(), right.clone()];
+        assert(disjunct.deep_view() =~= seq![subproof@.stmt, right@]);
         Theorem {
-            stmt: TermX::app(&FnName::user(FN_NAME_OR, 2), vec![subproof.stmt.clone(), right.clone()]),
+            stmt: TermX::app(&FnName::user(FN_NAME_OR, 2), disjunct),
             proof: Ghost(SpecProof::OrIntroLeft(Box::new(subproof@))),
         }
     }
@@ -501,10 +514,14 @@ impl Theorem {
     /// Introduce (a; b) given a proof b
     pub fn or_intro_right(program: &Program, left: &Term, subproof: &Theorem) -> (res: Theorem)
         requires subproof.wf(program@)
-        ensures res.wf(program@)
+        ensures
+            res.wf(program@),
+            res@.stmt == SpecTerm::App(SpecFnName::User(FN_NAME_OR.view(), 2), seq![left@, subproof@.stmt]),
     {
+        let disjunct = vec![left.clone(), subproof.stmt.clone()];
+        assert(disjunct.deep_view() =~= seq![left@, subproof@.stmt]);
         Theorem {
-            stmt: TermX::app(&FnName::user(FN_NAME_OR, 2), vec![left.clone(), subproof.stmt.clone()]),
+            stmt: TermX::app(&FnName::user(FN_NAME_OR, 2), disjunct),
             proof: Ghost(SpecProof::OrIntroRight(Box::new(subproof@))),
         }
     }
@@ -515,22 +532,12 @@ impl Theorem {
             res matches Ok(thm) ==> thm.stmt@ == outer_goal@ && thm.wf(program@)
     {
         // Check that outer_goal is of the form forall(member(loop_var, list_term), goal)
-        let (loop_var, list_term, goal) =
-            if let Some(forall_args) = outer_goal.headed_by(FN_NAME_FORALL, 2) {
-                if let Some(member_args) = (&forall_args[0]).headed_by(FN_NAME_MEMBER, 2) {
-                    if let TermX::Var(loop_var) = rc_as_ref(&member_args[0]) {
-                        (loop_var, &member_args[1], &forall_args[1])
-                    } else {
-                        return proof_err!("incorrect goal ", outer_goal);
-                    }
-                } else {
-                    return proof_err!("incorrect goal ", outer_goal);
-                }
-            } else {
-                return proof_err!("incorrect goal ", outer_goal);
-            };
+        let forall_args = outer_goal.headed_by(FN_NAME_FORALL, 2)?;
+        let member_args = (&forall_args[0]).headed_by(FN_NAME_MEMBER, 2)?;
 
-        let list = list_term.as_list()?;
+        let loop_var = (&member_args[0]).as_var()?;
+        let list = (&member_args[1]).as_list()?;
+        let goal = &forall_args[1];
 
         if list.len() != subproofs.len() {
             return proof_err!("unmatched list length");
@@ -662,35 +669,33 @@ impl Theorem {
         ensures
             res matches Ok(thm) ==> thm.stmt@ == goal@ && thm.wf(program@)
     {
-        if let Some(args) = goal.headed_by(FN_NAME_FINDALL, 3) {
-            let template = &args[0];
-            let pattern = &args[1];
+        let args = goal.headed_by(FN_NAME_FINDALL, 3)?;
 
-            let list = (&args[2]).as_list()?;
-            let insts = Self::match_subst_base_predicates(program, pattern, template)?;
+        let template = &args[0];
+        let pattern = &args[1];
 
-            // Check that the instances coincides with the list
-            if insts.len() != list.len() {
-                return proof_err!("unmatched number of instances in the list");
-            }
+        let list = (&args[2]).as_list()?;
+        let insts = Self::match_subst_base_predicates(program, pattern, template)?;
 
-            for i in 0..insts.len()
-                invariant
-                    insts.len() == list.len(),
-                    forall |j| #![auto] 0 <= j < i ==> insts[j]@ == list[j]@
-            {
-                if !(&insts[i]).eq(list[i]) {
-                    return proof_err!("unmatched instance");
-                }
-            }
-
-            return Ok(Theorem {
-                stmt: goal.clone(),
-                proof: Ghost(SpecProof::BuiltIn),
-            });
+        // Check that the instances coincides with the list
+        if insts.len() != list.len() {
+            return proof_err!("unmatched number of instances in the list");
         }
 
-        return proof_err!("unsupported goal for findall_base: ", goal);
+        for i in 0..insts.len()
+            invariant
+                insts.len() == list.len(),
+                forall |j| #![auto] 0 <= j < i ==> insts[j]@ == list[j]@
+        {
+            if !(&insts[i]).eq(list[i]) {
+                return proof_err!("unmatched instance");
+            }
+        }
+
+        return Ok(Theorem {
+            stmt: goal.clone(),
+            proof: Ghost(SpecProof::BuiltIn),
+        });
     }
 
     /// Apply and proof-check SpecProof::ForallBase
@@ -698,41 +703,37 @@ impl Theorem {
         ensures
             res matches Ok(thm) ==> thm.stmt@ == goal@ && thm.wf(program@)
     {
-        if let Some(args) = goal.headed_by(FN_NAME_FORALL, 2) {
-            let pattern = &args[0];
-            let template = &args[1];
+        let args = goal.headed_by(FN_NAME_FORALL, 2)?;
 
-            let insts = Self::match_subst_base_predicates(program, pattern, template)?;
+        let pattern = &args[0];
+        let template = &args[1];
 
-            if insts.len() != subproofs.len() {
-                return proof_err!("unmatched number of subproofs");
-            }
+        let insts = Self::match_subst_base_predicates(program, pattern, template)?;
 
-            // Check that the instances match the statements of the subproofs
-            for i in 0..insts.len()
-                invariant
-                    insts.len() == subproofs.len(),
-                    forall |j| #![auto] 0 <= j < i ==> insts[j]@ == subproofs[j].stmt@,
-            {
-                if !(&insts[i]).eq(&subproofs[i].stmt) {
-                    return proof_err!(
-                        i, "-th subproof mismatch: expecting ", &insts[i],
-                        ", got ", &subproofs[i].stmt);
-                }
-            }
-
-            return Ok(Theorem {
-                stmt: goal.clone(),
-                proof: Ghost(SpecProof::ForallBase(subproofs.deep_view())),
-            });
+        if insts.len() != subproofs.len() {
+            return proof_err!("unmatched number of subproofs");
         }
 
-        return proof_err!("incorrect goal for ForallBase: ", goal);
+        // Check that the instances match the statements of the subproofs
+        for i in 0..insts.len()
+            invariant
+                insts.len() == subproofs.len(),
+                forall |j| #![auto] 0 <= j < i ==> insts[j]@ == subproofs[j].stmt@,
+        {
+            if !(&insts[i]).eq(&subproofs[i].stmt) {
+                return proof_err!(
+                    i, "-th subproof mismatch: expecting ", &insts[i],
+                    ", got ", &subproofs[i].stmt);
+            }
+        }
+
+        return Ok(Theorem {
+            stmt: goal.clone(),
+            proof: Ghost(SpecProof::ForallBase(subproofs.deep_view())),
+        });
     }
 
     /// Try applying the axiom of a domain function for ints, strings, or lists
-    /// 
-    /// TODO: break up this gigantic if statement
     pub fn try_built_in(program: &Program, goal: &Term) -> (res: Result<Theorem, ProofError>)
         ensures
             res matches Ok(thm) ==> thm.stmt@ == goal@ && thm.wf(program@)
@@ -932,7 +933,7 @@ impl Theorem {
         ensures
             res matches Ok(thm) ==> thm.stmt@ == goal@ && thm.wf(program@)
     {
-        if let Some(args) = goal.headed_by("string_lower", 2) {
+        if let Ok(args) = goal.headed_by("string_lower", 2) {
             if let (
                 TermX::Literal(Literal::String(s1)),
                 TermX::Literal(Literal::String(s2)),
@@ -941,7 +942,7 @@ impl Theorem {
                     return Ok(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::BuiltIn) });
                 }
             }
-        } else if let Some(args) = goal.headed_by("uri_encoded", 3) {
+        } else if let Ok(args) = goal.headed_by("uri_encoded", 3) {
             if let (
                 TermX::Literal(Literal::Atom(s1)),
                 TermX::Literal(Literal::String(s2)),
