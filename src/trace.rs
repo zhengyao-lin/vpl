@@ -209,11 +209,10 @@ impl TraceValidator {
             }
 
             Tactic::TrueIntro => {
-                let thm = Theorem::true_intro(program);
-                if (&thm.stmt).eq(&event.term) {
+                if let Some(thm) = Theorem::true_intro(program, &event.term) {
                     Ok(self.add_theorem(program, event.id, thm))
                 } else {
-                    Err(TraceError(event.id, "incorrect matching algorithm".to_string()))
+                    Err(TraceError(event.id, "failed to check true intro".to_string()))
                 }
             }
 

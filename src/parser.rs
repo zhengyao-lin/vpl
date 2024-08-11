@@ -224,7 +224,9 @@ peg::parser!(grammar prolog(state: &ParserState) for str {
         name:ident() _ "(" _ args:comma_sep(<small_term()>) _ ")" {
             Rc::new(TermX::App(FnName::User(unescape_string(name).into(), args.len()), args))
         }
-        name:ident() { Rc::new(TermX::App(FnName::User(unescape_string(name).into(), 0), vec![])) }
+
+        // Atom
+        name:ident() { Rc::new(TermX::Literal(Literal::Atom(unescape_string(name).into()))) }
         
         // Special cases of parsing certain special operators
         // TODO: not complete

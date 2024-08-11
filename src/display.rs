@@ -1,24 +1,27 @@
 use std::fmt;
+use std::rc::Rc;
 
 use crate::proof::*;
 use crate::checker::*;
 use crate::parser::escape_string;
 
+fn fmt_symbol(symbol: &Rc<str>, f: &mut fmt::Formatter) -> fmt::Result {
+    if let Some(first) = symbol.chars().next() {
+        if first.is_ascii_lowercase() &&
+            symbol.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == ':') {
+            // Only print the symbol unescaped if it starts with a-z and
+            // only contains a-z, A-Z, 0-9, _, and :
+            return write!(f, "{}", symbol);
+        }
+    }
+    
+    write!(f, "'{}'", escape_string(symbol, '\''))
+}
+
 impl fmt::Display for FnName {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            FnName::User(name, _) => {
-                if let Some(first) = name.chars().next() {
-                    if first.is_ascii_lowercase() &&
-                        name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == ':') {
-                        // Only print the name unescaped if it starts with a-z and
-                        // only contains a-z, A-Z, 0-9, _, and :
-                        return write!(f, "{}", name);
-                    }
-                }
-                
-                write!(f, "'{}'", escape_string(name, '\''))
-            },
+            FnName::User(name, _) => fmt_symbol(name, f),
 
             // According to https://www.swi-prolog.org/pldoc/man?section=ext-lists
             // [] /= '[]', but functor([1, 2], '[|]', _) is true.
@@ -35,6 +38,7 @@ impl fmt::Display for Literal {
         match self {
             Literal::Int(i) => write!(f, "{}", i),
             Literal::String(s) => write!(f, "\"{}\"", escape_string(s, '"')),
+            Literal::Atom(a) => fmt_symbol(a, f),
         }
     }
 }

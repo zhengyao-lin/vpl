@@ -25,6 +25,7 @@ impl View for Literal {
         match self {
             Literal::Int(i) => SpecLiteral::Int(*i as int),
             Literal::String(s) => SpecLiteral::String(s.view()),
+            Literal::Atom(a) => SpecLiteral::Atom(a.view()),
         }
     }
 }

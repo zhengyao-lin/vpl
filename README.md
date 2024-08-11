@@ -73,9 +73,7 @@ which describes the proof rules allowed to construct valid goals (e.g. clause ap
 
 The rest of the tool, including SWI-Prolog, does not need to be trusted.
 
-## Missing features
-
-TODO:
+## TODO
 
 - [x] Integers
 - [x] Strings
@@ -89,8 +87,8 @@ TODO:
 - [x] `\+base_pred(..)`
 - [x] `forall(base_pred(...), ..)`
 - [x] `findall(X, base_pred(..., X), ..)`
+- [x] Right now we conflate atom and nullary applications (e.g. `hey` vs `hey()`); need to fix this
 - [ ] Handle the module system better when loading files
 - [ ] Private clauses in modules
 - [ ] Adapt to optimizations done by the compiler
-- [ ] Right now we conflate atom and nullary applications (e.g. `hey` vs `hey()`); need to fix this
 - [ ] More error messages for failed validation

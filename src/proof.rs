@@ -44,6 +44,7 @@ pub type SpecRuleId = int;
 pub type SpecArity = int;
 pub type SpecIntLiteral = int;
 pub type SpecStringLiteral = Seq<char>;
+pub type SpecAtomLiteral = Seq<char>;
 
 pub enum SpecFnName {
     // User-defined symbol: (name, arity)
@@ -61,8 +62,17 @@ pub enum SpecFnName {
 pub enum SpecLiteral {
     Int(SpecIntLiteral),
     String(SpecStringLiteral),
+    Atom(SpecAtomLiteral),
 }
 
+/**
+ * A few notes:
+ * 1. Atoms are different from nullary applications (e.g. check a == a(). in swipl).
+ *    See also https://www.swi-prolog.org/pldoc/man?predicate=atom/1
+ * 2. [] == '[]' is false, but '[|]'(a, b) == [a|b] is true; we single out both Nil and Cons
+ *    in SpecFnName for simplicity.
+ * 3. Both true and true() are true predicates in swipl.
+ */
 pub enum SpecTerm {
     Var(SpecVar),
     Literal(SpecLiteral),
@@ -118,20 +128,6 @@ pub enum SpecProof {
 }
 
 impl SpecTerm {
-    /// Get free variables in a term
-    pub closed spec fn free_vars(self) -> Set<SpecVar>
-        decreases self
-    {
-        match self {
-            SpecTerm::Var(v) => Set::new(|u| u == v),
-            SpecTerm::Literal(..) => Set::empty(),
-            SpecTerm::App(_, args) =>
-                Set::new(|v| exists |i|
-                    #![trigger args[i].free_vars()]
-                    0 <= i < args.len() && args[i].free_vars().contains(v)),
-        }
-    }
-
     /// Substitute a term
     /// TODO: Using an axiom here due to Verus issue #1222
     pub closed spec fn subst(self, subst: SpecSubst) -> SpecTerm;
@@ -415,7 +411,9 @@ impl SpecTheorem {
             }
 
             SpecProof::TrueIntro => {
-                self.stmt.headed_by(FN_NAME_TRUE, 0).is_some()
+                // Both true and true() are valid
+                ||| self.stmt.headed_by(FN_NAME_TRUE, 0).is_some()
+                ||| self.stmt matches SpecTerm::Literal(SpecLiteral::Atom(atom)) && atom == FN_NAME_TRUE.view()
             }
 
             SpecProof::AndIntro(left, right) => {
@@ -579,8 +577,7 @@ impl SpecTheorem {
 
                 ||| {
                     &&& self.stmt.headed_by(FN_NAME_ATOM_STRING, 2) matches Some(args)
-                    &&& args[0] matches SpecTerm::App(SpecFnName::User(atom, atom_arity), _)
-                    &&& atom_arity == 0
+                    &&& args[0] matches SpecTerm::Literal(SpecLiteral::Atom(atom))
                     &&& args[1] matches SpecTerm::Literal(SpecLiteral::String(string))
                     &&& atom == string
                 }
@@ -591,7 +588,7 @@ impl SpecTheorem {
                     &&& args[1].as_list() matches Some(chars)
                     &&& string.len() == chars.len()
                     &&& forall |i| 0 <= i < string.len()
-                        ==> #[trigger] chars[i] == SpecTerm::App(SpecFnName::User(seq![string[i]], 0), seq![])
+                        ==> #[trigger] chars[i] == SpecTerm::Literal(SpecLiteral::Atom(seq![string[i]]))
                 }
 
                 ||| {

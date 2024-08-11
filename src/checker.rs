@@ -23,6 +23,7 @@ pub type Arity = usize;
 /// but Prolog actually supports arbitrary precision integers
 pub type LiteralInt = i64;
 pub type LiteralString = Rc<str>;
+pub type LiteralAtom = Rc<str>;
 
 #[derive(Debug)]
 pub enum FnName {
@@ -37,6 +38,7 @@ pub enum FnName {
 pub enum Literal {
     Int(LiteralInt),
     String(LiteralString),
+    Atom(LiteralAtom),
 }
 
 pub type Term = Rc<TermX>;
@@ -109,6 +111,7 @@ impl Literal {
         match (self, other) {
             (Literal::Int(i1), Literal::Int(i2)) => i1 == i2,
             (Literal::String(s1), Literal::String(s2)) => rc_str_eq(s1, s2),
+            (Literal::Atom(a1), Literal::Atom(a2)) => rc_str_eq(a1, a2),
             _ => false,
         }
     }
@@ -140,12 +143,19 @@ impl TermX {
         TermX::app(&FnName::user(name, args.len()), args)
     }
 
+    /// Constants are nullary applications, *different* from atoms
     pub fn constant(name: &str) -> (res: Term)
         ensures res@ == SpecTerm::App(SpecFnName::User(name@, 0), seq![])
     {
         let res = TermX::app(&FnName::user(name, 0), vec![]);
         assert(res@->App_1 =~= seq![]);
         res
+    }
+
+    pub fn atom(name: &str) -> (res: Term)
+        ensures res@ == SpecTerm::Literal(SpecLiteral::Atom(name@))
+    {
+        Rc::new(TermX::Literal(Literal::Atom(str_to_rc_str(name))))
     }
 
     /// Apply substitution to a term
@@ -409,12 +419,16 @@ impl Theorem {
         })
     }
 
-    pub fn true_intro(program: &Program) -> (res: Theorem)
-        ensures res.wf(program@)
+    pub fn true_intro(program: &Program, goal: &Term) -> (res: Option<Theorem>)
+        ensures res matches Some(thm) ==> thm.stmt@ == goal@ && thm.wf(program@)
     {
-        Theorem {
-            stmt: TermX::app(&FnName::user(FN_NAME_TRUE, 0), vec![]),
-            proof: Ghost(SpecProof::TrueIntro),
+        if goal.headed_by(FN_NAME_TRUE, 0).is_some() || goal.eq(&TermX::atom(FN_NAME_TRUE)) {
+            Some(Theorem {
+                stmt: goal.clone(),
+                proof: Ghost(SpecProof::TrueIntro),
+            })
+        } else {
+            None
         }
     }
 
@@ -776,9 +790,9 @@ impl Theorem {
                 _ => return None,
             }
         } else if let Some(args) = goal.headed_by(FN_NAME_ATOM_STRING, 2) {
-            match rc_as_ref(&args[1]) {
-                (TermX::Literal(Literal::String(string))) => {
-                    if (&args[0]).headed_by(rc_str_to_str(string), 0).is_some() {
+            match (rc_as_ref(&args[0]), rc_as_ref(&args[1])) {
+                (TermX::Literal(Literal::Atom(atom)), TermX::Literal(Literal::String(string))) => {
+                    if rc_str_eq(atom, string) {
                         return Some(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::BuiltIn) });
                     } else {
                         return None;
@@ -801,14 +815,12 @@ impl Theorem {
                             invariant
                                 chars.len() == string@.len(),
                                 forall |j| 0 <= j < i ==>
-                                    (#[trigger] chars[j])@ =~= SpecTerm::App(SpecFnName::User(seq![string@[j as int]], 0), seq![]),
+                                    (#[trigger] chars[j])@ =~= SpecTerm::Literal(SpecLiteral::Atom(seq![string@[j as int]])),
                         {
                             match rc_as_ref(&chars[i]) {
-                                TermX::App(FnName::User(s, arity), args) => {
-                                    if *arity == 0 && args.len() == 0 &&
-                                        s.unicode_len() == 1 && s.get_char(0) == string.get_char(i) {
+                                TermX::Literal(Literal::Atom(s)) => {
+                                    if s.unicode_len() == 1 && s.get_char(0) == string.get_char(i) {
                                         assert(s@ =~= seq![string@[i as int]]);
-                                        assert(args.deep_view() =~= seq![]);
                                     } else {
                                         return None;
                                     }
@@ -975,7 +987,7 @@ impl Theorem {
             }
         } else if let Some(args) = goal.headed_by("uri_encoded", 3) {
             if let (
-                TermX::App(FnName::User(s1, 0), ..),
+                TermX::Literal(Literal::Atom(s1)),
                 TermX::Literal(Literal::String(s2)),
             ) = (rc_as_ref(&args[1]), rc_as_ref(&args[2])) {
                 // TODO: fix this
