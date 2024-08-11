@@ -23,12 +23,12 @@ impl SpecSubst {
     pub proof fn lemma_merge_assoc(subst1: SpecSubst, subst2: SpecSubst, subst3: SpecSubst)
         requires
             // All merges are well-defined
-            subst1.merge(subst2).is_some() &&
-            subst1.merge(subst2).unwrap().merge(subst3).is_some()
+            subst1.merge(subst2).is_some(),
+            subst1.merge(subst2).unwrap().merge(subst3).is_some(),
         
         ensures
-            subst1.merge(subst2.merge(subst3).unwrap()).is_some() &&
-            subst1.merge(subst2.merge(subst3).unwrap()) =~= subst1.merge(subst2).unwrap().merge(subst3)
+            subst1.merge(subst2.merge(subst3).unwrap()).is_some(),
+            subst1.merge(subst2.merge(subst3).unwrap()) =~= subst1.merge(subst2).unwrap().merge(subst3),
     {
         let merged12 = subst1.merge(subst2).unwrap();
         let merged23 = subst2.merge(subst3).unwrap();
@@ -57,8 +57,8 @@ impl SpecSubst {
     /// then subst1 and subst3 are mergeable
     pub proof fn lemma_merge_monotone_wrt_subsume(subst1: SpecSubst, subst2: SpecSubst, subst3: SpecSubst)
         requires
-            subst1.merge(subst2).is_some() &&
-            subst1.subsumes(subst3)
+            subst1.merge(subst2).is_some(),
+            subst1.subsumes(subst3),
 
         ensures subst1.merge(subst3).is_some()
     {}
@@ -90,8 +90,9 @@ impl SpecTerm {
     /// If two seqs of terms match, then each pair should also match
     pub proof fn lemma_matches_multiple(terms1: Seq<SpecTerm>, terms2: Seq<SpecTerm>, i: int)
         requires
-            0 <= i < terms1.len() &&
-            SpecTerm::matches_multiple(terms1, terms2).is_some()
+            0 <= i < terms1.len(),
+            SpecTerm::matches_multiple(terms1, terms2).is_some(),
+
         ensures terms1[i].matches(terms2[i]).is_some()
         decreases i
     {
@@ -103,9 +104,9 @@ impl SpecTerm {
     /// Contrapositive of lemma_matches_multiple
     pub proof fn lemma_not_matches_multiple(terms1: Seq<SpecTerm>, terms2: Seq<SpecTerm>, i: int)
         requires
-            0 <= i < terms1.len() &&
-            0 <= i < terms2.len() &&
-            terms1[i].matches(terms2[i]).is_none()
+            0 <= i < terms1.len(),
+            0 <= i < terms2.len(),
+            terms1[i].matches(terms2[i]).is_none(),
 
         ensures SpecTerm::matches_multiple(terms1, terms2).is_none()
     {
@@ -131,20 +132,20 @@ impl SpecTerm {
     /// assuming no issue from the merge
     pub proof fn lemma_matches_multiple_extend(terms1: Seq<SpecTerm>, terms2: Seq<SpecTerm>, term1: SpecTerm, term2: SpecTerm)
         requires
-            SpecTerm::matches_multiple(terms1, terms2).is_some() &&
-            term1.matches(term2).is_some() &&
+            SpecTerm::matches_multiple(terms1, terms2).is_some(),
+            term1.matches(term2).is_some(),
             // SpecTerm::matches_multiple(terms1 + seq![term1], terms2 + seq![term2]).is_some()
-            SpecTerm::matches_multiple(terms1, terms2).unwrap().merge(term1.matches(term2).unwrap()).is_some()
+            SpecTerm::matches_multiple(terms1, terms2).unwrap().merge(term1.matches(term2).unwrap()).is_some(),
 
         ensures
             // Required additional IH for induction
-            (terms1.len() != 0 ==> SpecTerm::matches_multiple(
+            terms1.len() != 0 ==> SpecTerm::matches_multiple(
                 terms1.drop_first() + seq![term1],
                 terms2.drop_first() + seq![term2],
-            ).is_some()) &&
+            ).is_some(),
 
             SpecTerm::matches_multiple(terms1 + seq![term1], terms2 + seq![term2])
-                =~= SpecTerm::matches_multiple(terms1, terms2).unwrap().merge(term1.matches(term2).unwrap())
+                =~= SpecTerm::matches_multiple(terms1, terms2).unwrap().merge(term1.matches(term2).unwrap()),
 
         decreases terms1.len()
     {
@@ -202,9 +203,9 @@ impl SpecTerm {
     /// should subsume the matching substitution of terms1[i] and terms2[i]
     pub proof fn lemma_matches_multiple_subsume(terms1: Seq<SpecTerm>, terms2: Seq<SpecTerm>, i: int)
         requires
-            0 <= i < terms1.len() &&
-            SpecTerm::matches_multiple(terms1, terms2).is_some() &&
-            terms1[i].matches(terms2[i]).is_some()
+            0 <= i < terms1.len(),
+            SpecTerm::matches_multiple(terms1, terms2).is_some(),
+            terms1[i].matches(terms2[i]).is_some(),
 
         ensures ({
             let subst1 = SpecTerm::matches_multiple(terms1, terms2).unwrap();
@@ -224,10 +225,10 @@ impl SpecTerm {
     /// are different, then SpecTerm::matches_multiple should fail
     pub proof fn lemma_conflict_to_merge_fail(terms1: Seq<SpecTerm>, terms2: Seq<SpecTerm>, i: int, j: int, conflict_var: SpecVar)
         requires
-            0 <= i < terms1.len() &&
-            0 <= j < terms1.len() &&
-            terms1[i].matches(terms2[i]).is_some() &&
-            terms1[j].matches(terms2[j]).is_some() &&
+            0 <= i < terms1.len(),
+            0 <= j < terms1.len(),
+            terms1[i].matches(terms2[i]).is_some(),
+            terms1[j].matches(terms2[j]).is_some(),
             // Exists a merge conflict
             ({
                 let subst1 = terms1[i].matches(terms2[i]).unwrap();
@@ -236,7 +237,7 @@ impl SpecTerm {
                 subst1.contains_var(conflict_var) &&
                 subst2.contains_var(conflict_var) &&
                 subst1.get(conflict_var) != subst2.get(conflict_var)
-            })
+            }),
 
         ensures SpecTerm::matches_multiple(terms1, terms2).is_none()
     {
@@ -341,32 +342,32 @@ impl TermX {
                 // Match each subterm
                 for i in 0..args1.len()
                     invariant
-                        args1.len() == args2.len() &&
+                        args1.len() == args2.len(),
 
-                        pattern@ =~= SpecTerm::App(f1@, args1.deep_view()) &&
-                        inst@ =~= SpecTerm::App(f2@, args2.deep_view()) &&
+                        pattern@ =~= SpecTerm::App(f1@, args1.deep_view()),
+                        inst@ =~= SpecTerm::App(f2@, args2.deep_view()),
 
                         // All previous matchings should be successful
-                        (forall |j: int| 0 <= j < i ==> (#[trigger] args1[j])@.matches(args2[j]@).is_some()) &&
+                        forall |j: int| 0 <= j < i ==> (#[trigger] args1[j])@.matches(args2[j]@).is_some(),
 
                         // All variables in the current subst
                         // should either be in old(subst) or one
                         // of the matching results
-                        (forall |v| #[trigger] subst@.contains_var(v) ==>
+                        forall |v| #[trigger] subst@.contains_var(v) ==>
                             old(subst)@.contains_var(v) ||
-                            (exists |j: int| 0 <= j < i && (#[trigger] args1[j])@.matches(args2[j]@).unwrap().contains_var(v))) &&
+                            (exists |j: int| 0 <= j < i && (#[trigger] args1[j])@.matches(args2[j]@).unwrap().contains_var(v)),
 
                         // old(subst) and j-th matching substitution is subsumed by the current subst for every j
-                        (forall |j: int| 0 <= j < i ==> subst@.subsumes((#[trigger] args1[j])@.matches(args2[j]@).unwrap())) &&
+                        forall |j: int| 0 <= j < i ==> subst@.subsumes((#[trigger] args1[j])@.matches(args2[j]@).unwrap()),
 
                         // First i arguments match successfully
-                        (SpecTerm::matches_multiple(
+                        SpecTerm::matches_multiple(
                             args1.deep_view().take(i as int),
                             args2.deep_view().take(i as int),
                         ) matches Some(subst2) &&
                         // And the current substitution is the merge of
                         // all first i matching substitutions
-                        Some(subst@) =~= old(subst)@.merge(subst2))
+                        Some(subst@) =~= old(subst)@.merge(subst2),
                 {
                     let ghost subst_before_iter = subst@;
                     proof {

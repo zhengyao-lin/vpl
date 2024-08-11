@@ -71,9 +71,9 @@ impl TraceValidator {
     pub fn add_theorem(&mut self, program: &Program, event_id: EventId, thm: Theorem) -> (res: &Theorem)
         requires old(self).wf(program@) && thm.wf(program@)
         ensures
-            self.wf(program@) &&
-            self.thms@.contains_key(event_id) &&
-            self.thms@[event_id] == thm &&
+            self.wf(program@),
+            self.thms@.contains_key(event_id),
+            self.thms@[event_id] == thm,
             res == thm
     {
         self.thms.insert(event_id, thm);
@@ -94,14 +94,14 @@ impl TraceValidator {
     pub fn remove_theorem(&mut self, program: &Program, event_id: EventId) -> (res: Result<Theorem, TraceError>)
         requires old(self).wf(program@)
         ensures
-            self.wf(program@) &&
+            self.wf(program@),
             
             // Does not change other theorems
-            (forall |id| id != event_id && old(self).thms@.contains_key(id) ==>
+            forall |id| id != event_id && old(self).thms@.contains_key(id) ==>
                 self.thms@.contains_key(id) &&
-                #[trigger] self.thms@[id] == old(self).thms@[id]) &&
+                #[trigger] self.thms@[id] == old(self).thms@[id],
 
-            (res matches Ok(thm) ==> thm.wf(program@))
+            res matches Ok(thm) ==> thm.wf(program@),
     {
         if let Some(thm) = self.thms.remove(&event_id) {
             Ok(thm)
@@ -114,8 +114,8 @@ impl TraceValidator {
     /// Retuen the Theorem object if successful
     pub fn process_event(&mut self, program: &Program, event: &Event, debug: bool) -> (res: Result<&Theorem, TraceError>)
         requires
-            old(self).wf(program@) &&
-            !old(self).thms@.contains_key(event.id)
+            old(self).wf(program@),
+            !old(self).thms@.contains_key(event.id),
 
             // For simplicity, we assume that the event id coincides with the index of the event
             // event.id == old(self).thms.len()
@@ -163,12 +163,12 @@ impl TraceValidator {
                 // Match each rule body against existing subproof
                 for i in 0..subproof_ids.len()
                     invariant
-                        subproof_ids.len() == rule.body.len() &&
+                        subproof_ids.len() == rule.body.len(),
 
                         // Invariants to show that subproofs are valid
-                        subproofs.len() == i &&
-                        self.wf(program@) &&
-                        (forall |j| 0 <= j < i ==> (#[trigger] subproofs[j]).wf(program@))
+                        subproofs.len() == i,
+                        self.wf(program@),
+                        forall |j| 0 <= j < i ==> (#[trigger] subproofs[j]).wf(program@),
                 {
                     subproofs.push(self.get_theorem(program, subproof_ids[i])?);
                     
@@ -274,9 +274,9 @@ impl TraceValidator {
                 // Collect all subproofs via the ids
                 for i in 0..subproof_ids.len()
                     invariant
-                        subproofs.len() == i &&
-                        self.wf(program@) &&
-                        (forall |j| 0 <= j < i ==> (#[trigger] subproofs[j]).wf(program@))
+                        subproofs.len() == i,
+                        self.wf(program@),
+                        forall |j| 0 <= j < i ==> (#[trigger] subproofs[j]).wf(program@),
                 {
                     subproofs.push(self.get_theorem(program, subproof_ids[i])?);
                 }
@@ -298,9 +298,9 @@ impl TraceValidator {
                 // Collect all subproofs via the ids
                 for i in 0..subproof_ids.len()
                     invariant
-                        subproofs.len() == i &&
-                        self.wf(program@) &&
-                        (forall |j| 0 <= j < i ==> (#[trigger] subproofs[j]).wf(program@))
+                        subproofs.len() == i,
+                        self.wf(program@),
+                        forall |j| 0 <= j < i ==> (#[trigger] subproofs[j]).wf(program@),
                 {
                     subproofs.push(self.get_theorem(program, subproof_ids[i])?);
                 }

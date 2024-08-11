@@ -129,4 +129,26 @@ pub fn eprintln_debug<T: Debug>(s: T) {
     eprintln!("{:?}", s);
 }
 
+/// Copied from Verus example
+pub fn vec_reverse<T: DeepView>(v: &mut Vec<&T>)
+    ensures
+        v.len() == old(v).len(),
+        old(v).deep_view().reverse() =~= v.deep_view(),
+{
+    let length = v.len();
+    let ghost v1 = v.deep_view();
+    for n in 0..(length / 2)
+        invariant
+            length == v.len(),
+            forall |i: int| #![auto] 0 <= i < n ==> v[i].deep_view() == v1[length - 1 - i],
+            forall |i: int| #![auto] 0 <= i < n ==> v1[i] == v[length - 1 - i].deep_view(),
+            forall |i: int| n <= i && i + n < length ==> #[trigger] v[i].deep_view() == v1[i],
+    {
+        let x = v[n];
+        let y = v[length - n - 1];
+        v.set(n, y);
+        v.set(length - n - 1, x);
+    }
+}
+
 }

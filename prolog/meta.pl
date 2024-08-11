@@ -13,7 +13,7 @@ log_proof(Id, Goal) :-
     gen_id(Id),
     write(Id), write(". "),
     % TODO: ignore_ops(true) will produce things like ==(...)
-    write_term(Goal, [quoted(true), numbervars(true), character_escapes(true)]),
+    write_term(Goal, [quoted(true), numbervars(true)]),
     write(" by ").
 
 % Helper function for prove(maplist(...), ...)

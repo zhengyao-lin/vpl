@@ -29,6 +29,15 @@ pub const FN_NAME_IS: &'static str = "is"; // is evaluates only the RHS
 pub const FN_NAME_EVAL_EQ: &'static str = "=:="; // =:= evaluates both sides
 pub const FN_NAME_EVAL_NOT_EQ: &'static str = "=\\=";
 
+pub const FN_NAME_STRING_CHARS: &'static str = "string_chars";
+pub const FN_NAME_SUB_STRING: &'static str = "sub_string";
+pub const FN_NAME_ATOM_STRING: &'static str = "atom_string";
+pub const FN_NAME_REVERSE: &'static str = "reverse";
+pub const FN_NAME_SPLIT_STRING: &'static str = "split_string";
+
+pub const FN_NAME_NONVAR: &'static str = "nonvar";
+pub const FN_NAME_VAR: &'static str = "var";
+
 pub type SpecVar = Seq<char>;
 pub type SpecUserFnName = Seq<char>;
 pub type SpecRuleId = int;
@@ -553,6 +562,54 @@ impl SpecTheorem {
                     &&& args[0].eval_arith() matches Some(lhs)
                     &&& args[1].eval_arith() matches Some(rhs)
                     &&& lhs != rhs
+                }
+
+                ||| {
+                    &&& self.stmt.headed_by(FN_NAME_ATOM_STRING, 2) matches Some(args)
+                    &&& args[0] matches SpecTerm::App(SpecFnName::User(atom, atom_arity), _)
+                    &&& atom_arity == 0
+                    &&& args[1] matches SpecTerm::Literal(SpecLiteral::String(string))
+                    &&& atom == string
+                }
+
+                ||| {
+                    &&& self.stmt.headed_by(FN_NAME_STRING_CHARS, 2) matches Some(args)
+                    &&& args[0] matches SpecTerm::Literal(SpecLiteral::String(string))
+                    &&& args[1].as_list() matches Some(chars)
+                    &&& string.len() == chars.len()
+                    &&& forall |i| 0 <= i < string.len()
+                        ==> #[trigger] chars[i] == SpecTerm::App(SpecFnName::User(seq![string[i]], 0), seq![])
+                }
+
+                ||| {
+                    &&& self.stmt.headed_by(FN_NAME_SUB_STRING, 5) matches Some(args)
+                    &&& args[0] matches SpecTerm::Literal(SpecLiteral::String(string))
+                    &&& args[1] matches SpecTerm::Literal(SpecLiteral::Int(before))
+                    &&& args[2] matches SpecTerm::Literal(SpecLiteral::Int(len))
+                    &&& args[3] matches SpecTerm::Literal(SpecLiteral::Int(after))
+                    &&& args[4] matches SpecTerm::Literal(SpecLiteral::String(substring))
+                    &&& before >= 0 && len >= 0 && after >= 0
+                    &&& string.len() == before + len + after
+                    &&& substring.len() == len
+                    &&& string.skip(before).take(len) =~= substring
+                }
+
+                ||| {
+                    &&& self.stmt.headed_by(FN_NAME_REVERSE, 2) matches Some(args)
+                    &&& args[0].as_list() matches Some(list)
+                    &&& args[1].as_list() matches Some(reverse)
+                    &&& list.reverse() =~= reverse
+                }
+
+                // TODO: nonvar and var are a bit sketchy.
+                // Are they semantically well-behaved?
+                ||| {
+                    &&& self.stmt.headed_by(FN_NAME_NONVAR, 1) matches Some(args)
+                    &&& !(args[0] matches SpecTerm::Var(..))
+                }
+                ||| {
+                    &&& self.stmt.headed_by(FN_NAME_VAR, 1) matches Some(args)
+                    &&& args[0] matches SpecTerm::Var(..)
                 }
             }
         }

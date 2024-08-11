@@ -192,10 +192,10 @@ impl TermX {
 
                 for i in 0..args1.len()
                     invariant
-                        args1.len() == args2.len() &&
-                        args1.deep_view() =~= self@->App_1 &&
-                        args2.deep_view() =~= other@->App_1 &&
-                        (forall |j: int| 0 <= j < i ==> (#[trigger] args1[j as int])@ == args2[j as int]@)
+                        args1.len() == args2.len(),
+                        args1.deep_view() =~= self@->App_1,
+                        args2.deep_view() =~= other@->App_1,
+                        forall |j: int| 0 <= j < i ==> (#[trigger] args1[j as int])@ == args2[j as int]@,
                 {
                     assert(args1[i as int]@ == self@->App_1[i as int]);
                     if !(&args1[i]).eq(&args2[i]) {
@@ -271,10 +271,10 @@ impl TermX {
                 // Check if any subterms are not unifiable
                 for i in 0..args1.len()
                     invariant
-                        args1.len() == args2.len() &&
-                        self@ =~= SpecTerm::App(f1@, args1.deep_view()) &&
-                        other@ =~= SpecTerm::App(f2@, args2.deep_view()) &&
-                        (forall |j| 0 <= j < i ==> !(#[trigger] args1[j])@.not_unifiable(args2[j]@))
+                        args1.len() == args2.len(),
+                        self@ =~= SpecTerm::App(f1@, args1.deep_view()),
+                        other@ =~= SpecTerm::App(f2@, args2.deep_view()),
+                        forall |j| 0 <= j < i ==> !(#[trigger] args1[j])@.not_unifiable(args2[j]@),
                 {
                     if (&args1[i]).not_unifiable(&args2[i]) {
                         assert(self@->App_1[i as int].not_unifiable(other@->App_1[i as int]));
@@ -373,8 +373,8 @@ impl Theorem {
     /// Build on subproofs via the axiom SpecProof::ApplyRule
     pub fn apply_rule(program: &Program, rule_id: RuleId, subst: &Subst, subproofs: Vec<&Theorem>) -> (res: Option<Theorem>)
         requires
-            0 <= rule_id < program.rules.len() &&
-            forall |i| 0 <= i < subproofs.len() ==> (#[trigger] subproofs[i]).wf(program@)
+            0 <= rule_id < program.rules.len(),
+            forall |i| 0 <= i < subproofs.len() ==> (#[trigger] subproofs[i]).wf(program@),
 
         ensures
             res matches Some(thm) ==> thm.wf(program@)
@@ -389,8 +389,8 @@ impl Theorem {
         // Check that each subproof matches the corresponding body term (after substitution)
         for i in 0..rule.body.len()
             invariant
-                rule.body.len() == subproofs.len() &&
-                forall |j| 0 <= j < i ==> (#[trigger] rule.body[j])@.subst(subst@) == subproofs[j].stmt@
+                rule.body.len() == subproofs.len(),
+                forall |j| 0 <= j < i ==> (#[trigger] rule.body[j])@.subst(subst@) == subproofs[j].stmt@,
         {
             let obligation = &TermX::subst(&rule.body[i], subst);
             if !obligation.eq(&subproofs[i].stmt) {
@@ -483,13 +483,13 @@ impl Theorem {
                 // Goal[loop_var |-> list[i]]
                 for i in 0..list.len()
                     invariant
-                        list.len() == subproofs.len() &&
+                        list.len() == subproofs.len(),
 
-                        (forall |j| 0 <= j < i ==> {
+                        forall |j| 0 <= j < i ==> {
                             let subst = SpecSubst(map!{ loop_var@ => list[j]@ });
                             let subst_goal = goal@.subst(subst);
                             (#[trigger] subproofs[j]).stmt@ == subst_goal
-                        })
+                        },
                 {
                     let mut subst = Subst::new();
                     subst.insert(loop_var.clone(), list[i].clone());
@@ -542,20 +542,20 @@ impl Theorem {
         for i in 0..program.rules.len()
             invariant
                 // filter stays unchanged
-                (filter == |rule: SpecRule| {
+                filter == |rule: SpecRule| {
                     if let Some(subst) = pattern@.matches(rule.head) {
                         Some(template@.subst(subst))
                     } else {
                         None
                     }
-                }) &&
+                },
 
                 // A prefix version of program.only_unifiable_with_base
-                (forall |j: int| 0 <= j < i ==>
-                    (#[trigger] program@.rules[j]).matching_or_not_unifiable(pattern@)) &&
+                forall |j: int| 0 <= j < i ==>
+                    (#[trigger] program@.rules[j]).matching_or_not_unifiable(pattern@),
 
                 // The first i rules are corrected processed
-                filter_map(program@.rules.take(i as int), filter) =~= insts.deep_view()
+                filter_map(program@.rules.take(i as int), filter) =~= insts.deep_view(),
         {
             let rule = &program.rules[i];
             if rule.body.len() != 0 {
@@ -616,8 +616,8 @@ impl Theorem {
 
                     for i in 0..insts.len()
                         invariant
-                            insts.len() == list.len() &&
-                            (forall |j| #![auto] 0 <= j < i ==> insts[j]@ == list[j]@)
+                            insts.len() == list.len(),
+                            forall |j| #![auto] 0 <= j < i ==> insts[j]@ == list[j]@
                     {
                         if !(&insts[i]).eq(list[i]) {
                             return None;
@@ -652,8 +652,8 @@ impl Theorem {
                 // Check that the instances match the statements of the subproofs
                 for i in 0..insts.len()
                     invariant
-                        insts.len() == subproofs.len() &&
-                        (forall |j| #![auto] 0 <= j < i ==> insts[j]@ == subproofs[j].stmt@)
+                        insts.len() == subproofs.len(),
+                        forall |j| #![auto] 0 <= j < i ==> insts[j]@ == subproofs[j].stmt@,
                 {
                     if !(&insts[i]).eq(&subproofs[i].stmt) {
                         return None;
@@ -710,7 +710,7 @@ impl Theorem {
             // \+P holds if P is not unifiable with head of any rule
             for i in 0..program.rules.len()
                 invariant
-                    args.len() == 1 &&
+                    args.len() == 1,
                     forall |j| 0 <= j < i ==> (#[trigger] program.rules[j]).head@.not_unifiable(args[0]@)
             {
                 if !(&program.rules[i].head).not_unifiable(&args[0]) {
@@ -762,6 +762,144 @@ impl Theorem {
                 if lhs != rhs {
                     return Some(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::BuiltIn) });
                 }
+            }
+        } else if let Some(args) = goal.headed_by(FN_NAME_NONVAR, 1) {
+            match rc_as_ref(&args[0]) {
+                TermX::Var(..) => return None,
+                _ => return Some(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::BuiltIn) }),
+            }
+        } else if let Some(args) = goal.headed_by(FN_NAME_VAR, 1) {
+            match rc_as_ref(&args[0]) {
+                TermX::Var(..) => return Some(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::BuiltIn) }),
+                _ => return None,
+            }
+        } else if let Some(args) = goal.headed_by(FN_NAME_ATOM_STRING, 2) {
+            match rc_as_ref(&args[1]) {
+                (TermX::Literal(Literal::String(string))) => {
+                    if (&args[0]).headed_by(rc_str_to_str(string), 0).is_some() {
+                        return Some(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::BuiltIn) });
+                    } else {
+                        return None;
+                    }
+                }
+                _ => return None,
+            }
+        } else if let Some(args) = goal.headed_by(FN_NAME_STRING_CHARS, 2) {
+            match rc_as_ref(&args[0]) {
+                (TermX::Literal(Literal::String(string))) => {
+                    if let Some(chars) = (&args[1]).as_list() {
+                        if chars.len() != string.unicode_len() {
+                            return None;
+                        }
+
+                        // Compare each char
+                        // TODO: get_char and unicode_len are O(n)
+                        // Verus doesn't support iterator string.chars() yet
+                        for i in 0..chars.len()
+                            invariant
+                                chars.len() == string@.len(),
+                                forall |j| 0 <= j < i ==>
+                                    (#[trigger] chars[j])@ =~= SpecTerm::App(SpecFnName::User(seq![string@[j as int]], 0), seq![]),
+                        {
+                            match rc_as_ref(&chars[i]) {
+                                TermX::App(FnName::User(s, arity), args) => {
+                                    if *arity == 0 && args.len() == 0 &&
+                                        s.unicode_len() == 1 && s.get_char(0) == string.get_char(i) {
+                                        assert(s@ =~= seq![string@[i as int]]);
+                                        assert(args.deep_view() =~= seq![]);
+                                    } else {
+                                        return None;
+                                    }
+                                }
+                                _ => return None,
+                            }
+                        }
+
+                        return Some(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::BuiltIn) });
+                    } else {
+                        return None;
+                    }
+                }
+                _ => return None,
+            }
+        } else if let Some(args) = goal.headed_by(FN_NAME_SUB_STRING, 5) {
+            match (
+                rc_as_ref(&args[0]),
+                rc_as_ref(&args[1]),
+                rc_as_ref(&args[2]),
+                rc_as_ref(&args[3]),
+                rc_as_ref(&args[4]),
+            ) {
+                (
+                    TermX::Literal(Literal::String(string)),
+                    TermX::Literal(Literal::Int(before)),
+                    TermX::Literal(Literal::Int(len)),
+                    TermX::Literal(Literal::Int(after)),
+                    TermX::Literal(Literal::String(substring)),
+                ) => {
+                    if *before < 0 || *len < 0 || *after < 0 {
+                        return None;
+                    }
+
+                    // TODO: these overflow checks are not precise
+                    if *before > u32::MAX as i64 || *len > u32::MAX as i64 || *after > u32::MAX as i64 {
+                        return None;
+                    }
+
+                    if let Some(end) = (*before).checked_add(*len) {
+                        if let Some(sum) = end.checked_add(*after) {
+                            if sum > u32::MAX as i64 {
+                                return None;
+                            }
+
+                            if string.unicode_len() != sum as usize {
+                                return None;
+                            }
+
+                            if substring.unicode_len() != *len as usize {
+                                return None;
+                            }
+        
+                            if *len != 0 {
+                                if !rc_str_eq_str(substring, string.substring_char(*before as usize, end as usize)) {
+                                    return None;
+                                }
+                            }
+            
+                            return Some(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::BuiltIn) });
+                        }
+                    } else {
+                        return None;
+                    }
+                }
+                _ => return None,
+            }
+        } else if let Some(args) = goal.headed_by(FN_NAME_REVERSE, 2) {
+            match ((&args[0]).as_list(), (&args[1]).as_list()) {
+                (Some(mut list), Some(reversed)) => {
+                    let ghost old_list = list.deep_view();
+                    vec_reverse(&mut list);
+
+                    assert(old_list.reverse() == list.deep_view());
+
+                    // Check that list == reversed
+                    if list.len() != reversed.len() {
+                        return None;
+                    }
+
+                    for i in 0..list.len()
+                        invariant
+                            list.len() == reversed.len(),
+                            forall |j| 0 <= j < i ==> #[trigger] list[j]@ == reversed[j]@,
+                    {
+                        if !list[i].eq(reversed[i]) {
+                            return None;
+                        }
+                    }
+
+                    return Some(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::BuiltIn) });
+                }
+                _ => return None,
             }
         }
 

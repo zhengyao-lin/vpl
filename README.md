@@ -80,7 +80,7 @@ TODO:
 - [x] Integers
 - [x] Strings
 - [x] Lists
-- [ ] Built-in functions for strings, lists
+- [x] Some built-in functions for strings, lists
 - [x] Arithmetic
 - [x] Disjunction `;`
 - [x] Anonymous variables
@@ -90,6 +90,6 @@ TODO:
 - [x] `forall(base_pred(...), ..)`
 - [x] `findall(X, base_pred(..., X), ..)`
 - [ ] Handle the module system better when loading files
-- [ ] Other required special cases of `\+`, `forall`, `findall`
 - [ ] Private clauses in modules
 - [ ] Adapt to optimizations done by the compiler
+- [ ] Right now we conflate atom and nullary applications (e.g. `hey` vs `hey()`); need to fix this
