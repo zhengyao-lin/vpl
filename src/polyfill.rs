@@ -4,7 +4,7 @@ use std::fmt::Display;
 use std::fmt::Debug;
 use std::num::TryFromIntError;
 
-use crate::proof::seq_join;
+use crate::proof::*;
 
 // Verus specs for some std functions
 
