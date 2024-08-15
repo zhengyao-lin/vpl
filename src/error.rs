@@ -1,9 +1,8 @@
 // Error types and their conversions
-
-use thiserror::Error;
-use crate::parser::ParserError;
 use crate::checker::ProofError;
+use crate::parser::ParserError;
 use std::num::TryFromIntError;
+use thiserror::Error;
 
 #[derive(Error, Debug)]
 /// Aggregate all errors in main()

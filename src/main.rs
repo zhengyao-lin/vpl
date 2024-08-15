@@ -1,22 +1,22 @@
-mod proof;
 mod checker;
 mod containers;
-mod view;
-mod polyfill;
-mod solver;
-mod trace;
 mod display;
-mod parser;
 mod error;
 mod matching;
+mod parser;
+mod polyfill;
+mod proof;
+mod solver;
+mod trace;
+mod view;
 
-use std::io;
-use std::io::Write;
-use std::io::BufRead;
-use std::process::{ExitCode, Command, Stdio, ChildStdout};
 use std::collections::HashMap;
 use std::fs;
 use std::include_str;
+use std::io;
+use std::io::BufRead;
+use std::io::Write;
+use std::process::{ChildStdout, Command, ExitCode, Stdio};
 
 use tempfile::NamedTempFile;
 
@@ -26,7 +26,7 @@ use crate::error::Error;
 use crate::parser::{parse_program, parse_term, parse_trace_event};
 use crate::trace::TraceValidator;
 
-use crate::checker::{Program, Term, RuleId};
+use crate::checker::{Program, RuleId, Term};
 
 #[derive(Parser, Debug)]
 #[command(long_about = None)]
@@ -50,7 +50,13 @@ struct Args {
     dry: bool,
 }
 
-fn validate_trace(args: &Args, program: &Program, line_map: &HashMap<usize, RuleId>, goal: &Term, swipl_stdout: &mut ChildStdout) -> Result<(), Error> {
+fn validate_trace(
+    args: &Args,
+    program: &Program,
+    line_map: &HashMap<usize, RuleId>,
+    goal: &Term,
+    swipl_stdout: &mut ChildStdout,
+) -> Result<(), Error> {
     let mut validator = TraceValidator::new(program);
     let mut last_event_id = 0;
 
@@ -58,7 +64,7 @@ fn validate_trace(args: &Args, program: &Program, line_map: &HashMap<usize, Rule
     // if so, parse it and send it to the validator
     for line in io::BufReader::new(swipl_stdout).lines() {
         let line_str = line?;
-        
+
         if args.debug {
             eprintln!("[debug] ==============================================================");
             eprintln!("[debug] event {}", &line_str);
@@ -72,9 +78,10 @@ fn validate_trace(args: &Args, program: &Program, line_map: &HashMap<usize, Rule
                     eprintln!("[debug] validated: {}", thm.stmt);
                 }
             }
-            Err(err) => {
-                Err(Error::Other(format!("[error] failed to parse trace event \"{}\": {}", &line_str, err)))?
-            }
+            Err(err) => Err(Error::Other(format!(
+                "[error] failed to parse trace event \"{}\": {}",
+                &line_str, err
+            )))?,
         }
     }
 
@@ -84,10 +91,16 @@ fn validate_trace(args: &Args, program: &Program, line_map: &HashMap<usize, Rule
             println!("validated goal: {}", &goal);
             Ok(())
         } else {
-            Err(Error::Other(format!("unmatched final goal: expecting `{}`, got `{}`", &goal, &thm.stmt)))
+            Err(Error::Other(format!(
+                "unmatched final goal: expecting `{}`, got `{}`",
+                &goal, &thm.stmt
+            )))
         }
     } else {
-        Err(Error::Other(format!("failed to validate a proof of the goal: {}", &goal)))
+        Err(Error::Other(format!(
+            "failed to validate a proof of the goal: {}",
+            &goal
+        )))
     }
 }
 
@@ -116,10 +129,14 @@ fn main_args(mut args: Args) -> Result<(), Error> {
     // Run the main goal in swipl with the meta interpreter
     let mut swipl_cmd = Command::new(&args.swipl_bin);
     swipl_cmd
-        .arg("-s").arg(meta_file.path())
-        .arg("-s").arg(&args.source)
-        .arg("-g").arg(format!("prove({})", &args.goal))
-        .arg("-g").arg("halt")
+        .arg("-s")
+        .arg(meta_file.path())
+        .arg("-s")
+        .arg(&args.source)
+        .arg("-g")
+        .arg(format!("prove({})", &args.goal))
+        .arg("-g")
+        .arg("halt")
         .stdout(Stdio::piped());
 
     if args.debug || args.dry {
@@ -131,9 +148,11 @@ fn main_args(mut args: Args) -> Result<(), Error> {
     }
 
     let mut swipl = swipl_cmd.spawn()?;
-    let mut swipl_stdout = swipl.stdout.take()
+    let mut swipl_stdout = swipl
+        .stdout
+        .take()
         .ok_or(Error::Other("failed to open swipl stdout".to_string()))?;
-    
+
     let res = match validate_trace(&args, &program, &line_map, &goal, &mut swipl_stdout) {
         Ok(()) => {
             if !swipl.wait()?.success() {
@@ -146,7 +165,7 @@ fn main_args(mut args: Args) -> Result<(), Error> {
             // Consume and throw away rest of the stdout,
             // so that swipl doesn't block
             io::copy(&mut swipl_stdout, &mut io::sink())?;
-            
+
             if !swipl.wait()?.success() {
                 eprintln!("[error] {}", err);
                 Err(Error::Other("swipl exited with failure".to_string()))

@@ -1,5 +1,5 @@
-use vstd::prelude::*;
 use std::collections::HashMap;
+use vstd::prelude::*;
 
 verus! {
 
@@ -16,28 +16,25 @@ impl<Value> View for StringHashMap<Value> {
     closed spec fn view(&self) -> Self::V;
 }
 
-impl<Value> DeepView for StringHashMap<Value> 
-    where Value: DeepView
-{
+impl<Value> DeepView for StringHashMap<Value> where Value: DeepView {
     type V = Map<Seq<char>, <Value as DeepView>::V>;
 
     open spec fn deep_view(&self) -> Self::V {
-        self
-            .view()
-            .map_values(|v: Value| v.deep_view())
+        self.view().map_values(|v: Value| v.deep_view())
     }
 }
 
-impl<Value:PartialEq> PartialEq for StringHashMap<Value> {
-    fn eq(&self, other :&Self) -> bool{
+impl<Value: PartialEq> PartialEq for StringHashMap<Value> {
+    fn eq(&self, other: &Self) -> bool {
         self.m == other.m
-    } 
+    }
 }
 
 impl<Value: Clone + DeepView> Clone for StringHashMap<Value> {
     #[verifier::external_body]
-    fn clone(&self) -> (res: Self) 
-        ensures self.deep_view() == res.deep_view()
+    fn clone(&self) -> (res: Self)
+        ensures
+            self.deep_view() == res.deep_view(),
     {
         Self { m: self.m.clone() }
     }
@@ -127,4 +124,4 @@ pub broadcast group group_hash_map_axioms {
     axiom_string_hash_map_spec_len,
 }
 
-}
+} // verus!

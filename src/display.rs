@@ -1,20 +1,23 @@
 use std::fmt;
 use std::rc::Rc;
 
-use crate::proof::*;
 use crate::checker::*;
 use crate::parser::{escape_string, ParserError};
+use crate::proof::*;
 
 fn fmt_symbol(symbol: &Rc<str>, f: &mut fmt::Formatter) -> fmt::Result {
     if let Some(first) = symbol.chars().next() {
-        if first.is_ascii_lowercase() &&
-            symbol.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == ':') {
+        if first.is_ascii_lowercase()
+            && symbol
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == ':')
+        {
             // Only print the symbol unescaped if it starts with a-z and
             // only contains a-z, A-Z, 0-9, _, and :
             return write!(f, "{}", symbol);
         }
     }
-    
+
     write!(f, "'{}'", escape_string(symbol, '\''))
 }
 
@@ -52,7 +55,7 @@ impl fmt::Display for TermX {
                 } else {
                     write!(f, "{}", v)
                 }
-            },
+            }
             TermX::Literal(lit) => write!(f, "{}", lit),
             TermX::App(FnName::Nil, args) if args.len() == 0 => {
                 write!(f, "[]")
@@ -101,7 +104,7 @@ impl fmt::Display for RuleX {
                 }
             }
         }
-        
+
         write!(f, ".")
     }
 }
@@ -132,6 +135,10 @@ impl fmt::Display for ParserError {
             Some(path) => write!(f, "{}", path)?,
             None => write!(f, "<unknown>")?,
         }
-        write!(f, ":{}:{}: expecting {}", self.1.location.line, self.1.location.column, self.1.expected)
+        write!(
+            f,
+            ":{}:{}: expecting {}",
+            self.1.location.line, self.1.location.column, self.1.expected
+        )
     }
 }

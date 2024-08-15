@@ -1,8 +1,8 @@
-use vstd::prelude::*;
-use std::rc::Rc;
-use std::fmt::Display;
 use std::fmt::Debug;
+use std::fmt::Display;
 use std::num::TryFromIntError;
+use std::rc::Rc;
+use vstd::prelude::*;
 
 use crate::proof::*;
 
@@ -12,61 +12,62 @@ verus! {
 
 #[verifier::external_body]
 pub fn str_to_rc_str(s: &str) -> (res: Rc<str>)
-    ensures s@ == res@
+    ensures
+        s@ == res@,
 {
     s.into()
 }
 
 #[verifier::external_body]
 pub fn rc_str_to_str(s: &Rc<str>) -> (res: &str)
-    ensures s@ == res@
+    ensures
+        s@ == res@,
 {
     s.as_ref()
 }
 
 #[verifier::external_body]
 pub fn rc_str_eq(s1: &Rc<str>, s2: &Rc<str>) -> (res: bool)
-    ensures res == (s1@ == s2@)
+    ensures
+        res == (s1@ == s2@),
 {
     s1 == s2
 }
 
 #[verifier::external_body]
 pub fn rc_str_eq_str(s1: &Rc<str>, s2: &str) -> (res: bool)
-    ensures res == (s1@ == s2@)
+    ensures
+        res == (s1@ == s2@),
 {
     s1.as_ref() == s2
 }
 
 #[verifier::external_body]
 pub fn rc_as_ref<T: View>(rc: &Rc<T>) -> (res: &T)
-    ensures rc.view() == res.view()
+    ensures
+        rc.view() == res.view(),
 {
     rc.as_ref()
-}
-
-#[verifier::external_body]
-pub fn str_to_lowercase(s: &str) -> String
-{
-    s.to_lowercase()
 }
 
 /// By Travis
 pub fn vec_map<T, U>(v: &Vec<T>, f: impl Fn(&T) -> U) -> (res: Vec<U>)
     requires
-        forall |i| #![trigger v[i]] 0 <= i < v.len() ==> call_requires(f, (&v[i],)),
+        forall|i| #![trigger v[i]] 0 <= i < v.len() ==> call_requires(f, (&v[i],)),
     ensures
         res.len() == v.len(),
-        forall |i| #![trigger v[i]] 0 <= i < v.len() ==> call_ensures(f, (&v[i],), #[trigger] res[i])
+        forall|i|
+            #![trigger v[i]]
+            0 <= i < v.len() ==> call_ensures(f, (&v[i],), #[trigger] res[i]),
 {
     let mut res = Vec::new();
     let mut j = 0;
     while j < v.len()
-        invariant 
-            forall |i| #![trigger v[i]] 0 <= i < v.len() ==> call_requires(f, (&v[i],)),
+        invariant
+            forall|i| #![trigger v[i]] 0 <= i < v.len() ==> call_requires(f, (&v[i],)),
             0 <= j <= v.len(),
             j == res.len(),
-            forall |i| #![trigger v[i]] 0 <= i < j ==> call_ensures(f, (&v[i],), #[trigger] res[i]),
+            forall|i| #![trigger v[i]] 0 <= i < j ==> call_ensures(f, (&v[i],), #[trigger] res[i]),
     {
         res.push(f(&v[j]));
         j += 1;
@@ -76,11 +77,11 @@ pub fn vec_map<T, U>(v: &Vec<T>, f: impl Fn(&T) -> U) -> (res: Vec<U>)
 
 #[verifier::external_body]
 pub fn vec_set<T>(v: &mut Vec<T>, i: usize, x: T)
-    requires 0 <= i < old(v).len()
+    requires
+        0 <= i < old(v).len(),
     ensures
-        v.len() == old(v).len() &&
-        (forall |j| 0 <= j < v.len() && j != i ==> v[j] == old(v)[j]) &&
-        v[i as int] == x
+        v.len() == old(v).len() && (forall|j| 0 <= j < v.len() && j != i ==> v[j] == old(v)[j])
+            && v[i as int] == x,
 {
     v[i] = x;
 }
@@ -96,9 +97,9 @@ pub fn vec_reverse<T: DeepView>(v: &mut Vec<&T>)
     for n in 0..(length / 2)
         invariant
             length == v.len(),
-            forall |i: int| #![auto] 0 <= i < n ==> v[i].deep_view() == v1[length - 1 - i],
-            forall |i: int| #![auto] 0 <= i < n ==> v1[i] == v[length - 1 - i].deep_view(),
-            forall |i: int| n <= i && i + n < length ==> #[trigger] v[i].deep_view() == v1[i],
+            forall|i: int| #![auto] 0 <= i < n ==> v[i].deep_view() == v1[length - 1 - i],
+            forall|i: int| #![auto] 0 <= i < n ==> v1[i] == v[length - 1 - i].deep_view(),
+            forall|i: int| n <= i && i + n < length ==> #[trigger] v[i].deep_view() == v1[i],
     {
         let x = v[n];
         let y = v[length - n - 1];
@@ -120,19 +121,20 @@ pub fn join_strs(list: &Vec<&str>, sep: &str) -> (res: String)
     for i in 0..list.len()
         invariant
             list_deep_view.len() == list.len(),
-            forall |i| #![auto] 0 <= i < list.len() ==> list_deep_view[i] == list[i]@,
+            forall|i| #![auto] 0 <= i < list.len() ==> list_deep_view[i] == list[i]@,
             res@ =~= seq_join(list_deep_view.take(i as int), sep@),
     {
         if i != 0 {
             let ghost old_res = res@;
             res.append(sep);
             res.append(list[i]);
-            assert(list_deep_view.take((i + 1) as int).drop_last() =~= list_deep_view.take(i as int));
+            assert(list_deep_view.take((i + 1) as int).drop_last() =~= list_deep_view.take(
+                i as int,
+            ));
         } else {
             res.append(list[i]);
         }
     }
-
     assert(list_deep_view.take(list.len() as int) =~= list_deep_view);
 
     res
@@ -144,13 +146,13 @@ pub struct ExtTryFromIntError(TryFromIntError);
 
 #[verifier::external_body]
 pub fn i64_try_into_usize(x: i64) -> (res: Result<usize, TryFromIntError>)
-    ensures res matches Ok(y) ==> x as int == y as int
+    ensures
+        res matches Ok(y) ==> x as int == y as int,
 {
     x.try_into()
 }
 
 // TODO: can we support println! in verus code?
-
 #[verifier::external_trait_specification]
 pub trait ExtDisplay {
     type ExternalTraitSpecificationFor: Display;
@@ -198,7 +200,8 @@ pub fn eprintln_debug<T: Debug>(s: T) {
 
 #[verifier::external_body]
 pub fn string_new() -> (res: String)
-    ensures res@ == Seq::<char>::empty()
+    ensures
+        res@ == Seq::<char>::empty(),
 {
     String::new()
 }
@@ -228,6 +231,7 @@ macro_rules! join {
         join_2($a, join!($($rest),+))
     };
 }
+
 #[allow(unused_imports)]
 pub use join;
 
@@ -239,6 +243,7 @@ macro_rules! print_join {
         print(join!($($args),+));
     }
 }
+
 #[allow(unused_imports)]
 pub use print_join;
 
@@ -250,6 +255,7 @@ macro_rules! println_join {
         println(join!($($args),+));
     }
 }
+
 #[allow(unused_imports)]
 pub use println_join;
 
@@ -261,6 +267,7 @@ macro_rules! eprint_join {
         eprint(join!($($args),+));
     }
 }
+
 #[allow(unused_imports)]
 pub use eprint_join;
 
@@ -272,7 +279,8 @@ macro_rules! eprintln_join {
         eprintln(join!($($args),+));
     }
 }
+
 #[allow(unused_imports)]
 pub use eprintln_join;
 
-}
+} // verus!

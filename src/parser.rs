@@ -1,11 +1,11 @@
-use std::rc::Rc;
 use std::cell::Cell;
 use std::collections::HashMap;
+use std::rc::Rc;
 
 use peg;
 
-use crate::proof::*;
 use crate::checker::*;
+use crate::proof::*;
 use crate::trace::*;
 
 /// e.g. edge(_, _) => edge(%1, %2)
@@ -41,8 +41,7 @@ enum UnescapeState {
 /// e.g. "\\n" => "\n"
 /// Incomplete, see https://www.swi-prolog.org/pldoc/man?section=charescapes
 /// TODO: verify
-pub fn unescape_string(s: &str) -> String
-{
+pub fn unescape_string(s: &str) -> String {
     let mut res = String::new();
     let mut state = UnescapeState::Normal;
 
@@ -76,8 +75,7 @@ pub fn unescape_string(s: &str) -> String
 /// but if a character matches the quote,
 /// it will be escaped
 /// TODO: verify
-pub fn escape_string(s: &str, quote: char) -> String
-{
+pub fn escape_string(s: &str, quote: char) -> String {
     let mut res = String::new();
     for c in s.chars() {
         match c {
@@ -85,12 +83,14 @@ pub fn escape_string(s: &str, quote: char) -> String
             '\r' => res.push_str("\\r"),
             '\t' => res.push_str("\\t"),
             '\\' => res.push_str("\\\\"),
-            _ => if c == quote {
-                res.push('\\');
-                res.push(c);
-            } else {
-                res.push(c)
-            },
+            _ => {
+                if c == quote {
+                    res.push('\\');
+                    res.push(c);
+                } else {
+                    res.push(c)
+                }
+            }
         }
     }
     res
@@ -165,7 +165,7 @@ peg::parser!(grammar prolog(state: &ParserState) for str {
     /// Prolog terms
     /// See https://www.swi-prolog.org/pldoc/man?section=operators
     /// for default precedence of operators
-    /// 
+    ///
     /// See https://docs.rs/peg/latest/peg/ for precedence!
     pub rule term() -> Term = precedence! {
         t1:@ _ ";" _ t2:(@) { Rc::new(TermX::App(FnName::user(FN_NAME_OR, 2), vec![t1, t2])) }
@@ -177,7 +177,7 @@ peg::parser!(grammar prolog(state: &ParserState) for str {
 
     /// Terms without comma or disjunction
     /// This is to avoid [a, b, c] being parsed as a singleton list of conjunction (a, b, c)
-    /// 
+    ///
     /// TODO: Prolog syntax is weird.
     /// For example, disjunction (;/2) has lower precedence than conjunction (,/2).
     /// However, we have
@@ -210,7 +210,7 @@ peg::parser!(grammar prolog(state: &ParserState) for str {
         "(" _ t:term() _ ")" { t }
 
         var:var() { TermX::var_str(var) }
-        
+
         // There is a special case of the anonymous variable "_"
         // different occurrences of "_" in a clause is considered different variables
         // so we need to generate fresh names for them
@@ -227,7 +227,7 @@ peg::parser!(grammar prolog(state: &ParserState) for str {
 
         // Atom
         name:ident() { Rc::new(TermX::Literal(Literal::Atom(unescape_string(name).into()))) }
-        
+
         // Special cases of parsing certain special operators
         // TODO: not complete
         "=" _ "(" _ args:comma_sep(<small_term()>) _ ")" {
@@ -263,7 +263,7 @@ peg::parser!(grammar prolog(state: &ParserState) for str {
             for (i, (rule, pos)) in rules.into_iter().enumerate() {
                 // Convert position to line number
                 assert!(pos >= last_pos);
-                
+
                 // Need to count how many newline symbols
                 // there are in [last_pos, pos)
                 let new_lines = state.source[last_pos..pos]
@@ -318,30 +318,40 @@ peg::parser!(grammar prolog(state: &ParserState) for str {
 
 /// First argument is the path
 #[derive(Debug)]
-pub struct ParserError(pub Option<String>, pub peg::error::ParseError<peg::str::LineCol>);
+pub struct ParserError(
+    pub Option<String>,
+    pub peg::error::ParseError<peg::str::LineCol>,
+);
 
 /// Parse a Prolog program source
 /// Returns a program and a map from line numbers to rule ids
-pub fn parse_program(source: impl AsRef<str>, path: impl AsRef<str>) -> Result<(Program, HashMap<usize, RuleId>), ParserError> {
+pub fn parse_program(
+    source: impl AsRef<str>,
+    path: impl AsRef<str>,
+) -> Result<(Program, HashMap<usize, RuleId>), ParserError> {
     let state = ParserState::new(source.as_ref());
-    prolog::program(source.as_ref(), &state).map_err(|e| ParserError(Some(path.as_ref().to_string()), e))
+    prolog::program(source.as_ref(), &state)
+        .map_err(|e| ParserError(Some(path.as_ref().to_string()), e))
 }
 
 /// Parse a Prolog term
 pub fn parse_term(source: impl AsRef<str>) -> Result<Term, ParserError> {
     let state = ParserState::new(source.as_ref());
-    prolog::term(source.as_ref(), &state)
-        .map_err(|e| ParserError(None, e))
+    prolog::term(source.as_ref(), &state).map_err(|e| ParserError(None, e))
 }
 
 /// Parse a trace event
-pub fn parse_trace_event(source: impl AsRef<str>, line_map: &HashMap<usize, RuleId>) -> Result<Event, ParserError> {
+pub fn parse_trace_event(
+    source: impl AsRef<str>,
+    line_map: &HashMap<usize, RuleId>,
+) -> Result<Event, ParserError> {
     let state = ParserState::new(source.as_ref());
     prolog::event(source.as_ref(), &state, &line_map).map_err(|e| ParserError(None, e))
 }
 
 pub fn test() {
-    let (program, line_map) = parse_program(r#"
+    let (program, line_map) = parse_program(
+        r#"
 node(n0).
 node(n1).
 node(n2).
@@ -355,7 +365,10 @@ connected(A, B) :- edge(A, B).
 connected(A, B) :- edge(A, M), connected(M, B).
 query(S, D) :- source(S), destination(D), connected(S, D).
 go :- query(n0, n3).
-"#, "test.pl").unwrap();
+"#,
+        "test.pl",
+    )
+    .unwrap();
 
     println!("program: {:?}", program);
     println!("line_map: {:?}", line_map);
