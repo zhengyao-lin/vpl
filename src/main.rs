@@ -11,16 +11,20 @@ mod error;
 mod matching;
 
 use std::io;
+use std::io::Write;
 use std::io::BufRead;
 use std::process::{ExitCode, Command, Stdio, ChildStdout};
 use std::collections::HashMap;
 use std::fs;
+use std::include_str;
+
+use tempfile::NamedTempFile;
 
 use clap::{command, Parser};
 
 use crate::error::Error;
 use crate::parser::{parse_program, parse_term, parse_trace_event};
-use crate::trace::{TraceValidator};
+use crate::trace::TraceValidator;
 
 use crate::checker::{Program, Term, RuleId};
 
@@ -36,10 +40,6 @@ struct Args {
     /// Path to the SWI-Prolog binary
     #[clap(long, value_parser, num_args = 0.., value_delimiter = ' ', default_value = "swipl")]
     swipl_bin: String,
-
-    /// Path to the meta interpreter
-    #[clap(long, value_parser, num_args = 0.., value_delimiter = ' ', default_value = "prolog/meta.pl")]
-    mi_path: String,
 
     /// Enable debug mode
     #[arg(long, default_value_t = false)]
@@ -106,10 +106,17 @@ fn main_args(mut args: Args) -> Result<(), Error> {
         }
     }
 
+    let mut meta_file: NamedTempFile = NamedTempFile::new()?;
+
+    if args.debug {
+        eprintln!("[debug] writing meta.pl to {}", meta_file.path().display());
+    }
+    write!(meta_file, "{}", include_str!("meta.pl"))?;
+
     // Run the main goal in swipl with the meta interpreter
     let mut swipl_cmd = Command::new(&args.swipl_bin);
     swipl_cmd
-        .arg("-s").arg(&args.mi_path)
+        .arg("-s").arg(meta_file.path())
         .arg("-s").arg(&args.source)
         .arg("-g").arg(format!("prove({})", &args.goal))
         .arg("-g").arg("halt")
@@ -127,7 +134,7 @@ fn main_args(mut args: Args) -> Result<(), Error> {
     let mut swipl_stdout = swipl.stdout.take()
         .ok_or(Error::Other("failed to open swipl stdout".to_string()))?;
     
-    match validate_trace(&args, &program, &line_map, &goal, &mut swipl_stdout) {
+    let res = match validate_trace(&args, &program, &line_map, &goal, &mut swipl_stdout) {
         Ok(()) => {
             if !swipl.wait()?.success() {
                 Err(Error::Other("swipl exited with failure".to_string()))
@@ -148,7 +155,11 @@ fn main_args(mut args: Args) -> Result<(), Error> {
                 Err(err)
             }
         }
-    }
+    };
+
+    meta_file.close()?;
+
+    return res;
 }
 
 pub fn main() -> ExitCode {

@@ -11,3 +11,4 @@ clap = { version = "4.5.4", features = ["derive"] }
 peg = "0.8.4"
 thiserror = "1.0.63"
 urlencoding = "2.1.3"
+tempfile = "3.12.0"
