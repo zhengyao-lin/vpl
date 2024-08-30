@@ -3,7 +3,9 @@ Certified Prolog
 
 ## Usage
 
-To compile, run `make`, which will produce an executable at `target/debug/vpl`.
+To compile, make sure you are in the `vpl` directory.
+
+Then run `make`, which will produce an executable at `target/debug/vpl`.
 
 To run queries, use the following command:
 ```
