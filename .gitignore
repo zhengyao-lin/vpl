@@ -1,3 +1,2 @@
 .verus-log/
-
-/target
+target/
