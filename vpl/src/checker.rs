@@ -1,8 +1,6 @@
 use vstd::prelude::*;
 use std::rc::Rc;
 
-use urlencoding;
-
 use crate::containers::StringHashMap;
 use crate::proof::*;
 use crate::polyfill::*;
@@ -954,12 +952,37 @@ impl Theorem {
                 }
             }
         } else if let Ok(args) = goal.headed_by("uri_encoded", 3) {
+            // TODO: uri_encoded(path, <atom>, <string>) doesn't seem to work
             if let (
+                TermX::Literal(Literal::Atom(component)),
                 TermX::Literal(Literal::Atom(s1)),
                 TermX::Literal(Literal::String(s2)),
-            ) = (rc_as_ref(&args[1]), rc_as_ref(&args[2])) {
-                // TODO: fix this
-                if urlencoding::encode(s1) == s2.as_ref() {
+            ) | (
+                TermX::Literal(Literal::Atom(component)),
+                TermX::Literal(Literal::String(s1)),
+                TermX::Literal(Literal::Atom(s2)),
+            ) | (
+                TermX::Literal(Literal::Atom(component)),
+                TermX::Literal(Literal::Atom(s1)),
+                TermX::Literal(Literal::Atom(s2)),
+            ) | (
+                TermX::Literal(Literal::Atom(component)),
+                TermX::Literal(Literal::String(s1)),
+                TermX::Literal(Literal::String(s2)),
+            ) = (rc_as_ref(&args[0]), rc_as_ref(&args[1]), rc_as_ref(&args[2])) {
+                let mode = if rc_str_eq_str(component, "query_value") {
+                    URIEncodeMode::QueryValue
+                } else if rc_str_eq_str(component, "fragment") {
+                    URIEncodeMode::Fragment
+                } else if rc_str_eq_str(component, "path") {
+                    URIEncodeMode::Path
+                } else if rc_str_eq_str(component, "segment") {
+                    URIEncodeMode::Segment
+                } else {
+                    return proof_err!("unsupported uri_encoded mode: ", component);
+                };
+
+                if uri_encode(mode, s1) == s2.as_ref() {
                     return Ok(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::BuiltIn) });
                 }
 
@@ -974,6 +997,38 @@ impl Theorem {
 
         proof_err!("unsupported goal: ", goal)
     }
+}
+
+/// Following https://www.swi-prolog.org/pldoc/man?predicate=uri_encoded/3
+enum URIEncodeMode {
+    QueryValue,
+    Fragment,
+    Path,
+    Segment,
+}
+
+/// TODO: unverified
+/// Following https://www.swi-prolog.org/pldoc/man?predicate=uri_encoded/3
+#[verifier::external_body]
+fn uri_encode(mode: URIEncodeMode, input: &str) -> String {
+    let mut encoded = String::new();
+
+    for byte in input.bytes() {
+        let ch = byte as char;
+        if ch.is_ascii_alphanumeric() {
+            encoded.push(ch);
+        } else if match mode {
+            URIEncodeMode::QueryValue | URIEncodeMode::Fragment => "-._~!$'()*,;@/?".contains(ch),
+            URIEncodeMode::Path => "-._~!$&'()*,;=@/".contains(ch),
+            URIEncodeMode::Segment => "-._~!$&'()*,;=@".contains(ch),
+        } {
+            encoded.push(ch);
+        } else {
+            encoded.push_str(&format!("%{:02X}", byte));
+        }
+    }
+
+    encoded
 }
 
 impl Clone for Theorem {
