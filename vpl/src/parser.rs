@@ -117,11 +117,30 @@ peg::parser!(grammar prolog(state: &ParserState) for str {
     rule ident_char() = "\\'" / [^'\'']
     rule string_char() = "\\\"" / [^'"']
 
-    rule ident() -> &'input str
-        = name:quiet!{$(['a'..='z' | 'A'..='Z']['_' | ':' | 'a'..='z' | 'A'..='Z' | '0'..='9']*)} { name }
-        / "'" name:$(ident_char()*) "'" { name }
-        / name:$"*" { name }
+    rule ident() -> UserFnName
+        = name:quiet!{$(['a'..='z' | 'A'..='Z']['_' | ':' | 'a'..='z' | 'A'..='Z' | '0'..='9']*)} { name.into() }
+        / "'" name:$(ident_char()*) "'" { unescape_string(name).into() }
         / expected!("identifier")
+
+    /// Operators
+    rule op() -> &'input str
+        = name:$[ '*' | '-' | '+' | ';' ] { name }
+        / name:$"\\+" { name }
+        / name:$"=:=" { name }
+        / name:$"=\\=" { name }
+        / name:$"\\==" { name }
+        / name:$"\\=" { name }
+        / name:$"==" { name }
+        / name:$">=" { name }
+        / name:$">" { name }
+        / name:$"<" { name }
+        / name:$"=<" { name }
+        / name:$"=" { name }
+
+    /// Allow operators to be identifiers
+    rule canon_ident() -> UserFnName
+        = op:op() { op.into() }
+        / ident()
 
     rule var() -> &'input str
         = name:quiet!{$(['A'..='Z']['_' | 'a'..='z' | 'A'..='Z' | '0'..='9']*)} { name }
@@ -138,14 +157,14 @@ peg::parser!(grammar prolog(state: &ParserState) for str {
 
     /// TODO: handle escape strings and newlines
     /// also see https://www.swi-prolog.org/pldoc/man?section=charescapes
-    rule string() -> &'input str
-        = "\"" s:$(string_char()*) "\"" { s }
+    rule string() -> LiteralString
+        = "\"" s:$(string_char()*) "\"" { unescape_string(s).into() }
         / expected!("string")
 
     /// Prolog lists, e.g., [], [a,b|[]], [a,b,c]
-    rule list() -> Term
+    rule list(t: rule<Term>) -> Term
         = "[" _ "]" { Rc::new(TermX::App(FnName::Nil, vec![])) }
-        / "[" _ elems:comma_sep_plus(<small_term()>) _ "]"
+        / "[" _ elems:comma_sep_plus(<t()>) _ "]"
             {
                 let mut list = Rc::new(TermX::App(FnName::Nil, vec![]));
                 for elem in elems.into_iter().rev() {
@@ -153,7 +172,7 @@ peg::parser!(grammar prolog(state: &ParserState) for str {
                 }
                 list
             }
-        / "[" _ heads:comma_sep_plus(<small_term()>) _ "|" _ tail:small_term() _ "]"
+        / "[" _ heads:comma_sep_plus(<t()>) _ "|" _ tail:t() _ "]"
             {
                 let mut list = tail;
                 for head in heads.into_iter().rev() {
@@ -207,34 +226,40 @@ peg::parser!(grammar prolog(state: &ParserState) for str {
         t1:(@) _ "/" _ t2:@ { Rc::new(TermX::App(FnName::user(FN_NAME_PRED_IND, 2), vec![t1, t2])) }
         --
 
-        "(" _ t:term() _ ")" { t }
+        t:base_term(<ident()>, <small_term()>, <term()>) { t }
+    }
 
-        var:var() { TermX::var_str(var) }
+    /// Base term without operators parametric to
+    /// - id: allowed identifiers
+    /// - small_term: term without comma
+    /// - large_term: any term
+    rule base_term(id: rule<UserFnName>, small_term: rule<Term>, large_term: rule<Term>) -> Term
+        = "(" _ t:large_term() _ ")" { t }
+
+        / var:var() { TermX::var_str(var) }
 
         // There is a special case of the anonymous variable "_"
         // different occurrences of "_" in a clause is considered different variables
         // so we need to generate fresh names for them
-        "_" { TermX::var_str(&state.fresh_anon_var()) }
+        / "_" { TermX::var_str(&state.fresh_anon_var()) }
 
         // Literals
-        i:int() { Rc::new(TermX::Literal(Literal::Int(i))) }
-        s:string() { Rc::new(TermX::Literal(Literal::String(unescape_string(s).into()))) }
+        / i:int() { Rc::new(TermX::Literal(Literal::Int(i))) }
+        / s:string() { Rc::new(TermX::Literal(Literal::String(s))) }
 
         // Application (including atoms and lists)
-        name:ident() _ "(" _ args:comma_sep(<small_term()>) _ ")" {
-            Rc::new(TermX::App(FnName::User(unescape_string(name).into(), args.len()), args))
+        / name:id() _ "(" _ args:comma_sep(<small_term()>) _ ")" {
+            Rc::new(TermX::App(FnName::User(name, args.len()), args))
         }
 
         // Atom
-        name:ident() { Rc::new(TermX::Literal(Literal::Atom(unescape_string(name).into()))) }
+        / name:id() { Rc::new(TermX::Literal(Literal::Atom(name))) }
 
-        // Special cases of parsing certain special operators
-        // TODO: not complete
-        "=" _ "(" _ args:comma_sep(<small_term()>) _ ")" {
-            Rc::new(TermX::App(FnName::user(FN_NAME_EQ, args.len()), args))
-        }
-        list:list() { list }
-    }
+        // List
+        / list:list(<small_term()>) { list }
+
+    /// A special rule to parse terms output by write_canonical/1 in Prolog
+    pub rule canon_term() -> Term = base_term(<canon_ident()>, <canon_term()>, <canon_term()>)
 
     pub rule clause() -> (Rule, usize)
         = pos:position!() head:term() _ "."
@@ -281,7 +306,7 @@ peg::parser!(grammar prolog(state: &ParserState) for str {
 
     /// Parser of a trace event
     pub rule event(line_map: &HashMap<usize, RuleId>) -> Event
-        = _ id:nat() _ "." _ term:term() _ "by" _ tactic:tactic(line_map) _
+        = _ id:nat() _ "." _ term:canon_term() _ "by" _ tactic:tactic(line_map) _
             { Event { id, term: term, tactic: tactic } }
 
     rule nested_nat_list() -> Vec<usize>

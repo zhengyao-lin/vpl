@@ -11,7 +11,7 @@ debug: target/debug/vpl
 release: target/release/vpl
 
 # Each dependency <dep> is mapped to verus argument --extern <dep>=target/<release/debug>/deps/lib<dep>-*.rlib
-target/%/vpl: $(foreach dep,$(DEPS),target/%/lib$(dep).rlib) src/*.rs
+target/%/vpl: $(foreach dep,$(DEPS),target/%/lib$(dep).rlib) src/*.rs src/*.pl
 	verus src/main.rs \
 		-L dependency=target/$*/deps \
 		$(foreach dep,$(DEPS),--extern $(dep)=$(firstword $(wildcard target/$*/deps/lib$(dep)-*.rlib))) \

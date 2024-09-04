@@ -8,12 +8,19 @@ gen_id(Id) :-
     NewId is Id + 1,
     nb_setval(proof_id, NewId).
 
+% log_term(Term) :-
+%     % Using this seems to prevent variable names _XXX to be changed due to GC
+%     numbervars(Term, 0, _, [singletons(true)]),
+%     write_term(Term, [quoted(true), numbervars(false)]).
+
 % Log a proof step
 log_proof(Id, Goal) :-
     gen_id(Id),
     write(Id), write(". "),
     % TODO: ignore_ops(true) will produce things like ==(...)
-    write_term(Goal, [quoted(true), numbervars(true)]),
+    write_term(Goal, [ignore_ops(true), quoted(true), numbervars(true)]),
+    % write_canonical(Goal),
+    % log_term(Goal),
     write(" by ").
 
 % Helper function for prove(maplist(...), ...)

@@ -950,11 +950,13 @@ impl Theorem {
                 if urlencoding::encode(s1) == s2.as_ref() {
                     return Ok(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::BuiltIn) });
                 }
+
+                // return Ok(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::BuiltIn) });
             }
         }
 
         // print("unsupported built-in: "); println(goal);
-        // return Some(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::BuiltIn) });
+        // return Ok(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::BuiltIn) });
         proof_err!("unsupported goal: ", goal)
     }
 }
