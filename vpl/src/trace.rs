@@ -109,21 +109,34 @@ impl TraceValidator {
 
     /// Process an event and construct a Theorem with the same statement claimed in the event
     /// Retuen the Theorem object if successful
-    pub fn process_event(&mut self, program: &Program, event: &Event, debug: bool) -> (res: Result<&Theorem, ProofError>)
+    pub fn process_event(
+        &mut self,
+        program: &Program,
+        event: &Event,
+        debug: bool,
+        allow_unsupported_builtin: bool,
+
+        // Do not check if the final statement after applying and/or intro
+        // is the same as the statement claimed
+        // This is to allow some flexibility in the trace
+        // e.g. findall(X, p(X), Xs) ~ findall(Y, p(Y), Xs)
+        // Since sometimes GC in Prolog will change internal variable names
+        no_stmt_check: bool,
+    ) -> (res: Result<&Theorem, ProofError>)
         requires
             old(self).wf(program@),
             !old(self).thms@.contains_key(event.id),
 
         ensures
-            res matches Ok(thm) ==> (
-                self.wf(program@) &&
-                thm.wf(program@) &&
+            res matches Ok(thm) ==> {
+                &&& self.wf(program@)
+                &&& thm.wf(program@)
                 
-                self.thms@.contains_key(event.id) &&
-                self.thms@[event.id] == thm &&
+                &&& self.thms@.contains_key(event.id)
+                &&& self.thms@[event.id] == thm
 
-                event.term@ == thm.stmt@
-            )
+                &&& !no_stmt_check ==> event.term@ == thm.stmt@
+            }
     {
         match &event.tactic {
             // Try to convert the event to a theorem via Theorem::apply_rule
@@ -209,7 +222,7 @@ impl TraceValidator {
                 );
 
                 // Check if the statement is consistent with the statement in the trace event
-                if (&thm.stmt).eq(&event.term) {
+                if no_stmt_check || (&thm.stmt).eq(&event.term) {
                     self.remove_theorem(program, *left_id)?;
                     self.remove_theorem(program, *right_id)?;
                     Ok(self.add_theorem(program, event.id, thm))
@@ -222,7 +235,7 @@ impl TraceValidator {
                 let args = (&event.term).headed_by(FN_NAME_OR, 2)?;
                 let thm = Theorem::or_intro_left(program, self.get_theorem(program, *subproof_id)?, &args[1]);
 
-                if (&thm.stmt).eq(&event.term) {
+                if no_stmt_check || (&thm.stmt).eq(&event.term) {
                     self.remove_theorem(program, *subproof_id)?;
                     Ok(self.add_theorem(program, event.id, thm))
                 } else {
@@ -234,7 +247,7 @@ impl TraceValidator {
                 let args = (&event.term).headed_by(FN_NAME_OR, 2)?;
                 let thm = Theorem::or_intro_right(program, &args[0], self.get_theorem(program, *subproof_id)?);
 
-                if (&thm.stmt).eq(&event.term) {
+                if no_stmt_check || (&thm.stmt).eq(&event.term) {
                     self.remove_theorem(program, *subproof_id)?;
                     Ok(self.add_theorem(program, event.id, thm))
                 } else {
@@ -286,7 +299,7 @@ impl TraceValidator {
 
             Tactic::BuiltIn => {
                 if let TermX::App(FnName::User(name, arity), args) = rc_as_ref(&event.term) {
-                    let thm = Theorem::try_built_in(program, &event.term)?;
+                    let thm = Theorem::try_built_in(program, &event.term, allow_unsupported_builtin)?;
                     return Ok(self.add_theorem(program, event.id, thm));
                 }
 

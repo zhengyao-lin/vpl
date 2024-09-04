@@ -45,6 +45,10 @@ struct Args {
     #[arg(long, default_value_t = false)]
     debug: bool,
 
+    /// Allow unsupported builtins
+    #[arg(long, default_value_t = false)]
+    allow_unsupported_builtin: bool,
+
     /// Only print out the parsed Prolog program and the command to be run
     #[arg(long, default_value_t = false)]
     dry: bool,
@@ -73,7 +77,7 @@ fn validate_trace(
         match parse_trace_event(&line_str, &line_map) {
             Ok(event) => {
                 last_event_id = event.id;
-                let thm = validator.process_event(&program, &event, args.debug)?;
+                let thm = validator.process_event(&program, &event, args.debug, args.allow_unsupported_builtin, true)?;
                 if args.debug {
                     eprintln!("[debug] validated: {}", thm.stmt);
                 }

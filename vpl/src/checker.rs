@@ -733,7 +733,7 @@ impl Theorem {
     }
 
     /// Try applying the axiom of a domain function for ints, strings, or lists
-    pub fn try_built_in(program: &Program, goal: &Term) -> (res: Result<Theorem, ProofError>)
+    pub fn try_built_in(program: &Program, goal: &Term, allow_unsupported_builtin: bool) -> (res: Result<Theorem, ProofError>)
         ensures
             res matches Ok(thm) ==> thm.stmt@ == goal@ && thm.wf(program@)
     {
@@ -922,13 +922,13 @@ impl Theorem {
             return success;
         }
 
-        Self::unverified_builtins(program, goal)
+        Self::unverified_builtins(program, goal, allow_unsupported_builtin)
     }
 
     /// Some unverified built-in functions due to lack of specs
     /// TODO: move this to the verified check
     #[verifier::external_body]
-    fn unverified_builtins(program: &Program, goal: &Term) -> (res: Result<Theorem, ProofError>)
+    fn unverified_builtins(program: &Program, goal: &Term, allow_unsupported_builtin: bool) -> (res: Result<Theorem, ProofError>)
         ensures
             res matches Ok(thm) ==> thm.stmt@ == goal@ && thm.wf(program@)
     {
@@ -955,8 +955,11 @@ impl Theorem {
             }
         }
 
-        // print("unsupported built-in: "); println(goal);
-        // return Ok(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::BuiltIn) });
+        if allow_unsupported_builtin {
+            println_join!("unsupported built-in: ", goal);
+            return Ok(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::BuiltIn) });
+        }
+        
         proof_err!("unsupported goal: ", goal)
     }
 }
