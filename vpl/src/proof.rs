@@ -64,6 +64,8 @@ pub const FN_NAME_NONVAR: &'static str = "nonvar";
 
 pub const FN_NAME_VAR: &'static str = "var";
 
+pub const FN_NAME_NTH1: &'static str = "nth1";
+
 pub type SpecVar = Seq<char>;
 
 pub type SpecUserFnName = Seq<char>;
@@ -693,6 +695,14 @@ impl SpecTheorem {
                 ||| {
                     &&& self.stmt.headed_by(FN_NAME_VAR, 1) matches Some(args)
                     &&& args[0] matches SpecTerm::Var(..)
+                }
+                // nth1 starts from index 1
+                ||| {
+                    &&& self.stmt.headed_by(FN_NAME_NTH1, 3) matches Some(args)
+                    &&& args[0] matches SpecTerm::Literal(SpecLiteral::Int(index))
+                    &&& args[1].as_list() matches Some(list)
+                    &&& 1 <= index && index <= list.len()
+                    &&& list[index - 1] == args[2]
                 }
             },
         }

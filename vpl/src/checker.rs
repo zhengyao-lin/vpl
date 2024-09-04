@@ -915,6 +915,18 @@ impl Theorem {
                 }
             }
 
+            // nth1/3
+            (FN_NAME_NTH1, 3) => {
+                let index = i64_try_into_usize((&args[0]).as_int()?)?;
+                let list = (&args[1]).as_list()?;
+
+                if index < 1 || index > list.len() {
+                    return proof_err!("index out of bounds: ", goal);
+                }
+
+                list[index - 1].eq(&args[2])
+            }
+
             _ => false,
         };
 
@@ -959,7 +971,7 @@ impl Theorem {
             println_join!("unsupported built-in: ", goal);
             return Ok(Theorem { stmt: goal.clone(), proof: Ghost(SpecProof::BuiltIn) });
         }
-        
+
         proof_err!("unsupported goal: ", goal)
     }
 }
