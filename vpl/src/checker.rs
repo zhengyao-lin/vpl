@@ -537,7 +537,7 @@ impl Theorem {
         let goal = &forall_args[1];
 
         if list.len() != subproofs.len() {
-            return proof_err!("unmatched list length");
+            return proof_err!("unmatched list length to the number of subproofs: ", list.len(), " vs ", subproofs.len());
         }
 
         // For each subproof, check that the statement is exactly
@@ -923,6 +923,13 @@ impl Theorem {
                 }
 
                 list[index - 1].eq(&args[2])
+            }
+
+            // string_length/2
+            (FN_NAME_STRING_LENGTH, 2) => {
+                let string = (&args[0]).as_string()?;
+                let len = i64_try_into_usize((&args[1]).as_int()?)?;
+                string.unicode_len() == len
             }
 
             _ => false,

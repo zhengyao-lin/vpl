@@ -66,7 +66,7 @@ prove(forall(member(X, L), Goal), Id) :-
     % First prove the forall goal
     forall(member(X, L), Goal),
     % If successful, rerun all goals to gather proofs
-    findall(Id, (member(X, L), prove(Goal, Id)), Ids),
+    findall(Id, (member(X, L), once(prove(Goal, Id))), Ids),
     
     % Ids should have the same length as L, as a sanity check
     % length(Ids, N),

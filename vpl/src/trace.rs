@@ -191,13 +191,13 @@ impl TraceValidator {
 
                 if (&thm.stmt).eq(&event.term) {
                     // Remove the used subproofs to save memory
-                    for i in 0..subproof_ids.len()
-                        invariant self.wf(program@)
-                    {
-                        if subproof_ids[i] != event.id {
-                            self.remove_theorem(program, subproof_ids[i])?;
-                        }
-                    }
+                    // for i in 0..subproof_ids.len()
+                    //     invariant self.wf(program@)
+                    // {
+                    //     if subproof_ids[i] != event.id {
+                    //         self.remove_theorem(program, subproof_ids[i])?;
+                    //     }
+                    // }
 
                     Ok(self.add_theorem(program, event.id, thm))
                 } else {
@@ -223,8 +223,8 @@ impl TraceValidator {
 
                 // Check if the statement is consistent with the statement in the trace event
                 if no_stmt_check || (&thm.stmt).eq(&event.term) {
-                    self.remove_theorem(program, *left_id)?;
-                    self.remove_theorem(program, *right_id)?;
+                    // self.remove_theorem(program, *left_id)?;
+                    // self.remove_theorem(program, *right_id)?;
                     Ok(self.add_theorem(program, event.id, thm))
                 } else {
                     proof_err!("incorrect proved result: expecting ", &event.term, ", got ", &thm.stmt)
@@ -236,7 +236,7 @@ impl TraceValidator {
                 let thm = Theorem::or_intro_left(program, self.get_theorem(program, *subproof_id)?, &args[1]);
 
                 if no_stmt_check || (&thm.stmt).eq(&event.term) {
-                    self.remove_theorem(program, *subproof_id)?;
+                    // self.remove_theorem(program, *subproof_id)?;
                     Ok(self.add_theorem(program, event.id, thm))
                 } else {
                     proof_err!("incorrect proved result: expecting ", &event.term, ", got ", &thm.stmt)
@@ -248,7 +248,7 @@ impl TraceValidator {
                 let thm = Theorem::or_intro_right(program, &args[0], self.get_theorem(program, *subproof_id)?);
 
                 if no_stmt_check || (&thm.stmt).eq(&event.term) {
-                    self.remove_theorem(program, *subproof_id)?;
+                    // self.remove_theorem(program, *subproof_id)?;
                     Ok(self.add_theorem(program, event.id, thm))
                 } else {
                     proof_err!("incorrect proved result: expecting ", &event.term, ", got ", &thm.stmt)
