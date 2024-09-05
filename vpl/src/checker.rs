@@ -932,6 +932,37 @@ impl Theorem {
                 string.unicode_len() == len
             }
 
+            // append/3
+            (FN_NAME_APPEND, 3) => {
+                let mut list1 = (&args[0]).as_list()?;
+                let mut list2 = (&args[1]).as_list()?;
+                let list3 = (&args[2]).as_list()?;
+
+                let ghost old_list1 = list1.deep_view();
+                let ghost old_list2 = list2.deep_view();
+
+                list1.append(&mut list2);
+
+                let appended = list1;
+
+                if appended.len() != list3.len() {
+                    return proof_err!("unmatched list lengths: ", goal);
+                }
+
+                for i in 0..appended.len()
+                    invariant
+                        appended.len() == list3.len(),
+                        appended.deep_view() =~= old_list1 + old_list2,
+                        forall |j| 0 <= j < i ==> #[trigger] appended[j]@ == list3[j]@,
+                {
+                    if !appended[i].eq(&list3[i]) {
+                        return proof_err!("unmatched element: ", goal);
+                    }
+                }
+
+                true
+            }
+
             _ => false,
         };
 

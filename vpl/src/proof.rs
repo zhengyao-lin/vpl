@@ -68,6 +68,8 @@ pub const FN_NAME_NTH1: &'static str = "nth1";
 
 pub const FN_NAME_STRING_LENGTH: &'static str = "string_length";
 
+pub const FN_NAME_APPEND: &'static str = "append";
+
 pub type SpecVar = Seq<char>;
 
 pub type SpecUserFnName = Seq<char>;
@@ -710,6 +712,13 @@ impl SpecTheorem {
                     &&& args[0] matches SpecTerm::Literal(SpecLiteral::String(string))
                     &&& args[1] matches SpecTerm::Literal(SpecLiteral::Int(len))
                     &&& string.len() == len
+                }
+                ||| {
+                    &&& self.stmt.headed_by(FN_NAME_APPEND, 3) matches Some(args)
+                    &&& args[0].as_list() matches Some(list1)
+                    &&& args[1].as_list() matches Some(list2)
+                    &&& args[2].as_list() matches Some(list3)
+                    &&& list1 + list2 =~= list3
                 }
             },
         }
