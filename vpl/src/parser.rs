@@ -118,7 +118,7 @@ peg::parser!(grammar prolog(state: &ParserState) for str {
     rule string_char() = "\\\"" / [^'"']
 
     rule ident() -> UserFnName
-        = name:quiet!{$(['a'..='z' | 'A'..='Z']['_' | ':' | 'a'..='z' | 'A'..='Z' | '0'..='9']*)} { name.into() }
+        = name:quiet!{$(['a'..='z']['_' | ':' | 'a'..='z' | 'A'..='Z' | '0'..='9']*)} { name.into() }
         / "'" name:$(ident_char()*) "'" { unescape_string(name).into() }
         / expected!("identifier")
 
@@ -143,8 +143,7 @@ peg::parser!(grammar prolog(state: &ParserState) for str {
         / ident()
 
     rule var() -> &'input str
-        = name:quiet!{$(['A'..='Z']['_' | 'a'..='z' | 'A'..='Z' | '0'..='9']*)} { name }
-        / name:quiet!{$(['_']['_' | 'a'..='z' | 'A'..='Z' | '0'..='9']+)} { name }
+        = name:quiet!{$(['A'..='Z' | '_']['_' | 'a'..='z' | 'A'..='Z' | '0'..='9']*)} { name }
         / expected!("variable")
 
     rule nat() -> usize
@@ -229,34 +228,41 @@ peg::parser!(grammar prolog(state: &ParserState) for str {
         t:base_term(<ident()>, <small_term()>, <term()>) { t }
     }
 
+    rule app_args(term: rule<Term>) -> Vec<Term>
+        = _ "(" _ args:comma_sep(<term()>) _ ")" { args }
+
     /// Base term without operators parametric to
     /// - id: allowed identifiers
-    /// - small_term: term without comma
-    /// - large_term: any term
-    rule base_term(id: rule<UserFnName>, small_term: rule<Term>, large_term: rule<Term>) -> Term
-        = "(" _ t:large_term() _ ")" { t }
+    /// - term_wo_comma: term without comma
+    /// - any_term: any term
+    rule base_term(id: rule<UserFnName>, term_wo_comma: rule<Term>, any_term: rule<Term>) -> Term
+        = "(" _ t:any_term() _ ")" { t }
 
-        / var:var() { TermX::var_str(var) }
+        // Applications or atoms
+        / name:id() args:app_args(<term_wo_comma()>)? {
+            match args {
+                Some(args) => Rc::new(TermX::App(FnName::User(name, args.len()), args)),
+                None => Rc::new(TermX::Literal(Literal::Atom(name))),
+            }
+        }
 
-        // There is a special case of the anonymous variable "_"
-        // different occurrences of "_" in a clause is considered different variables
-        // so we need to generate fresh names for them
-        / "_" { TermX::var_str(&state.fresh_anon_var()) }
+        / var:var() {
+            if var == "_" {
+                // There is a special case of the anonymous variable "_"
+                // different occurrences of "_" in a clause is considered different variables
+                // so we need to generate fresh names for them
+                TermX::var_str(&state.fresh_anon_var())
+            } else {
+                TermX::var_str(var)
+            }
+        }
 
         // Literals
         / i:int() { Rc::new(TermX::Literal(Literal::Int(i))) }
         / s:string() { Rc::new(TermX::Literal(Literal::String(s))) }
 
-        // Application (including atoms and lists)
-        / name:id() _ "(" _ args:comma_sep(<small_term()>) _ ")" {
-            Rc::new(TermX::App(FnName::User(name, args.len()), args))
-        }
-
-        // Atom
-        / name:id() { Rc::new(TermX::Literal(Literal::Atom(name))) }
-
-        // List
-        / list:list(<small_term()>) { list }
+        // Lists
+        / list:list(<term_wo_comma()>) { list }
 
     /// A special rule to parse terms output by write_canonical/1 in Prolog
     pub rule canon_term() -> Term = base_term(<canon_ident()>, <canon_term()>, <canon_term()>)
