@@ -32,6 +32,13 @@ test: debug
         target/debug/vpl $$test go || exit 1; \
     done
 
+.PHONY: test-hammurabi
+test-hammurabi: debug
+	@for test in tests/hammurabi/*.pl; do \
+		printf "%s: " $$test; \
+        target/debug/vpl $$test go || exit 1; \
+    done
+
 .PHONY: clean
 clean:
 	cargo clean

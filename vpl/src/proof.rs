@@ -520,9 +520,8 @@ impl SpecTheorem {
                             }
                         },
                 ) =~= subproofs.map_values(|thm: SpecTheorem| thm.stmt)
-            }
+            },
             // Specifications for built-in functions
-            ,
             SpecProof::BuiltIn => {
                 ||| {
                     &&& self.stmt.headed_by(FN_NAME_EQ, 2) matches Some(args)
