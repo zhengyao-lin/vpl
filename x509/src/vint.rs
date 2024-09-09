@@ -8,12 +8,23 @@ verus! {
 
 /// NOTE: the proofs below should be independent of the choice of VarUIntResult here
 pub type VarUIntResult = u64;
-pub type VarUIntBound = u128; // Used for proving certain BV bounds
 
 /// Using macro so that it can be used in bit_vector proofs
 #[allow(unused_macros)]
 macro_rules! var_uint_size {
     () => { 8 };
+}
+
+#[allow(unused_macros)]
+macro_rules! n_byte_max {
+    ($n:expr) => { VarUIntResult::MAX >> (8 * (var_uint_size!() - $n) as usize) }
+}
+
+#[allow(unused_macros)]
+macro_rules! fits_n_bytes {
+    ($v:expr, $n:expr) => {
+        $v <= n_byte_max!($n)
+    };
 }
 
 pub struct VarUInt(pub usize);
@@ -34,7 +45,7 @@ impl VarUInt {
 
     pub open spec fn in_bound(&self, v: VarUIntResult) -> bool
     {
-        self.0 == var_uint_size!() || v < (1 as VarUIntResult) << (8 * self.0)
+        fits_n_bytes!(v, self.0)
     }
 }
 
@@ -110,12 +121,13 @@ impl VarUInt {
             // If rest_parsed is in_bound (wrt self.0 - 1)
             // so does rest_parsed + (s_0 << 8 * (self_len - 1)) (wrt self.0)
             assert(
-                0 < self_len <= 7 ==>
-                rest_parsed < (1 as VarUIntResult) << (8 * ((self_len - 1) as usize)) ==>
-                ((rest_parsed + ((s_0 as VarUIntResult) << 8 * ((self_len - 1) as usize))) as VarUIntResult) < (1 as VarUIntResult) << (8 * self_len)
+                0 < self_len <= 8 ==>
+                fits_n_bytes!(rest_parsed, self_len - 1) ==>
+                fits_n_bytes!(
+                    rest_parsed + ((s_0 as VarUIntResult) << 8 * ((self_len - 1) as usize)),
+                    self_len
+                )
             ) by (bit_vector);
-        } else {
-            assert((1 as VarUIntResult) << (8 * 0) == 1) by (bit_vector);
         }
     }
 
@@ -132,18 +144,17 @@ impl VarUInt {
 
             rest.lemma_serialize_ok((v - byte) as VarUIntResult);
 
-            assert(rest.spec_serialize((v - byte) as VarUIntResult).is_ok() <==>
-                rest.0 <= var_uint_size!() && ((v - byte) as VarUIntResult) < (1 as VarUIntResult) << (8 * rest.0));
-
             assert(self.spec_serialize(v).is_ok() <==> rest.spec_serialize((v - byte) as VarUIntResult).is_ok());
 
             // Essentially saying self.in_bound(v) iff rest.in_bound(v - byte) but purely in BV
             assert(
                 0 < self_len <= var_uint_size!() ==>
                 (
-                    (self_len == var_uint_size!() || v < (1 as VarUIntResult) << (8 * self_len)) <==>
-                    ((v - (v & ((0xff as VarUIntResult) << 8 * ((self_len - 1) as VarUIntResult)))) as VarUIntResult)
-                        < (1 as VarUIntResult) << (8 * ((self_len - 1) as VarUIntResult))
+                    fits_n_bytes!(v, self_len) <==>
+                    fits_n_bytes!(
+                        (v - (v & ((0xff as VarUIntResult) << 8 * ((self_len - 1) as VarUIntResult)))),
+                        self_len - 1
+                    )
                 )
             ) by (bit_vector);
         }
@@ -210,7 +221,7 @@ impl SecureSpecCombinator for VarUInt {
                     ) as VarUIntResult
                 ) by (bit_vector);
             } else if self.0 == 0 {
-                assert((1 as VarUIntResult) << (8 * 0) == 1) by (bit_vector);
+                assert(n_byte_max!(0) == 0) by (bit_vector);
             }
         }
     }
@@ -248,12 +259,13 @@ impl SecureSpecCombinator for VarUInt {
                 // By definition of spec_parse
                 // (rest_parsed + (buf_0 << 8 * (len - 1))) >> 8 * (len - 1) == buf_0
                 assert(
-                    0 < self_len <= var_uint_size!() && rest_parsed < (1 as VarUIntResult) << (8 * ((self_len - 1) as usize)) ==>
+                    0 < self_len <= var_uint_size!() ==>
+                    fits_n_bytes!(rest_parsed, self_len - 1) ==>
                     (((rest_parsed + ((buf_0 as VarUIntResult) << 8 * ((self_len - 1) as usize))) as VarUIntResult) >> 8 * ((self_len - 1) as usize)) as u8 == buf_0
                 ) by (bit_vector);
             }
 
-            // Then prove that the rest of buf2 and buf is the same
+            // Then prove that the rest of buf2 and buf are the same
             assert((rest_parsed + ((buf[0] as VarUIntResult) << offset)) as VarUIntResult == v);
 
             assert(rest_parsed == (v - ((buf[0] as VarUIntResult) << offset)) as VarUIntResult) by {
@@ -267,7 +279,7 @@ impl SecureSpecCombinator for VarUInt {
                 assert(
                     0 < self_len <= 8 ==>
                     v == (rest_parsed + ((buf_0 as VarUIntResult) << 8 * ((self_len - 1) as usize))) as VarUIntResult ==>
-                    rest_parsed < (1 as VarUIntResult) << (8 * ((self_len - 1) as usize)) ==>
+                    fits_n_bytes!(rest_parsed, self_len - 1) ==>
                     v & ((0xff as VarUIntResult) << 8 * ((self_len - 1) as usize)) == ((buf_0 as VarUIntResult) << 8 * ((self_len - 1) as usize))
                 ) by (bit_vector);
             }
@@ -277,7 +289,7 @@ impl SecureSpecCombinator for VarUInt {
             // Then we can conclude that buf2 == buf[0..len]
             assert(buf2 =~= buf.subrange(0, len as int));
         } else if self.0 == 0 {
-            assert((1 as VarUIntResult) << (8 * 0) == 1) by (bit_vector);
+            assert(n_byte_max!(0) == 0) by (bit_vector);
             assert(buf.subrange(0, 0) =~= seq![]);
         }
     }
@@ -317,17 +329,6 @@ impl Combinator for VarUInt {
             return Err(());
         }
 
-        // match self.0 {
-        //     0 => Ok((0, 0)),
-        //     1 => {
-        //         proof {
-        //             reveal_with_fuel(VarUInt::spec_parse, 2);
-        //         }
-        //         Ok((1, s[0] as VarUIntResult))
-        //     }
-        //     _ => { assume(false); Err(()) }
-        // }
-
         proof {
             self.lemma_parse_ok(s@);
         }
@@ -336,60 +337,38 @@ impl Combinator for VarUInt {
         let mut res = 0;
         let mut i = len;
 
-        // assume(len <= 7);
-        // assert((1 as VarUIntBound) << (8 * 0) == 1) by (bit_vector);
-
+        // TODO: Unroll this for better performance?
         while i > 0
             invariant
                 0 <= i <= len,
                 len <= var_uint_size!(),
                 len <= s.len(),
-                res <= (-1 as VarUIntResult) >> (8 * i),
 
+                fits_n_bytes!(res, (var_uint_size!() - i)),
+                
+                // At each iteration, res is the parse result of a suffix of s
                 res == Self((len - i) as usize).spec_parse(s@.skip(i as int)).unwrap().1,
-
-                // res < (1 as VarUIntResult) << (8 * (len - i)),
-                // i > 0 ==> res <= 0x00ff_ffff_ffff_ffffu64,
         {
             let byte = s[i - 1];
-            // assert(
-            //     0 <= i <= len ==>
-            //     len <= var_uint_size!() ==>
-            //     ((byte as VarUIntResult) << 8 * ((len - i) as usize)) < (1 as u64) << (8 * ((len - i + 1) as usize))
-            // ) by (bit_vector);
-
+            
+            // Prove some bounds for ruling out arithmetic overflow
             assert(
                 // Some context not captured by BV solver
                 0 < i <= len ==>
                 len <= var_uint_size!() ==>
-                res <= (-1 as VarUIntResult) >> (8 * i) ==>
+                fits_n_bytes!(res, (var_uint_size!() - i)) ==>
                 {
-                    &&& ((res + ((byte as VarUIntResult) << (8 * (len - i) as usize))) as VarUIntResult)
-                            <= (-1 as VarUIntResult) >> (8 * (i - 1) as usize)
+                    &&& fits_n_bytes!(
+                        res + ((byte as VarUIntResult) << (8 * (len - i) as usize)),
+                        (var_uint_size!() - (i - 1))
+                    )
 
                     // Shows no overflow for the the current iteration
-                    &&& (-1 as VarUIntResult) >> (8 * i) <= 0x00ff_ffff_ffff_ffffu64
+                    // TODO: this is dependent on the size of VarUIntResult
+                    &&& n_byte_max!(var_uint_size!() - i) <= 0x00ff_ffff_ffff_ffffu64
                     &&& ((byte as VarUIntResult) << (8 * (len - i) as usize)) <= 0xff00_0000_0000_0000u64
                 }
             ) by (bit_vector);
-
-            // assert(res <= 0x00ff_ffff_ffff_ffffu64);
-            // assert(((byte as VarUIntResult) << 8 * (len - i)) <= 0xff00_0000_0000_0000u64);
-
-            // assert(
-            //     ((byte as VarUIntResult) << 8 * (len - i))
-            // ) by (bit_vector);
-
-            // assert(8 * (len - i) <= 56);
-
-            // assert(
-            //     0 < i <= len ==>
-            //     0 <= len <= var_uint_size!() ==>
-            //     ((byte as VarUIntResult) << 8 * ((len - i) as usize)) <= 0xff00_0000_0000_0000u64
-            // ) by (bit_vector);
-
-            // assert(((byte as VarUIntResult) << 8 * ((len - i) as usize)) <= 0xff00_0000_0000_0000u64);
-            // assert(res <= 0x00ff_ffff_ffff_ffffu64);
 
             let ghost old_res = res;
             let ghost old_i = i;
@@ -402,23 +381,10 @@ impl Combinator for VarUInt {
                 assert(suffix.drop_first() =~= s@.skip(old_i as int));
                 Self((len - i) as usize).lemma_parse_ok(suffix);
                 Self((len - old_i) as usize).lemma_parse_ok(suffix.drop_first());
-
-                // let offset = 8 * ((len - i) - 1);
-                // let (_, v) = Self((len - i) as usize).spec_parse(suffix).unwrap();
-                // let (_, v2) = Self((len - old_i) as usize).spec_parse(suffix.drop_first()).unwrap();
-
-                // assert(0 < (len - i) as usize <= var_uint_size!()); 
-                // assert(v == v2 + ((suffix[0] as VarUIntResult) << offset));
-
-                // assert(old_res == v2);
-                // assert(((byte as VarUIntResult) << 8 * (len - old_i)) == ((suffix[0] as VarUIntResult) << offset));
-                // assert(res == v);
             }
         }
 
         assert(s@ == s@.skip(0));
-        // assert(res == self.spec_parse(s@).unwrap().1);
-
         Ok((len, res))
     }
 
