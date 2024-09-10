@@ -8,34 +8,15 @@ verus! {
 
 /// NOTE: the proofs below should be independent of the choice of VarUIntResult.
 /// To change the definition of VarUIntResult/VarIntResult (to u128/i128, for example)
-/// we only need to change these macros
-///   - var_uint_size!
-///   - var_uint_max_without_first_byte!
-///   - var_uint_max_first_byte!
+/// we only need to change the macro var_uint_size!
 
 pub type VarUIntResult = u64;
 pub type VarIntResult = i64;
-
-// #[derive(Clone, Copy, Debug)]
-// pub struct VarUIntResult(pub VarUIntResult);
-
-// #[derive(Clone, Copy, Debug)]
-// pub struct VarIntResult(pub VarIntResult);
 
 /// Using macro utils so that they can be expanded in bit_vector proofs
 #[allow(unused_macros)]
 macro_rules! var_uint_size {
     () => { 8 };
-}
-
-#[allow(unused_macros)]
-macro_rules! var_uint_max_without_first_byte {
-    () => { 0x00ff_ffff_ffff_ffffu64 };
-}
-
-#[allow(unused_macros)]
-macro_rules! var_uint_max_first_byte {
-    () => { 0xff00_0000_0000_0000u64 };
 }
 
 #[allow(unused_macros)]
@@ -369,9 +350,8 @@ impl Combinator for VarUInt {
                         (var_uint_size!() - (i - 1))
                     )
 
-                    // Shows no overflow for the the current iteration
-                    &&& n_byte_max!(var_uint_size!() - i) <= var_uint_max_without_first_byte!()
-                    &&& prepend_byte!(0, byte, len - i) <= var_uint_max_first_byte!()
+                    // No overflow
+                    &&& n_byte_max!(var_uint_size!() - i) as int + prepend_byte!(0, byte, len - i) as int <= VarUIntResult::MAX as int
                 }
             ) by (bit_vector);
 
@@ -495,7 +475,7 @@ impl Combinator for VarUInt {
     }
 }
 
-// TODO: Implement VarInt combinator through using VarUInt
+// Implement VarInt combinator through using VarUInt
 // NOTE: Not using Mapped combinator here since the mapping
 // is not a direct bijection from u64 -> i64
 // the mapping actually depends on the length of the integer
