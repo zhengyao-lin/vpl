@@ -7,12 +7,20 @@ verus! {
 /// The length is assumed to be <= var_uint_size!()
 
 /// NOTE: the proofs below should be independent of the choice of VarUIntResult.
-/// To change the definition of VarUIntResult (to u128, for example)
+/// To change the definition of VarUIntResult/VarIntResult (to u128/i128, for example)
 /// we only need to change these macros
 ///   - var_uint_size!
 ///   - var_uint_max_without_first_byte!
 ///   - var_uint_max_first_byte!
+
 pub type VarUIntResult = u64;
+pub type VarIntResult = i64;
+
+// #[derive(Clone, Copy, Debug)]
+// pub struct VarUIntResult(pub VarUIntResult);
+
+// #[derive(Clone, Copy, Debug)]
+// pub struct VarIntResult(pub VarIntResult);
 
 /// Using macro utils so that they can be expanded in bit_vector proofs
 #[allow(unused_macros)]
@@ -486,5 +494,12 @@ impl Combinator for VarUInt {
         Ok(len)
     }
 }
+
+// TODO: Implement VarInt combinator through using VarUInt
+// NOTE: Not using Mapped combinator here since the mapping
+// is not a direct bijection from u64 -> i64
+// the mapping actually depends on the length of the integer
+// e.g. (00 ff) -> 255, but (ff) -> -1
+// but both of them are 255 when parsed with VarUInt
 
 }

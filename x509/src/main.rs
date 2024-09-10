@@ -1,4 +1,9 @@
 mod vest;
 mod vint;
 
-pub fn main() {}
+use vest::Combinator;
+
+pub fn main() {
+    let (len, res) = vint::VarUInt(8).parse(&[ 0xff, 0x8f, 0x28, 0, 0, 0, 0, 0 ]).unwrap();
+    println!("len: {}, res: {:?}", len, res);
+}
