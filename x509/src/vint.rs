@@ -502,4 +502,185 @@ impl Combinator for VarUInt {
 // e.g. (00 ff) -> 255, but (ff) -> -1
 // but both of them are 255 when parsed with VarUInt
 
+pub struct VarInt(pub usize);
+
+impl View for VarInt {
+    type V = VarInt;
+
+    open spec fn view(&self) -> Self::V {
+        *self
+    }
+}
+
+impl VarInt {
+    pub open spec fn to_var_uint(&self) -> VarUInt {
+        VarUInt(self.0)
+    }
+}
+
+/// Sign extend a VarUIntResult (assumed to have $n bytes only) to a VarIntResult
+#[allow(unused_macros)]
+macro_rules! sign_extend {
+    ($v:expr, $n:expr) => {
+        if get_nth_byte!($v, $n - 1) & 0x80 == 0 {
+            $v as VarIntResult
+        } else {
+            ($v as VarUIntResult + !n_byte_max!($n)) as VarIntResult
+        }
+    };
+}
+
+#[allow(unused_macros)]
+macro_rules! n_byte_max_signed {
+    ($n:expr) => { (n_byte_max!($n) >> 1) as VarIntResult }
+}
+
+#[allow(unused_macros)]
+macro_rules! n_byte_min_signed {
+    ($n:expr) => { if $n == 0 { 0 as VarIntResult } else { !(n_byte_max!($n) >> 1) as VarIntResult } }
+}
+
+impl SpecCombinator for VarInt {
+    type SpecResult = VarIntResult;
+
+    open spec fn spec_parse(&self, s: Seq<u8>) -> Result<(usize, VarIntResult), ()>
+    {
+        match self.to_var_uint().spec_parse(s) {
+            Err(..) => Err(()),
+            Ok((n, v)) => Ok((n, sign_extend!(v, self.0))),
+        }
+    }
+
+    proof fn spec_parse_wf(&self, s: Seq<u8>) {}
+
+    open spec fn spec_serialize(&self, v: VarIntResult) -> Result<Seq<u8>, ()>
+    {
+        // Test if v can be fit into a self.0-byte signed integer
+        if n_byte_min_signed!(self.0) <= v <= n_byte_max_signed!(self.0) {
+            self.to_var_uint().spec_serialize((v as VarUIntResult) & n_byte_max!(self.0))
+        } else {
+            Err(())
+        } 
+    }
+}
+
+impl SecureSpecCombinator for VarInt {
+    open spec fn spec_is_prefix_secure() -> bool {
+        true
+    }
+
+    proof fn theorem_serialize_parse_roundtrip(&self, v: VarIntResult)
+    {
+        self.to_var_uint().theorem_serialize_parse_roundtrip((v as VarUIntResult) & n_byte_max!(self.0));
+
+        // For v within bound, sign_extend(truncate(v)) == v
+        let self_len = self.0;
+        assert(
+            0 <= self_len <= var_uint_size!() ==>
+            n_byte_min_signed!(self_len) <= v <= n_byte_max_signed!(self_len) ==>
+            sign_extend!((v as VarUIntResult) & n_byte_max!(self_len), self_len) == v
+        ) by (bit_vector);
+    }
+
+    proof fn theorem_parse_serialize_roundtrip(&self, buf: Seq<u8>)
+    {
+        if let Ok((len, v)) = self.to_var_uint().spec_parse(buf) {
+            self.to_var_uint().theorem_parse_serialize_roundtrip(buf);
+
+            let self_len = self.0;
+            assert(
+                0 <= self_len <= var_uint_size!() ==>
+                fits_n_bytes!(v, self_len) ==> {
+                    // sign extended value should fit in the bound
+                    &&& n_byte_min_signed!(self_len) <= sign_extend!(v, self_len) <= n_byte_max_signed!(self_len)
+                
+                    // truncate(sign_extend(v)) == v
+                    &&& (sign_extend!(v, self_len) as VarUIntResult) & n_byte_max!(self_len) == v
+                }
+            ) by (bit_vector);
+        }
+    }
+
+    proof fn lemma_prefix_secure(&self, s1: Seq<u8>, s2: Seq<u8>)
+    {
+        self.to_var_uint().lemma_prefix_secure(s1, s2);
+    }
+}
+
+impl Combinator for VarInt {
+    type Result<'a> = VarIntResult;
+    type Owned = VarIntResult;
+
+    open spec fn spec_length(&self) -> Option<usize> {
+        Some(self.0)
+    }
+
+    fn length(&self) -> Option<usize> {
+        Some(self.0)
+    }
+
+    fn exec_is_prefix_secure() -> bool {
+        true
+    }
+
+    open spec fn parse_requires(&self) -> bool {
+        self.0 <= var_uint_size!()
+    }
+
+    fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ()>) {
+        if self.0 > 0 {
+            let (_, v) = VarUInt(self.0).parse(s)?;
+            
+            proof {
+                VarUInt(self.0).lemma_parse_ok_bound(s@);
+
+                // Prove no overflow
+                let self_len = self.0;
+                assert(
+                    0 < self_len <= var_uint_size!() ==>
+                    fits_n_bytes!(v, self_len) ==>
+                    v as int + !n_byte_max!(self_len) as int <= (VarUIntResult::MAX as int)
+                ) by (bit_vector);
+            }
+
+            Ok((self.0, sign_extend!(v, self.0)))
+        } else {
+            assert(sign_extend!(0, 0) == 0) by (bit_vector);
+            Ok((0, 0))
+        }
+    }
+
+    open spec fn serialize_requires(&self) -> bool {
+        self.0 <= var_uint_size!()
+    }
+
+    fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, ()>) {
+        if pos > usize::MAX - var_uint_size!() || data.len() < pos + self.0 {
+            return Err(());
+        }
+
+        if self.0 == 0 {
+            if v == 0 {
+                proof {
+                    assert(n_byte_max!(0) == 0) by (bit_vector);
+                    assert(fits_n_bytes!((v as VarUIntResult) & n_byte_max!(0), 0)) by (bit_vector);
+                    VarUInt(0).lemma_serialize_ok((v as VarUIntResult) & n_byte_max!(0));
+                    VarUInt(0).lemma_serialize_ok_len((v as VarUIntResult) & n_byte_max!(0));
+                    assert(seq_splice(data@, pos, seq![]) =~= data@);
+                }
+                return Ok(0);
+            } else {
+                return Err(());
+            }
+        }
+
+        // Check if v is within bounds
+        if v < n_byte_min_signed!(self.0) || v > n_byte_max_signed!(self.0) {
+            return Err(());
+        }
+
+        VarUInt(self.0).serialize((v as VarUIntResult) & n_byte_max!(self.0), data, pos)
+    }
+}
+
 }
