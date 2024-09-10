@@ -307,12 +307,8 @@ impl Combinator for VarUInt {
         true
     }
 
-    open spec fn parse_requires(&self) -> bool {
-        self.0 <= var_uint_size!()
-    }
-
     fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ()>) {
-        if self.0 > s.len() {
+        if self.0 > s.len() || self.0 > var_uint_size!() {
             return Err(());
         }
 
@@ -373,12 +369,12 @@ impl Combinator for VarUInt {
         Ok((len, res))
     }
 
-    open spec fn serialize_requires(&self) -> bool {
-        self.0 <= var_uint_size!()
-    }
-
     fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, ()>) {
         let len = self.0;
+
+        if len > var_uint_size!() {
+            return Err(());
+        }
 
         // Size overflow or not enough space to store results
         if pos > usize::MAX - var_uint_size!() || data.len() < pos + len {
@@ -386,7 +382,7 @@ impl Combinator for VarUInt {
         }
 
         // v is too large (phrased this way to avoid shift underflow)
-        if len > 0 && v > n_byte_max!(len) || v != 0 {
+        if (len > 0 && v > n_byte_max!(len)) || (len == 0 && v != 0) {
             return Err(());
         }
 
@@ -603,11 +599,11 @@ impl Combinator for VarInt {
         true
     }
 
-    open spec fn parse_requires(&self) -> bool {
-        self.0 <= var_uint_size!()
-    }
-
     fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ()>) {
+        if self.0 > var_uint_size!() {
+            return Err(());
+        }
+
         if self.0 > 0 {
             let (_, v) = VarUInt(self.0).parse(s)?;
             
@@ -630,11 +626,11 @@ impl Combinator for VarInt {
         }
     }
 
-    open spec fn serialize_requires(&self) -> bool {
-        self.0 <= var_uint_size!()
-    }
-
     fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, ()>) {
+        if self.0 > var_uint_size!() {
+            return Err(());
+        }
+
         if pos > usize::MAX - var_uint_size!() || data.len() < pos + self.0 {
             return Err(());
         }
