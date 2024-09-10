@@ -18,11 +18,13 @@ pub type VarIntResult = i64;
 macro_rules! var_uint_size {
     () => { 8 };
 }
+pub(crate) use var_uint_size;
 
 #[allow(unused_macros)]
 macro_rules! n_byte_max {
     ($n:expr) => { VarUIntResult::MAX >> (8 * (var_uint_size!() - $n) as usize) }
 }
+pub(crate) use n_byte_max;
 
 #[allow(unused_macros)]
 macro_rules! fits_n_bytes {
@@ -30,6 +32,7 @@ macro_rules! fits_n_bytes {
         $v <= n_byte_max!($n)
     };
 }
+pub(crate) use fits_n_bytes;
 
 /// Get the nth-least significant byte (counting from 0)
 #[allow(unused_macros)]
@@ -113,7 +116,7 @@ impl SpecCombinator for VarUInt {
 
 /// Some lemmas about VarUInt::spec_parse and VarUInt::spec_serialize
 impl VarUInt {
-    proof fn lemma_parse_ok(&self, s: Seq<u8>)
+    pub proof fn lemma_parse_ok(&self, s: Seq<u8>)
         ensures self.spec_parse(s).is_ok() <==> self.wf() && self.0 <= s.len()
         decreases self.0
     {
@@ -123,7 +126,7 @@ impl VarUInt {
     }
 
     /// Parsed results should fit in self.0 bytes
-    proof fn lemma_parse_ok_bound(&self, s: Seq<u8>)
+    pub proof fn lemma_parse_ok_bound(&self, s: Seq<u8>)
         requires self.spec_parse(s).is_ok()
         ensures self.in_bound(self.spec_parse(s).unwrap().1)
         decreases self.0
@@ -150,7 +153,7 @@ impl VarUInt {
         }
     }
 
-    proof fn lemma_serialize_ok(&self, v: VarUIntResult)
+    pub proof fn lemma_serialize_ok(&self, v: VarUIntResult)
         ensures self.spec_serialize(v).is_ok() <==> self.wf() && self.in_bound(v)
         decreases self.0
     {
@@ -161,7 +164,7 @@ impl VarUInt {
         }
     }
 
-    proof fn lemma_serialize_ok_len(&self, v: VarUIntResult)
+    pub proof fn lemma_serialize_ok_len(&self, v: VarUIntResult)
         requires self.spec_serialize(v).is_ok()
         ensures self.spec_serialize(v).unwrap().len() == self.0
         decreases self.0

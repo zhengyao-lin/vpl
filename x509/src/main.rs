@@ -1,7 +1,39 @@
 mod vest;
 mod vint;
+mod depend;
+mod constant;
+mod polyfill;
+mod asn1;
+
+// use vstd::prelude::*;
+// use crate::vest::*;
+// use crate::vint::*;
+// use crate::constant::*;
 
 use vest::Combinator;
+
+// verus! {
+//     fn test_int() {
+//         let ghost spec_snd = |l| {
+//             Bytes(l as usize)
+//         };
+
+//         let test = Depend {
+//             fst: U8,
+//             snd: (|l| -> (o: Combinator<Result<'a> = u64, Owned = u64, V = u64>)
+//                 ensures
+//                     o@ == spec_snd(l@),
+//                 {
+//                     if l < 0x80 {
+//                         Const(l as u64)
+//                     } else {
+//                         VarUInt((l - 0x80u8).into())
+//                     }
+//                 }),
+//             spec_snd: Ghost(spec_snd),
+//         };
+//     }
+// }
 
 fn test_var_int() {
     assert!(vint::VarUInt(0).parse(&[ 1, 2, 3 ]).unwrap() == (0, 0));
