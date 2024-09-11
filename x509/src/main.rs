@@ -49,14 +49,12 @@ fn test_length() {
 }
 
 fn test_asn1_int() {
-    let comb = asn1::Integer::new();
-
-    assert!(comb.parse(&[ 0x02, 0x01, 0x00 ]).unwrap() == (3, (1, 0)));
-    assert!(comb.parse(&[ 0x02, 0x00 ]).is_err());
-    assert!(comb.parse(&[ 0x02, 0x01, 0xff ]).unwrap() == (3, (1, -1)));
-    assert!(comb.parse(&[ 0x02, 0x81, 0x01, 0xff ]).is_err());
-    assert!(comb.parse(&[ 0x02, 0x02, 0x00, 0xff ]).unwrap() == (4, (2, 0xff)));
-    assert!(comb.parse(&[ 0x02, 0x02, 0x00, 0x7f ]).is_err()); // violation of minimal encoding
+    assert!(asn1::Integer.parse(&[ 0x02, 0x01, 0x00 ]).unwrap() == (3, 0));
+    assert!(asn1::Integer.parse(&[ 0x02, 0x00 ]).is_err());
+    assert!(asn1::Integer.parse(&[ 0x02, 0x01, 0xff ]).unwrap() == (3, -1));
+    assert!(asn1::Integer.parse(&[ 0x02, 0x81, 0x01, 0xff ]).is_err());
+    assert!(asn1::Integer.parse(&[ 0x02, 0x02, 0x00, 0xff ]).unwrap() == (4, 0xff));
+    assert!(asn1::Integer.parse(&[ 0x02, 0x02, 0x00, 0x7f ]).is_err()); // violation of minimal encoding
 }
 
 pub fn main() {

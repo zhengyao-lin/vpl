@@ -18,13 +18,7 @@ impl View for Length {
     }
 }
 
-/// Minimum number of bytes required to represent an unsigned integer
-/// (in an existential characterization)
-pub open spec fn min_num_bytes_unsigned(v: VarUIntResult) -> usize
-{
-    choose |n: usize| is_min_num_bytes_unsigned(v, n)
-}
-
+/// Specifies the minimum number of bytes required to represent an unsigned integer
 pub open spec fn is_min_num_bytes_unsigned(v: VarUIntResult, n: usize) -> bool
 {
     &&& n <= var_uint_size!()
@@ -37,8 +31,13 @@ pub open spec fn is_min_num_bytes_unsigned(v: VarUIntResult, n: usize) -> bool
     }
 }
 
+pub open spec fn min_num_bytes_unsigned(v: VarUIntResult) -> usize
+{
+    choose |n: usize| is_min_num_bytes_unsigned(v, n)
+}
+
 /// A helper induction lemma
-pub proof fn lemma_well_ordering(p: spec_fn(usize) -> bool, n: usize)
+proof fn lemma_well_ordering(p: spec_fn(usize) -> bool, n: usize)
     requires p(n) && !p(0)
     ensures exists |i: usize| 0 < i <= n && (#[trigger] p(i)) && !p((i - 1) as usize)
     decreases n
@@ -49,7 +48,7 @@ pub proof fn lemma_well_ordering(p: spec_fn(usize) -> bool, n: usize)
 }
 
 /// min_num_bytes_unsigned exists
-pub proof fn lemma_min_num_bytes_exists(v: VarUIntResult)
+pub proof fn lemma_min_num_bytes_unsigned_exists(v: VarUIntResult)
     ensures exists |n: usize| is_min_num_bytes_unsigned(v, n)
 {
     if v == 0 {
@@ -67,7 +66,7 @@ pub proof fn lemma_min_num_bytes_exists(v: VarUIntResult)
 }
 
 /// min_num_bytes_unsigned is unique
-pub proof fn lemma_min_num_bytes_unique(v: VarUIntResult)
+pub proof fn lemma_min_num_bytes_unsigned_unique(v: VarUIntResult)
     ensures forall |n1: usize, n2: usize|
         is_min_num_bytes_unsigned(v, n1) &&
         is_min_num_bytes_unsigned(v, n2) ==> n1 == n2
@@ -162,7 +161,7 @@ impl SecureSpecCombinator for Length {
         if let Ok(buf) = self.spec_serialize(v) {
             if v >= 0x80 {
                 let bytes = min_num_bytes_unsigned(v);
-                lemma_min_num_bytes_exists(v);
+                lemma_min_num_bytes_unsigned_exists(v);
 
                 VarUInt(bytes).theorem_serialize_parse_roundtrip(v);
                 VarUInt(bytes).lemma_serialize_ok_len(v);
@@ -189,7 +188,7 @@ impl SecureSpecCombinator for Length {
                 let (len, v2) = VarUInt(bytes).spec_parse(buf.drop_first()).unwrap();
 
                 assert(is_min_num_bytes_unsigned(v2, bytes));
-                lemma_min_num_bytes_unique(v2);
+                lemma_min_num_bytes_unsigned_unique(v2);
 
                 // Some sequence facts
                 assert(VarUInt(bytes).spec_serialize(v).is_ok());
@@ -267,7 +266,7 @@ impl Combinator for Length {
         let len = VarUInt(bytes).serialize(v, data, pos + 1)?;
 
         proof {
-            lemma_min_num_bytes_unique(v);
+            lemma_min_num_bytes_unsigned_unique(v);
             assert(data@ =~= seq_splice(old(data)@, pos, self@.spec_serialize(v).unwrap()));
         }
 
