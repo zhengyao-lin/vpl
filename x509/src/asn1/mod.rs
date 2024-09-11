@@ -4,13 +4,15 @@ mod vest;
 
 mod var_int;
 mod len;
-mod int;
+mod integer;
 mod depend;
-mod bit;
+mod bounds;
+mod octect_string;
 
 pub use var_int::*;
 pub use len::*;
-pub use int::*;
+pub use integer::*;
+pub use octect_string::*;
 
 pub use vest::SpecCombinator;
 pub use vest::Combinator;

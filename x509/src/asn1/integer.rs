@@ -5,7 +5,7 @@ use polyfill::*;
 use super::vest::*;
 use super::var_int::*;
 use super::len::*;
-use super::bit::*;
+use super::bounds::*;
 use super::depend::*;
 
 verus! {

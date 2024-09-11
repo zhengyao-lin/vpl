@@ -1,4 +1,4 @@
-/// Some bit manupulation utils
+/// Some bounds on n-byte integers
 /// Most implemented in macros so that they can be used in BV proofs
 /// NOTE: many macro definitions here are actually part of the spec
 

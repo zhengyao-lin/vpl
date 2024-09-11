@@ -3,13 +3,15 @@ use vstd::prelude::*;
 use polyfill::*;
 
 use super::vest::*;
-use super::bit::*;
+use super::bounds::*;
 use super::var_int::*;
 
 verus! {
 
 /// Combinator for the length field in a TLV tuple
 pub struct Length;
+
+pub type LengthValue = VarUIntResult;
 
 impl View for Length {
     type V = Length;
@@ -20,7 +22,7 @@ impl View for Length {
 }
 
 impl SpecCombinator for Length {
-    type SpecResult = VarUIntResult;
+    type SpecResult = LengthValue;
 
     open spec fn spec_parse(&self, s: Seq<u8>) -> Result<(usize, Self::SpecResult), ()>
     {
@@ -28,7 +30,7 @@ impl SpecCombinator for Length {
             Err(())
         } else if s[0] < 0x80 {
             // One-byte length
-            Ok((1, s[0] as VarUIntResult))
+            Ok((1, s[0] as LengthValue))
         } else {
             // Multi-byte length
             let bytes = (s[0] - 0x80) as UInt;
@@ -125,8 +127,8 @@ impl SecureSpecCombinator for Length {
 }
 
 impl Combinator for Length {
-    type Result<'a> = VarUIntResult;
-    type Owned = VarUIntResult;
+    type Result<'a> = LengthValue;
+    type Owned = LengthValue;
 
     open spec fn spec_length(&self) -> Option<usize> {
         None
@@ -147,7 +149,7 @@ impl Combinator for Length {
         
         if s[0] < 0x80 {
             // One-byte length
-            return Ok((1, s[0] as VarUIntResult));
+            return Ok((1, s[0] as LengthValue));
         }
 
         let bytes = (s[0] - 0x80) as UInt;

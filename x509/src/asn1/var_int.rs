@@ -1,7 +1,7 @@
 use vstd::prelude::*;
 
 use super::vest::*;
-use super::bit::*;
+use super::bounds::*;
 
 verus! {
 

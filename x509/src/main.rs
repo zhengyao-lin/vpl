@@ -1,6 +1,6 @@
 mod asn1;
 
-use der::{Decode, Encode};
+use der::Encode;
 
 use asn1::*;
 
@@ -87,6 +87,39 @@ fn diff_test_int_serialize() {
     for i in 0..65535i64 {
         diff(i);
     }
+
+    for i in -65535i64..0 {
+        diff(i);
+    }
+}
+
+fn serialize_octet_string(v: &[u8]) -> Result<Vec<u8>, ()> {
+    let mut data = vec![0; v.len() + 9];
+    data[0] = 0x04; // Prepend the tag byte
+    let len = OctetString.serialize(v, &mut data, 1)?;
+    data.truncate(len + 1);
+    Ok(data)
+}
+
+fn diff_test_octet_string_serialize() {
+    let diff = |bytes: &[u8]| {
+        let res1 = serialize_octet_string(bytes);
+        let res2 = der::asn1::OctetString::new(bytes).unwrap().to_der();
+        
+        // println!("Testing {:?}: {:?} {:?}", bytes, res1, res2);
+
+        match (&res1, &res2) {
+            (Ok(v1), Ok(v2)) => assert!(v1 == v2, "Mismatch when encoding {:?}: {:?} {:?}", bytes, v1, v2),
+            (Err(_), Err(_)) => {},
+            _ => panic!("Mismatch when encoding {:?}: {:?} {:?}", bytes, &res1, &res2),
+        }
+    };
+
+    diff(&[]);
+    diff(&[ 0 ]);
+    diff(&[ 0; 256 ]);
+    diff(&[ 0; 257 ]);
+    diff(&[ 0; 65536 ]);
 }
 
 pub fn main() {
@@ -94,4 +127,5 @@ pub fn main() {
     test_length();
     test_asn1_int();
     diff_test_int_serialize();
+    diff_test_octet_string_serialize();
 }
