@@ -44,34 +44,31 @@ pub proof fn lemma_min_num_bytes_exists_helper(v: VarUIntResult, n: usize)
     }
 }
 
+pub proof fn lemma_well_ordering(p: spec_fn(usize) -> bool, n: usize)
+    requires p(n) && !p(0)
+    ensures exists |i: usize| 0 < i <= n && (#[trigger] p(i)) && !p((i - 1) as usize)
+    decreases n
+{
+    if n > 1 && p((n - 1) as usize) {
+        lemma_well_ordering(p, (n - 1) as usize);
+    }
+}
+
 pub proof fn lemma_min_num_bytes_exists(v: VarUIntResult)
     ensures exists |n: usize| is_min_num_bytes_unsigned(v, n)
 {
-    assert(fits_n_bytes!(v, var_uint_size!())) by (bit_vector);
-    // assert(!forall |n: usize|
-    //     0 < n <= var_uint_size!() ==>
-    //     !{
-    //         &&& n <= var_uint_size!()
-    //         &&& if v == 0 {
-    //             n == 0
-    //         } else {
-    //             &&& n > 0
-    //             &&& fits_n_bytes!(v, n)
-    //             &&& !fits_n_bytes!(v, n - 1)
-    //         }
-    //     }
-    // ) by (bit_vector);
-    // assert(exists |n: usize| {
-    //     &&& n <= var_uint_size!()
-    //     &&& if v == 0 {
-    //         n == 0
-    //     } else {
-    //         &&& n > 0
-    //         &&& fits_n_bytes!(v, n)
-    //         &&& !fits_n_bytes!(v, n - 1)
-    //     }
-    // }) by (bit_vector);
-    assume(false);
+    if v == 0 {
+        assert(is_min_num_bytes_unsigned(v, 0));
+    } else {
+        assert(v != 0 ==> !fits_n_bytes!(v, 0)) by (bit_vector);
+        assert(fits_n_bytes!(v, var_uint_size!())) by (bit_vector);
+
+        let fits_n = |n: usize| fits_n_bytes!(v, n);
+        let bytes = choose |i: usize| 0 < i <= var_uint_size!() && #[trigger] fits_n(i) && !fits_n((i - 1) as usize);
+
+        lemma_well_ordering(fits_n, var_uint_size!());
+        assert(is_min_num_bytes_unsigned(v, bytes));
+    }
 }
 
 /// min_num_bytes_unsigned is unique
