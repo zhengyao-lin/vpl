@@ -1,5 +1,7 @@
 mod asn1;
 
+use der::{Decode, Encode};
+
 use asn1::*;
 
 fn test_var_int() {
@@ -47,16 +49,49 @@ fn test_length() {
 }
 
 fn test_asn1_int() {
-    assert!(Integer.parse(&[ 0x02, 0x01, 0x00 ]).unwrap() == (3, 0));
-    assert!(Integer.parse(&[ 0x02, 0x00 ]).is_err());
-    assert!(Integer.parse(&[ 0x02, 0x01, 0xff ]).unwrap() == (3, -1));
-    assert!(Integer.parse(&[ 0x02, 0x81, 0x01, 0xff ]).is_err());
-    assert!(Integer.parse(&[ 0x02, 0x02, 0x00, 0xff ]).unwrap() == (4, 0xff));
-    assert!(Integer.parse(&[ 0x02, 0x02, 0x00, 0x7f ]).is_err()); // violation of minimal encoding
+    assert!(Integer.parse(&[ 0x01, 0x00 ]).unwrap() == (2, 0));
+    assert!(Integer.parse(&[ 0x00 ]).is_err());
+    assert!(Integer.parse(&[ 0x01, 0xff ]).unwrap() == (2, -1));
+    assert!(Integer.parse(&[ 0x81, 0x01, 0xff ]).is_err());
+    assert!(Integer.parse(&[ 0x02, 0x00, 0xff ]).unwrap() == (3, 0xff));
+    assert!(Integer.parse(&[ 0x02, 0x00, 0x7f ]).is_err()); // violation of minimal encoding
+}
+
+fn serialize_int(v: IntegerValue) -> Result<Vec<u8>, ()> {
+    let mut data = vec![0; 16];
+    data[0] = 0x02; // Prepend the tag byte
+    let len = Integer.serialize(v, &mut data, 1)?;
+    data.truncate(len + 1);
+    Ok(data)
+}
+
+/// Compare results of serialize to a common ASN.1 DER library
+fn diff_test_int_serialize() {
+    let diff = |i| {
+        let res1 = serialize_int(i);
+        let res2 = i.to_der();
+        
+        // println!("Testing {}", i);
+
+        match (&res1, &res2) {
+            (Ok(v1), Ok(v2)) => assert!(v1 == v2, "Mismatch when encoding {}: {:?} {:?}", i, v1, v2),
+            (Err(_), Err(_)) => {},
+            _ => panic!("Mismatch when encoding {}: {:?} {:?}", i, &res1, &res2),
+        }
+    };
+
+    diff(0);
+    diff(i64::MAX);
+    diff(i64::MIN);
+
+    for i in 0..65535i64 {
+        diff(i);
+    }
 }
 
 pub fn main() {
     test_var_int();
     test_length();
     test_asn1_int();
+    diff_test_int_serialize();
 }

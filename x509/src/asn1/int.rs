@@ -130,8 +130,8 @@ impl Continuation for IntegerCont {
 
 /// A combinator that parses (n, v) where v is a VarInt parsed from n bytes
 /// This does not check if n is the minimum number of bytes required to represent v
-type SpecIntegerInner = SpecDepend<Preceded<Tag<U8, u8>, Length>, VarInt>;
-type IntegerInner = Depend<Preceded<Tag<U8, u8>, Length>, VarInt, IntegerCont>;
+type SpecIntegerInner = SpecDepend<Length, VarInt>;
+type IntegerInner = Depend<Length, VarInt, IntegerCont>;
 
 pub open spec fn new_spec_integer_inner() -> SpecIntegerInner {
     let ghost spec_snd = |l| {
@@ -139,7 +139,7 @@ pub open spec fn new_spec_integer_inner() -> SpecIntegerInner {
     };
 
     SpecDepend {
-        fst: Preceded(Tag::spec_new(U8, 0x02), Length),
+        fst: Length,
         snd: spec_snd,
     }
 }
@@ -152,7 +152,7 @@ fn new_integer_inner() -> (res: IntegerInner)
     };
 
     Depend {
-        fst: Preceded(Tag::new(U8, 0x02), Length),
+        fst: Length,
         snd: IntegerCont,
         spec_snd: Ghost(spec_snd),
     }
