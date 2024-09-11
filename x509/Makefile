@@ -1,8 +1,8 @@
-all:
-	verus src/main.rs \
-		--import vest=../vest/vest.verusdata \
-		--extern vest=../vest/libvest.rlib \
-		--compile -o x509
+TARGET = x509
+SOURCE = $(wildcard src/*.rs) $(wildcard src/asn1/*.rs)
+MAIN = src/main.rs
 
-src/asn1.rs: src/asn1.vest
-	../vest-dsl/target/release/vest-dsl src/asn1.vest
+CARGO_DEPS =
+VERUS_DEPS = vest
+
+include ../dep.mk
