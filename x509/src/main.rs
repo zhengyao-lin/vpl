@@ -69,6 +69,17 @@ fn test_var_int() {
     assert!(vint::VarInt(1).serialize(0x80, &mut data, 0).is_err());
 }
 
+fn test_length() {
+    assert!(asn1::Length.parse(&[ 0x0 ]).unwrap() == (1, 0));
+    assert!(asn1::Length.parse(&[ 0x7f ]).unwrap() == (1, 0x7f));
+    assert!(asn1::Length.parse(&[ 0x80 ]).is_err());
+    assert!(asn1::Length.parse(&[ 0x81, 0x80 ]).unwrap() == (2, 0x80));
+    assert!(asn1::Length.parse(&[ 0x81, 0x7f ]).is_err());
+    assert!(asn1::Length.parse(&[ 0x82, 0x00, 0xff ]).is_err());
+    assert!(asn1::Length.parse(&[ 0x82, 0x0f, 0xff ]).unwrap() == (3, 0x0fff));
+}
+
 pub fn main() {
     test_var_int();
+    test_length();
 }
