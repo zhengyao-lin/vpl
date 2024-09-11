@@ -1,55 +1,14 @@
 use vstd::prelude::*;
-use crate::vest::*;
+
+use super::vest::*;
+use super::bit::*;
 
 verus! {
 
 /// Combinator for variable-length integers in big-endian
-/// The length is assumed to be <= var_uint_size!()
-
-/// NOTE: the proofs below should be independent of the choice of VarUIntResult.
-/// To change the definition of VarUIntResult/VarIntResult (to u128/i128, for example)
-/// we only need to change the macro var_uint_size!
-
-pub type VarUIntResult = u64;
-pub type VarIntResult = i64;
-
-/// Using macro utils so that they can be expanded in bit_vector proofs
-#[allow(unused_macros)]
-macro_rules! var_uint_size {
-    () => { 8 };
-}
-pub(crate) use var_uint_size;
-
-#[allow(unused_macros)]
-macro_rules! n_byte_max {
-    ($n:expr) => { if $n == 0 { 0 } else { VarUIntResult::MAX >> (8 * (var_uint_size!() - $n) as usize) } }
-}
-pub(crate) use n_byte_max;
-
-#[allow(unused_macros)]
-macro_rules! fits_n_bytes {
-    ($v:expr, $n:expr) => {
-        $v <= n_byte_max!($n)
-    };
-}
-pub(crate) use fits_n_bytes;
-
-/// Get the nth-least significant byte (counting from 0)
-#[allow(unused_macros)]
-macro_rules! get_nth_byte {
-    ($v:expr, $n:expr) => {
-        ($v >> (8 * ($n as usize))) as u8
-    };
-}
-
-/// Prepend $b as the $n-th byte (counting from 0) of $v
-/// Assuming $v fits in $n bytes
-#[allow(unused_macros)]
-macro_rules! prepend_byte {
-    ($v:expr, $b:expr, $n:expr) => {
-        ($v + (($b as VarUIntResult) << (8 * ($n as usize)))) as VarUIntResult
-    };
-}
+/// The length is assumed to be <= uint_size!()
+pub type VarUIntResult = UInt;
+pub type VarIntResult = Int;
 
 pub struct VarUInt(pub usize);
 
@@ -64,12 +23,12 @@ impl View for VarUInt {
 impl VarUInt {
     pub open spec fn wf(&self) -> bool
     {
-        self.0 <= var_uint_size!()
+        self.0 <= uint_size!()
     }
 
     pub open spec fn in_bound(&self, v: VarUIntResult) -> bool
     {
-        fits_n_bytes!(v, self.0)
+        fits_n_bytes_unsigned!(v, self.0)
     }
 }
 
@@ -106,7 +65,7 @@ impl SpecCombinator for VarUInt {
         } else {
             // Encode the least significant (self.0 - 1) bytes of v
             // then prepend the self.0-th byte
-            match Self((self.0 - 1) as usize).spec_serialize(v & n_byte_max!(self.0 - 1)) {
+            match Self((self.0 - 1) as usize).spec_serialize(v & n_byte_max_unsigned!(self.0 - 1)) {
                 Err(..) => Err(()),
                 Ok(rest) => Ok(seq![ get_nth_byte!(v, self.0 - 1) ] + rest),
             }
@@ -143,9 +102,9 @@ impl VarUInt {
             // If rest_parsed is in_bound (wrt self.0 - 1)
             // so does prepend_byte!(rest_parsed, s_0, self_len - 1) (wrt self.0)
             assert(
-                0 < self_len <= var_uint_size!() ==>
-                fits_n_bytes!(rest_parsed, self_len - 1) ==>
-                fits_n_bytes!(
+                0 < self_len <= uint_size!() ==>
+                fits_n_bytes_unsigned!(rest_parsed, self_len - 1) ==>
+                fits_n_bytes_unsigned!(
                     prepend_byte!(rest_parsed, s_0, self_len - 1),
                     self_len
                 )
@@ -157,10 +116,10 @@ impl VarUInt {
         ensures self.spec_serialize(v).is_ok() <==> self.wf() && self.in_bound(v)
         decreases self.0
     {
-        if 0 < self.0 <= var_uint_size!() && self.in_bound(v) {
+        if 0 < self.0 <= uint_size!() && self.in_bound(v) {
             let self_len = self.0;
-            Self((self.0 - 1) as usize).lemma_serialize_ok(v & n_byte_max!(self_len - 1));
-            assert(fits_n_bytes!(v & n_byte_max!(self_len - 1), self_len - 1)) by (bit_vector);
+            Self((self.0 - 1) as usize).lemma_serialize_ok(v & n_byte_max_unsigned!(self_len - 1));
+            assert(fits_n_bytes_unsigned!(v & n_byte_max_unsigned!(self_len - 1), self_len - 1)) by (bit_vector);
         }
     }
 
@@ -170,7 +129,7 @@ impl VarUInt {
         decreases self.0
     {
         if self.0 > 0 {
-            Self((self.0 - 1) as usize).lemma_serialize_ok_len(v & n_byte_max!(self.0 - 1));
+            Self((self.0 - 1) as usize).lemma_serialize_ok_len(v & n_byte_max_unsigned!(self.0 - 1));
         }
     }
 }
@@ -184,10 +143,10 @@ impl SecureSpecCombinator for VarUInt {
         decreases self.0
     {
         if self.in_bound(v) {
-            if 0 < self.0 <= var_uint_size!() {
+            if 0 < self.0 <= uint_size!() {
                 let rest = Self((self.0 - 1) as usize);
 
-                rest.theorem_serialize_parse_roundtrip(v & n_byte_max!(self.0 - 1));
+                rest.theorem_serialize_parse_roundtrip(v & n_byte_max_unsigned!(self.0 - 1));
 
                 self.lemma_serialize_ok(v);
                 self.lemma_serialize_ok_len(v);
@@ -203,22 +162,22 @@ impl SecureSpecCombinator for VarUInt {
 
                 // By definition of spec_serialize
                 assert(b[0] == get_nth_byte!(v, self.0 - 1));
-                assert(b.drop_first() == rest.spec_serialize(v & n_byte_max!(self.0 - 1)).unwrap());
+                assert(b.drop_first() == rest.spec_serialize(v & n_byte_max_unsigned!(self.0 - 1)).unwrap());
                 
                 // Expand out everything purely in BV
                 // NOTE: this depends on the size of VarUIntResult
                 let self_len = self.0;
                 assert(
-                    0 < self_len <= var_uint_size!() ==>
-                    fits_n_bytes!(v, self_len) ==>
+                    0 < self_len <= uint_size!() ==>
+                    fits_n_bytes_unsigned!(v, self_len) ==>
                     v == prepend_byte!(
-                        v & n_byte_max!(self_len - 1),
+                        v & n_byte_max_unsigned!(self_len - 1),
                         get_nth_byte!(v, self_len - 1),
                         self_len - 1
                     )
                 ) by (bit_vector);
             } else if self.0 == 0 {
-                assert(n_byte_max!(0) == 0) by (bit_vector);
+                assert(n_byte_max_unsigned!(0) == 0) by (bit_vector);
             }
         }
     }
@@ -226,7 +185,7 @@ impl SecureSpecCombinator for VarUInt {
     proof fn theorem_parse_serialize_roundtrip(&self, buf: Seq<u8>)
         decreases self.0
     {
-        if 0 < self.0 <= var_uint_size!() && self.0 <= buf.len() {
+        if 0 < self.0 <= uint_size!() && self.0 <= buf.len() {
             self.lemma_parse_ok(buf);
             self.lemma_parse_ok_bound(buf);
 
@@ -253,8 +212,8 @@ impl SecureSpecCombinator for VarUInt {
             assert(buf2[0] == buf[0]) by {
                 // By definition of spec_parse
                 assert(
-                    0 < self_len <= var_uint_size!() ==>
-                    fits_n_bytes!(rest_parsed, self_len - 1) ==>
+                    0 < self_len <= uint_size!() ==>
+                    fits_n_bytes_unsigned!(rest_parsed, self_len - 1) ==>
                     get_nth_byte!(prepend_byte!(rest_parsed, buf_0, self_len - 1), self_len - 1) == buf_0
                 ) by (bit_vector);
             }
@@ -265,21 +224,21 @@ impl SecureSpecCombinator for VarUInt {
             assert(v == prepend_byte!(rest_parsed, buf_0, self_len - 1));
 
             // By some BV reasoning
-            assert(rest_parsed == v & n_byte_max!(self_len - 1)) by {
+            assert(rest_parsed == v & n_byte_max_unsigned!(self_len - 1)) by {
                 assert(
-                    fits_n_bytes!(rest_parsed, self_len - 1) ==>
+                    fits_n_bytes_unsigned!(rest_parsed, self_len - 1) ==>
                     v == prepend_byte!(rest_parsed, buf_0, self_len - 1) ==>
-                    rest_parsed == v & n_byte_max!(self_len - 1)
+                    rest_parsed == v & n_byte_max_unsigned!(self_len - 1)
                 ) by (bit_vector);
             }
 
-            // By spec_serialize(rest_parsed) = spec_serialize(v & n_byte_max!(self.0 - 1))
+            // By spec_serialize(rest_parsed) = spec_serialize(v & n_byte_max_unsigned!(self.0 - 1))
             assert(buf2.drop_first() =~= buf.subrange(0, len as int).drop_first());
 
             // Then we can conclude that buf2 == buf[0..len]
             assert(buf2 =~= buf.subrange(0, len as int));
         } else if self.0 == 0 {
-            assert(n_byte_max!(0) == 0) by (bit_vector);
+            assert(n_byte_max_unsigned!(0) == 0) by (bit_vector);
             assert(buf.subrange(0, 0) =~= seq![]);
         }
     }
@@ -311,7 +270,7 @@ impl Combinator for VarUInt {
     }
 
     fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ()>) {
-        if self.0 > s.len() || self.0 > var_uint_size!() {
+        if self.0 > s.len() || self.0 > uint_size!() {
             return Err(());
         }
 
@@ -327,10 +286,10 @@ impl Combinator for VarUInt {
         while i > 0
             invariant
                 0 <= i <= len,
-                len <= var_uint_size!(),
+                len <= uint_size!(),
                 len <= s.len(),
 
-                fits_n_bytes!(res, (var_uint_size!() - i)),
+                fits_n_bytes_unsigned!(res, (uint_size!() - i)),
                 
                 // At each iteration, res is the parse result of a suffix of s
                 res == Self((len - i) as usize).spec_parse(s@.skip(i as int)).unwrap().1,
@@ -341,16 +300,16 @@ impl Combinator for VarUInt {
             assert(
                 // Some context not captured by BV solver
                 0 < i <= len ==>
-                len <= var_uint_size!() ==>
-                fits_n_bytes!(res, (var_uint_size!() - i)) ==>
+                len <= uint_size!() ==>
+                fits_n_bytes_unsigned!(res, (uint_size!() - i)) ==>
                 {
-                    &&& fits_n_bytes!(
+                    &&& fits_n_bytes_unsigned!(
                         prepend_byte!(res, byte, len - i),
-                        (var_uint_size!() - (i - 1))
+                        (uint_size!() - (i - 1))
                     )
 
                     // No overflow
-                    &&& n_byte_max!(var_uint_size!() - i) as int + prepend_byte!(0, byte, len - i) as int <= VarUIntResult::MAX as int
+                    &&& n_byte_max_unsigned!(uint_size!() - i) as int + prepend_byte!(0, byte, len - i) as int <= VarUIntResult::MAX as int
                 }
             ) by (bit_vector);
 
@@ -375,17 +334,17 @@ impl Combinator for VarUInt {
     fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, ()>) {
         let len = self.0;
 
-        if len > var_uint_size!() {
+        if len > uint_size!() {
             return Err(());
         }
 
         // Size overflow or not enough space to store results
-        if pos > usize::MAX - var_uint_size!() || data.len() < pos + len {
+        if pos > usize::MAX - uint_size!() || data.len() < pos + len {
             return Err(());
         }
 
         // v is too large (phrased this way to avoid shift underflow)
-        if (len > 0 && v > n_byte_max!(len)) || (len == 0 && v != 0) {
+        if (len > 0 && v > n_byte_max_unsigned!(len)) || (len == 0 && v != 0) {
             return Err(());
         }
 
@@ -393,15 +352,15 @@ impl Combinator for VarUInt {
 
         let mut i = len;
 
-        assert(v & n_byte_max!(0) == 0) by (bit_vector);
+        assert(v & n_byte_max_unsigned!(0) == 0) by (bit_vector);
         // assert(data@.subrange(pos + i, pos + len) =~= seq![]);
 
         while i > 0
             invariant
                 0 <= i <= len,
-                len <= var_uint_size!(),
+                len <= uint_size!(),
 
-                pos <= usize::MAX - var_uint_size!(),
+                pos <= usize::MAX - uint_size!(),
                 data.len() >= pos + len,
 
                 data.len() == original_data.len(),
@@ -411,7 +370,7 @@ impl Combinator for VarUInt {
                 data@ =~= seq_splice(
                     original_data,
                     (pos + i) as usize,
-                    Self((len - i) as usize).spec_serialize(v & n_byte_max!(len - i)).unwrap(),
+                    Self((len - i) as usize).spec_serialize(v & n_byte_max_unsigned!(len - i)).unwrap(),
                 ),
         {
             let byte = get_nth_byte!(v, len - i);
@@ -427,33 +386,33 @@ impl Combinator for VarUInt {
                 // assert(old_data == seq_splice(
                 //     original_data,
                 //     (pos + old_i) as usize,
-                //     Self((len - old_i) as usize).spec_serialize(v & n_byte_max!(len - old_i)).unwrap(),
+                //     Self((len - old_i) as usize).spec_serialize(v & n_byte_max_unsigned!(len - old_i)).unwrap(),
                 // ));
 
-                assert(v & n_byte_max!(len - old_i) <= n_byte_max!(len - old_i)) by (bit_vector);
-                assert(v & n_byte_max!(len - i) <= n_byte_max!(len - i)) by (bit_vector);
+                assert(v & n_byte_max_unsigned!(len - old_i) <= n_byte_max_unsigned!(len - old_i)) by (bit_vector);
+                assert(v & n_byte_max_unsigned!(len - i) <= n_byte_max_unsigned!(len - i)) by (bit_vector);
 
-                Self((len - old_i) as usize).lemma_serialize_ok(v & n_byte_max!(len - old_i));
-                Self((len - old_i) as usize).lemma_serialize_ok_len(v & n_byte_max!(len - old_i));
-                Self((len - i) as usize).lemma_serialize_ok(v & n_byte_max!(len - i));
-                Self((len - i) as usize).lemma_serialize_ok_len(v & n_byte_max!(len - i));
+                Self((len - old_i) as usize).lemma_serialize_ok(v & n_byte_max_unsigned!(len - old_i));
+                Self((len - old_i) as usize).lemma_serialize_ok_len(v & n_byte_max_unsigned!(len - old_i));
+                Self((len - i) as usize).lemma_serialize_ok(v & n_byte_max_unsigned!(len - i));
+                Self((len - i) as usize).lemma_serialize_ok_len(v & n_byte_max_unsigned!(len - i));
 
-                let old_suffix = Self((len - old_i) as usize).spec_serialize(v & n_byte_max!(len - old_i)).unwrap();
-                let suffix = Self((len - i) as usize).spec_serialize(v & n_byte_max!(len - i)).unwrap();
+                let old_suffix = Self((len - old_i) as usize).spec_serialize(v & n_byte_max_unsigned!(len - old_i)).unwrap();
+                let suffix = Self((len - i) as usize).spec_serialize(v & n_byte_max_unsigned!(len - i)).unwrap();
 
                 assert(suffix.drop_first() =~= old_suffix) by {
                     assert(
                         0 <= i < old_i <= len ==>
-                        len <= var_uint_size!() ==>
-                        (v & n_byte_max!(len - i)) & n_byte_max!(len - old_i) == v & n_byte_max!(len - old_i)
+                        len <= uint_size!() ==>
+                        (v & n_byte_max_unsigned!(len - i)) & n_byte_max_unsigned!(len - old_i) == v & n_byte_max_unsigned!(len - old_i)
                     ) by (bit_vector);
                 }
 
                 assert(byte == suffix[0]) by {
                     assert(
                         0 <= i <= len ==>
-                        len <= var_uint_size!() ==>
-                        get_nth_byte!(v & n_byte_max!(len - i), len - i - 1)
+                        len <= uint_size!() ==>
+                        get_nth_byte!(v & n_byte_max_unsigned!(len - i), len - i - 1)
                             == get_nth_byte!(v, len - (i + 1)) as u8
                     ) by (bit_vector);
                 }
@@ -465,7 +424,7 @@ impl Combinator for VarUInt {
         proof {
             self.lemma_serialize_ok(v);
             self.lemma_serialize_ok_len(v);
-            assert(v <= n_byte_max!(len) ==> v & n_byte_max!(len) == v) by (bit_vector);
+            assert(v <= n_byte_max_unsigned!(len) ==> v & n_byte_max_unsigned!(len) == v) by (bit_vector);
         }
         // assert(data@.subrange(pos as int, pos + len) == self.spec_serialize(v).unwrap());
         // assert(data@ =~= seq_splice(old(data)@, pos, self.spec_serialize(v).unwrap()));
@@ -497,30 +456,6 @@ impl VarInt {
     }
 }
 
-/// Sign extend a VarUIntResult (assumed to have $n bytes only) to a VarIntResult
-#[allow(unused_macros)]
-macro_rules! sign_extend {
-    ($v:expr, $n:expr) => {
-        if get_nth_byte!($v, $n - 1) & 0x80 == 0 {
-            $v as VarIntResult
-        } else {
-            ($v as VarUIntResult + !n_byte_max!($n)) as VarIntResult
-        }
-    };
-}
-
-#[allow(unused_macros)]
-macro_rules! n_byte_max_signed {
-    ($n:expr) => { (n_byte_max!($n) >> 1) as VarIntResult }
-}
-pub(crate) use n_byte_max_signed;
-
-#[allow(unused_macros)]
-macro_rules! n_byte_min_signed {
-    ($n:expr) => { if $n == 0 { 0 as VarIntResult } else { !(n_byte_max!($n) >> 1) as VarIntResult } }
-}
-pub(crate) use n_byte_min_signed;
-
 impl SpecCombinator for VarInt {
     type SpecResult = VarIntResult;
 
@@ -538,7 +473,7 @@ impl SpecCombinator for VarInt {
     {
         // Test if v can be fit into a self.0-byte signed integer
         if n_byte_min_signed!(self.0) <= v <= n_byte_max_signed!(self.0) {
-            self.to_var_uint().spec_serialize((v as VarUIntResult) & n_byte_max!(self.0))
+            self.to_var_uint().spec_serialize((v as VarUIntResult) & n_byte_max_unsigned!(self.0))
         } else {
             Err(())
         } 
@@ -552,14 +487,14 @@ impl SecureSpecCombinator for VarInt {
 
     proof fn theorem_serialize_parse_roundtrip(&self, v: VarIntResult)
     {
-        self.to_var_uint().theorem_serialize_parse_roundtrip((v as VarUIntResult) & n_byte_max!(self.0));
+        self.to_var_uint().theorem_serialize_parse_roundtrip((v as VarUIntResult) & n_byte_max_unsigned!(self.0));
 
         // For v within bound, sign_extend(truncate(v)) == v
         let self_len = self.0;
         assert(
-            0 <= self_len <= var_uint_size!() ==>
+            0 <= self_len <= uint_size!() ==>
             n_byte_min_signed!(self_len) <= v <= n_byte_max_signed!(self_len) ==>
-            sign_extend!((v as VarUIntResult) & n_byte_max!(self_len), self_len) == v
+            sign_extend!((v as VarUIntResult) & n_byte_max_unsigned!(self_len), self_len) == v
         ) by (bit_vector);
     }
 
@@ -570,13 +505,13 @@ impl SecureSpecCombinator for VarInt {
 
             let self_len = self.0;
             assert(
-                0 <= self_len <= var_uint_size!() ==>
-                fits_n_bytes!(v, self_len) ==> {
+                0 <= self_len <= uint_size!() ==>
+                fits_n_bytes_unsigned!(v, self_len) ==> {
                     // sign extended value should fit in the bound
                     &&& n_byte_min_signed!(self_len) <= sign_extend!(v, self_len) <= n_byte_max_signed!(self_len)
                 
                     // truncate(sign_extend(v)) == v
-                    &&& (sign_extend!(v, self_len) as VarUIntResult) & n_byte_max!(self_len) == v
+                    &&& (sign_extend!(v, self_len) as VarUIntResult) & n_byte_max_unsigned!(self_len) == v
                 }
             ) by (bit_vector);
         }
@@ -605,7 +540,7 @@ impl Combinator for VarInt {
     }
 
     fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ()>) {
-        if self.0 > var_uint_size!() {
+        if self.0 > uint_size!() {
             return Err(());
         }
 
@@ -618,9 +553,9 @@ impl Combinator for VarInt {
                 // Prove no overflow
                 let self_len = self.0;
                 assert(
-                    0 < self_len <= var_uint_size!() ==>
-                    fits_n_bytes!(v, self_len) ==>
-                    v as int + !n_byte_max!(self_len) as int <= (VarUIntResult::MAX as int)
+                    0 < self_len <= uint_size!() ==>
+                    fits_n_bytes_unsigned!(v, self_len) ==>
+                    v as int + !n_byte_max_unsigned!(self_len) as int <= (VarUIntResult::MAX as int)
                 ) by (bit_vector);
             }
 
@@ -632,21 +567,21 @@ impl Combinator for VarInt {
     }
 
     fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, ()>) {
-        if self.0 > var_uint_size!() {
+        if self.0 > uint_size!() {
             return Err(());
         }
 
-        if pos > usize::MAX - var_uint_size!() || data.len() < pos + self.0 {
+        if pos > usize::MAX - uint_size!() || data.len() < pos + self.0 {
             return Err(());
         }
 
         if self.0 == 0 {
             if v == 0 {
                 proof {
-                    assert(n_byte_max!(0) == 0) by (bit_vector);
-                    assert(fits_n_bytes!((v as VarUIntResult) & n_byte_max!(0), 0)) by (bit_vector);
-                    VarUInt(0).lemma_serialize_ok((v as VarUIntResult) & n_byte_max!(0));
-                    VarUInt(0).lemma_serialize_ok_len((v as VarUIntResult) & n_byte_max!(0));
+                    assert(n_byte_max_unsigned!(0) == 0) by (bit_vector);
+                    assert(fits_n_bytes_unsigned!((v as VarUIntResult) & n_byte_max_unsigned!(0), 0)) by (bit_vector);
+                    VarUInt(0).lemma_serialize_ok((v as VarUIntResult) & n_byte_max_unsigned!(0));
+                    VarUInt(0).lemma_serialize_ok_len((v as VarUIntResult) & n_byte_max_unsigned!(0));
                     assert(seq_splice(data@, pos, seq![]) =~= data@);
                 }
                 return Ok(0);
@@ -660,7 +595,7 @@ impl Combinator for VarInt {
             return Err(());
         }
 
-        VarUInt(self.0).serialize((v as VarUIntResult) & n_byte_max!(self.0), data, pos)
+        VarUInt(self.0).serialize((v as VarUIntResult) & n_byte_max_unsigned!(self.0), data, pos)
     }
 }
 

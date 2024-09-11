@@ -3,7 +3,7 @@
 use vstd::prelude::*;
 use vstd::slice::slice_subrange;
 
-use crate::vest::*;
+use super::vest::*;
 
 verus! {
 
