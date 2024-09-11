@@ -1,5 +1,7 @@
 use vstd::prelude::*;
 
+use crate::polyfill::seq_join;
+
 // Define proofs of queries in Prolog
 
 verus! {
@@ -411,19 +413,6 @@ pub open spec fn filter_map<T, S>(s: Seq<T>, f: spec_fn(T) -> Option<S>) -> Seq<
             Some(v) => seq![v] + filter_map(s.drop_first(), f),
             None => filter_map(s.drop_first(), f),
         }
-    }
-}
-
-/// Join elements of list by sep
-pub open spec fn seq_join<T>(list: Seq<Seq<T>>, sep: Seq<T>) -> Seq<T>
-    decreases list.len(),
-{
-    if list.len() == 0 {
-        seq![]
-    } else if list.len() == 1 {
-        list[0]
-    } else {
-        seq_join(list.drop_last(), sep) + sep + list.last()
     }
 }
 

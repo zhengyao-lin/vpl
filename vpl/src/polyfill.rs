@@ -1,12 +1,11 @@
+/// Some util functions not yet available in Verus
+
 use std::fmt::Debug;
 use std::fmt::Display;
 use std::num::TryFromIntError;
 use std::rc::Rc;
+
 use vstd::prelude::*;
-
-use crate::proof::*;
-
-// Verus specs for some std functions
 
 verus! {
 
@@ -105,6 +104,19 @@ pub fn vec_reverse<T: DeepView>(v: &mut Vec<&T>)
         let y = v[length - n - 1];
         v.set(n, y);
         v.set(length - n - 1, x);
+    }
+}
+
+/// Join elements of list by sep
+pub open spec fn seq_join<T>(list: Seq<Seq<T>>, sep: Seq<T>) -> Seq<T>
+    decreases list.len(),
+{
+    if list.len() == 0 {
+        seq![]
+    } else if list.len() == 1 {
+        list[0]
+    } else {
+        seq_join(list.drop_last(), sep) + sep + list.last()
     }
 }
 

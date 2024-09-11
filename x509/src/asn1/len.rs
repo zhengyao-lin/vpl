@@ -77,7 +77,7 @@ impl SecureSpecCombinator for Length {
                 let bytes = min_num_bytes_unsigned(v);
                 let var_uint = VarUInt(bytes as usize);
 
-                lemma_min_num_bytes_unsigned_exists(v);
+                lemma_min_num_bytes_unsigned(v);
 
                 var_uint.theorem_serialize_parse_roundtrip(v);
                 var_uint.lemma_serialize_ok_len(v);
@@ -105,7 +105,7 @@ impl SecureSpecCombinator for Length {
                 let (len, v2) = var_uint.spec_parse(buf.drop_first()).unwrap();
 
                 assert(is_min_num_bytes_unsigned(v2, bytes));
-                lemma_min_num_bytes_unsigned_unique(v2);
+                lemma_min_num_bytes_unsigned(v2);
 
                 // Some sequence facts
                 assert(var_uint.spec_serialize(v).is_ok());
@@ -183,7 +183,7 @@ impl Combinator for Length {
         let len = VarUInt(bytes as usize).serialize(v, data, pos + 1)?;
 
         proof {
-            lemma_min_num_bytes_unsigned_unique(v);
+            lemma_min_num_bytes_unsigned(v);
             assert(data@ =~= seq_splice(old(data)@, pos, self@.spec_serialize(v).unwrap()));
         }
 

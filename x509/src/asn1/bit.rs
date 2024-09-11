@@ -137,10 +137,15 @@ proof fn lemma_well_ordering(p: spec_fn(UInt) -> bool, n: UInt)
     }
 }
 
-/// min_num_bytes_unsigned exists
-pub proof fn lemma_min_num_bytes_unsigned_exists(v: UInt)
-    ensures exists |n| is_min_num_bytes_unsigned(v, n)
+/// min_num_bytes_unsigned exists and is unique
+pub proof fn lemma_min_num_bytes_unsigned(v: UInt)
+    ensures
+        exists |n| is_min_num_bytes_unsigned(v, n),
+        forall |n1, n2|
+            is_min_num_bytes_unsigned(v, n1) &&
+            is_min_num_bytes_unsigned(v, n2) ==> n1 == n2,
 {
+    // Show uniqueness
     if v == 0 {
         assert(is_min_num_bytes_unsigned(v, 1));
     } else {
@@ -153,14 +158,8 @@ pub proof fn lemma_min_num_bytes_unsigned_exists(v: UInt)
         lemma_well_ordering(fits_n, uint_size!());
         assert(is_min_num_bytes_unsigned(v, bytes));
     }
-}
 
-/// min_num_bytes_unsigned is unique
-pub proof fn lemma_min_num_bytes_unsigned_unique(v: UInt)
-    ensures forall |n1, n2|
-        is_min_num_bytes_unsigned(v, n1) &&
-        is_min_num_bytes_unsigned(v, n2) ==> n1 == n2
-{
+    // Show existence
     assert forall |n1, n2|
         is_min_num_bytes_unsigned(v, n1) &&
         is_min_num_bytes_unsigned(v, n2)
@@ -185,10 +184,15 @@ pub fn is_min_num_bytes_signed_exec(v: Int, n: UInt) -> (res: bool)
     }
 }
 
-/// min_num_bytes_signed exists
-pub proof fn lemma_min_num_bytes_signed_exists(v: Int)
-    ensures exists |n| is_min_num_bytes_signed(v, n)
+/// min_num_bytes_signed exists and is unique
+pub proof fn lemma_min_num_bytes_signed(v: Int)
+    ensures
+        exists |n| is_min_num_bytes_signed(v, n),
+        forall |n1, n2|
+            is_min_num_bytes_signed(v, n1) &&
+            is_min_num_bytes_signed(v, n2) ==> n1 == n2,
 {
+    // Uniqueness
     if v == 0 {
         assert(is_min_num_bytes_signed(v, 1));
     } else {
@@ -201,14 +205,8 @@ pub proof fn lemma_min_num_bytes_signed_exists(v: Int)
         lemma_well_ordering(fits_n, uint_size!());
         assert(is_min_num_bytes_signed(v, bytes));
     }
-}
 
-/// min_num_bytes_signed is unique
-pub proof fn lemma_min_num_bytes_signed_unique(v: Int)
-    ensures forall |n1, n2|
-        is_min_num_bytes_signed(v, n1) &&
-        is_min_num_bytes_signed(v, n2) ==> n1 == n2
-{
+    // Existence
     assert forall |n1, n2|
         is_min_num_bytes_signed(v, n1) &&
         is_min_num_bytes_signed(v, n2)

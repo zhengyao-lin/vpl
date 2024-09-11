@@ -57,14 +57,14 @@ impl SecureSpecCombinator for Integer {
 
     proof fn theorem_serialize_parse_roundtrip(&self, v: Self::SpecResult) {
         new_spec_integer_inner().theorem_serialize_parse_roundtrip((min_num_bytes_signed(v), v));
-        lemma_min_num_bytes_signed_exists(v);
+        lemma_min_num_bytes_signed(v);
     }
 
     proof fn theorem_parse_serialize_roundtrip(&self, buf: Seq<u8>) {
         new_spec_integer_inner().theorem_parse_serialize_roundtrip(buf);
 
         if let Ok((_, (n, v))) = new_spec_integer_inner().spec_parse(buf) {
-            lemma_min_num_bytes_signed_unique(v);
+            lemma_min_num_bytes_signed(v);
         }
     }
 
@@ -101,7 +101,7 @@ impl Combinator for Integer {
 
     fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, ()>) {
         proof {
-            lemma_min_num_bytes_signed_unique(v);
+            lemma_min_num_bytes_signed(v);
         }
         new_integer_inner().serialize((min_num_bytes_signed_exec(v), v), data, pos)
     }
@@ -109,7 +109,7 @@ impl Combinator for Integer {
 
 /// This is a function that takes in a VarUIntResult (`l`)
 /// and returns a VarInt combinator that reads `l` bytes
-pub struct IntegerCont;
+struct IntegerCont;
 
 impl Continuation for IntegerCont {
     type Input<'a> = VarUIntResult;
