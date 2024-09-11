@@ -4,7 +4,6 @@ mod display;
 mod error;
 mod matching;
 mod parser;
-mod polyfill;
 mod proof;
 mod solver;
 mod trace;

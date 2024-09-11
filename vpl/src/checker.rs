@@ -1,9 +1,9 @@
 use vstd::prelude::*;
 use std::rc::Rc;
+use polyfill::*;
 
 use crate::containers::StringHashMap;
 use crate::proof::*;
-use crate::polyfill::*;
 use crate::matching::*;
 
 // A dynamic builder of proofs with verified checks

@@ -1,6 +1,6 @@
 use vstd::prelude::*;
 
-use crate::polyfill::seq_join;
+use polyfill::seq_join;
 
 // Define proofs of queries in Prolog
 

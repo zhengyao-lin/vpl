@@ -1,9 +1,9 @@
 use vstd::prelude::*;
 use std::collections::HashMap;
+use polyfill::*;
 
 use crate::proof::*;
 use crate::checker::*;
-use crate::polyfill::*;
 
 // Checks the proofs as traces from an on-the-shelf Prolog solver
 // Traces = Hilbert-style proofs with less details

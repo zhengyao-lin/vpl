@@ -1,7 +1,7 @@
 use vstd::prelude::*;
+use polyfill::*;
 
 use crate::checker::*;
-use crate::polyfill::*;
 use crate::proof::*;
 
 // Verified implementation of a matching algorithm

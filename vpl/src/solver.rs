@@ -1,7 +1,7 @@
 use vstd::prelude::*;
+use polyfill::*;
 
 use crate::checker::*;
-use crate::polyfill::*;
 
 // A naive (and incomplete) Prolog solver
 

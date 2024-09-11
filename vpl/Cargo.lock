@@ -201,6 +201,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e3aeb8f54c078314c2065ee649a7241f46b9d8e418e1a9581ba0546657d7aa3a"
 
 [[package]]
+name = "polyfill"
+version = "0.1.0"
+dependencies = [
+ "builtin",
+ "builtin_macros",
+ "vstd",
+]
+
+[[package]]
 name = "prettyplease_verus"
 version = "0.1.15"
 source = "git+https://github.com/verus-lang/verus?branch=main#bd0f7441ffe4f9a084baaee70e39104a62e0400d"
@@ -349,6 +358,7 @@ dependencies = [
  "builtin_macros",
  "clap",
  "peg",
+ "polyfill",
  "tempfile",
  "thiserror",
  "vstd",

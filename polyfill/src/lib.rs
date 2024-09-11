@@ -152,6 +152,14 @@ pub fn join_strs(list: &Vec<&str>, sep: &str) -> (res: String)
     res
 }
 
+#[verifier::external_body]
+pub fn slice_drop_first<V>(s: &[V]) -> (res: &[V])
+    requires s.len() > 0
+    ensures res@ == s@.drop_first()
+{
+    &s[1..]
+}
+
 #[verifier::external_type_specification]
 #[verifier::external_body]
 pub struct ExtTryFromIntError(TryFromIntError);
@@ -244,8 +252,8 @@ macro_rules! join {
     };
 }
 
-#[allow(unused_imports)]
-pub use join;
+// #[allow(unused_imports)]
+// pub use join;
 
 /// print_join!(a, b, c) is equivalent to print!("{}{}{}", a, b, c)
 #[allow(unused_macros)]
@@ -256,8 +264,8 @@ macro_rules! print_join {
     }
 }
 
-#[allow(unused_imports)]
-pub use print_join;
+// #[allow(unused_imports)]
+// pub use print_join;
 
 /// println_join!(a, b, c) is equivalent to println!("{}{}{}", a, b, c)
 #[allow(unused_macros)]
@@ -268,8 +276,8 @@ macro_rules! println_join {
     }
 }
 
-#[allow(unused_imports)]
-pub use println_join;
+// #[allow(unused_imports)]
+// pub use println_join;
 
 /// eprint_join!(a, b, c) is equivalent to eprint!("{}{}{}", a, b, c)
 #[allow(unused_macros)]
@@ -280,8 +288,8 @@ macro_rules! eprint_join {
     }
 }
 
-#[allow(unused_imports)]
-pub use eprint_join;
+// #[allow(unused_imports)]
+// pub use eprint_join;
 
 /// eprintln_join!(a, b, c) is equivalent to eprintln!("{}{}{}", a, b, c)
 #[allow(unused_macros)]
@@ -292,7 +300,7 @@ macro_rules! eprintln_join {
     }
 }
 
-#[allow(unused_imports)]
-pub use eprintln_join;
+// #[allow(unused_imports)]
+// pub use eprintln_join;
 
 } // verus!

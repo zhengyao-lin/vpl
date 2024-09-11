@@ -1,17 +1,20 @@
+# In topological order of dependencies
+PROJECTS = vest polyfill x509 vpl
+
 .PHONY: debug
 debug:
-	cd vest && make debug
-	cd x509 && make debug
-	cd vpl && make debug
+	@for project in $(PROJECTS); do \
+		cd $$project && make debug && cd ..; \
+	done
 
 .PHONY: release
 release:
-	cd vest && make release
-	cd x509 && make release
-	cd vpl && make release
+	@for project in $(PROJECTS); do \
+		cd $$project && make release && cd ..; \
+	done
 
 .PHONY: clean
 clean:
-	cd vest && make clean
-	cd x509 && make clean
-	cd vpl && make clean
+	@for project in $(PROJECTS); do \
+		cd $$project && make clean && cd ..; \
+	done

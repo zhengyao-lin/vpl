@@ -7,7 +7,7 @@ SOURCE = $(wildcard src/*.rs) $(wildcard src/*.pl)
 MAIN = src/main.rs
 
 CARGO_DEPS = peg clap thiserror tempfile
-VERUS_DEPS =
+VERUS_DEPS = polyfill
 
 include ../dep.mk
 
