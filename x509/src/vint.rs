@@ -22,7 +22,7 @@ pub(crate) use var_uint_size;
 
 #[allow(unused_macros)]
 macro_rules! n_byte_max {
-    ($n:expr) => { VarUIntResult::MAX >> (8 * (var_uint_size!() - $n) as usize) }
+    ($n:expr) => { if $n == 0 { 0 } else { VarUIntResult::MAX >> (8 * (var_uint_size!() - $n) as usize) } }
 }
 pub(crate) use n_byte_max;
 

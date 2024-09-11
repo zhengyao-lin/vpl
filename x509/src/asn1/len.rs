@@ -1,12 +1,23 @@
 // Combinator for the length field in a TLV tuple
 
+use std::f32::consts::E;
+
 use vstd::prelude::*;
+use crate::polyfill::slice_drop_first;
 use crate::vest::*;
 use crate::vint::*;
 
 verus! {
 
 pub struct Length;
+
+impl View for Length {
+    type V = Length;
+
+    open spec fn view(&self) -> Self::V {
+        *self
+    }
+}
 
 /// Minimum number of bytes required to represent an unsigned integer
 /// (in an existential characterization)
@@ -27,23 +38,7 @@ pub open spec fn is_min_num_bytes_unsigned(v: VarUIntResult, n: usize) -> bool
     }
 }
 
-pub proof fn lemma_min_num_bytes_exists_helper(v: VarUIntResult, n: usize)
-    requires
-        forall |n2: usize| #![auto]
-            n <= n2 <= var_uint_size!() ==> fits_n_bytes!(v, n2)
-
-    ensures exists |n2: usize| is_min_num_bytes_unsigned(v, n2)
-{
-    // TODO
-    if n == 1 {
-        assert(n <= 1 <= var_uint_size!());
-        // assert(fits_n_bytes!(v, 1));
-        assume(false);
-    } else {
-        assume(false);
-    }
-}
-
+/// A helper induction lemma
 pub proof fn lemma_well_ordering(p: spec_fn(usize) -> bool, n: usize)
     requires p(n) && !p(0)
     ensures exists |i: usize| 0 < i <= n && (#[trigger] p(i)) && !p((i - 1) as usize)
@@ -54,6 +49,7 @@ pub proof fn lemma_well_ordering(p: spec_fn(usize) -> bool, n: usize)
     }
 }
 
+/// min_num_bytes_unsigned exists
 pub proof fn lemma_min_num_bytes_exists(v: VarUIntResult)
     ensures exists |n: usize| is_min_num_bytes_unsigned(v, n)
 {
@@ -87,71 +83,29 @@ pub proof fn lemma_min_num_bytes_unique(v: VarUIntResult)
     };
 }
 
-// pub open spec fn min_num_bytes_unsigned(v: VarUIntResult) -> usize
-// {
-//     min_num_bytes_unsigned_helper(v, var_uint_size!())
-// }
+/// Exec version of min_num_bytes_unsigned
+pub fn min_num_bytes_unsigned_exec(v: VarUIntResult) -> (res: usize)
+    ensures is_min_num_bytes_unsigned(v, res)
+{
+    let mut n = var_uint_size!();
 
-// pub open spec fn min_num_bytes_unsigned_helper(v: VarUIntResult, n: usize) -> usize
-//     decreases n
-// {
-//     if n == 0 {
-//         0
-//     } else if !fits_n_bytes!(v, n - 1) {
-//         n
-//     } else {
-//         min_num_bytes_unsigned_helper(v, (n - 1) as usize)
-//     }
-// }
+    assert(n == var_uint_size!() ==> fits_n_bytes!(v, n)) by (bit_vector);
 
-// pub proof fn lemma_min_num_bytes_unsigned_bound(v: VarUIntResult)
-//     requires v > 0
+    while n > 0
+        invariant
+            0 <= n <= var_uint_size!(),
+            fits_n_bytes!(v, n),
+    {
+        if !fits_n_bytes!(v, n - 1) {
+            return n;
+        }
+        n = n - 1;
+    }
 
-//     ensures
-//         fits_n_bytes!(v, min_num_bytes_unsigned(v)),
-//         !fits_n_bytes!(v, min_num_bytes_unsigned(v) - 1),
-// {
-//     // lemma_min_num_bytes_unsigned_bound_helper(v, min_num_bytes_unsigned(v));
-//     assume(false);
-// }
-
-// // pub proof fn lemma_min_num_bytes_unsigned_bound_helper(v: VarUIntResult, n: usize)
-// //     requires
-// //         v > 0,
-// //         min_num_bytes_unsigned(v) == n,
-
-// //     ensures
-// //         fits_n_bytes!(v, n),
-// //         !fits_n_bytes!(v, n - 1),
-
-// //     decreases n
-// // {
-// //     if n != 0 && fits_n_bytes!(v, n - 1) {
-// //         lemma_min_num_bytes_unsigned_bound_helper(v, (n - 1) as usize);
-// //         assume(false);
-// //     }
-
-// //     // assume(false);
-// // }
-
-// pub proof fn lemma_min_num_bytes_unsigned_non_zero(v: VarUIntResult)
-//     requires v > 0
-//     ensures min_num_bytes_unsigned(v) > 0
-// {
-//     assume(false);
-// }
-
-// /// An existential characterization of min_num_bytes_unsigned
-// pub proof fn lemma_min_num_bytes_unsigned_alt(v: VarUIntResult, n: usize)
-//     requires
-//         n > 0,
-//         fits_n_bytes!(v, n),
-//         !fits_n_bytes!(v, n - 1),
+    assert(fits_n_bytes!(v, 0) ==> v == 0) by (bit_vector);
     
-//     ensures min_num_bytes_unsigned(v) == n
-// {
-//     assume(false);
-// }
+    return 0;
+}
 
 impl SpecCombinator for Length {
     type SpecResult = VarUIntResult;
@@ -209,8 +163,6 @@ impl SecureSpecCombinator for Length {
         if let Ok(buf) = self.spec_serialize(v) {
             if v >= 0x80 {
                 let bytes = min_num_bytes_unsigned(v);
-                // lemma_min_num_bytes_unsigned_bound(v);
-                // lemma_min_num_bytes_unsigned_non_zero(v);
                 lemma_min_num_bytes_exists(v);
 
                 VarUInt(bytes).theorem_serialize_parse_roundtrip(v);
@@ -218,24 +170,6 @@ impl SecureSpecCombinator for Length {
 
                 let buf2 = VarUInt(bytes).spec_serialize(v).unwrap();
                 assert(buf.drop_first() == buf2);
-
-                // assert(VarUInt(bytes).spec_serialize(v).is_ok());
-                // assert(buf == seq![(0x80 + bytes) as u8] + buf2);
-
-                // assert(VarUInt(bytes).spec_parse(buf2).is_ok());
-
-                // assert((((0x80 + bytes) as u8) - 0x80) as usize == bytes);
-                // assert(self.spec_parse(buf).is_ok());
-
-                // let (len, v2) = self.spec_parse(buf).unwrap();
-
-                // assert(v2 == VarUInt(bytes).spec_parse(buf2).unwrap().1);
-
-                // assert(VarUInt(bytes).spec_parse(buf2).unwrap().1 == v);
-
-                // assert(len == buf.len());
-                // assert(v2 == v);
-
             }
         }
     }
@@ -255,11 +189,7 @@ impl SecureSpecCombinator for Length {
                 // Parse the inner VarUInt
                 let (len, v2) = VarUInt(bytes).spec_parse(buf.drop_first()).unwrap();
 
-                assert(fits_n_bytes!(v2, bytes));
-                assert(v2 > n_byte_max!(bytes - 1));
-                // lemma_min_num_bytes_unsigned_alt(v2, bytes);
                 assert(is_min_num_bytes_unsigned(v2, bytes));
-                // lemma_min_num_bytes_exists(v2);
                 lemma_min_num_bytes_unique(v2);
 
                 // Some sequence facts
@@ -276,6 +206,73 @@ impl SecureSpecCombinator for Length {
             VarUInt(bytes).lemma_prefix_secure(s1.drop_first(), s2);
             assert((s1 + s2).drop_first() =~= s1.drop_first() + s2);
         }
+    }
+}
+
+impl Combinator for Length {
+    type Result<'a> = VarUIntResult;
+    type Owned = VarUIntResult;
+
+    open spec fn spec_length(&self) -> Option<usize> {
+        None
+    }
+
+    fn length(&self) -> Option<usize> {
+        None
+    }
+
+    fn exec_is_prefix_secure() -> bool {
+        true
+    }
+
+    fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ()>) {
+        if s.len() == 0 {
+            return Err(());
+        }
+        
+        if s[0] < 0x80 {
+            // One-byte length
+            return Ok((1, s[0] as VarUIntResult));
+        }
+
+        let bytes = (s[0] - 0x80) as usize;
+
+        let (len, v) = VarUInt(bytes).parse(slice_drop_first(s))?;
+
+        if bytes > 0 && !fits_n_bytes!(v, bytes - 1) && v > 0x7f {
+            Ok(((len + 1) as usize, v))
+        } else {
+            Err(())
+        }
+    }
+
+    fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, ()>) {
+        if v < 0x80 {
+            if pos < data.len() {
+                data.set(pos, v as u8);
+                assert(data@ =~= seq_splice(old(data)@, pos, seq![v as u8]));
+                return Ok(1);
+            } else {
+                return Err(());
+            }
+        }
+
+        let bytes = min_num_bytes_unsigned_exec(v);
+
+        // Check if out of bound
+        if pos >= data.len() || pos > usize::MAX - 1 {
+            return Err(());
+        }
+
+        data.set(pos, (0x80 + bytes) as u8);
+        let len = VarUInt(bytes).serialize(v, data, pos + 1)?;
+
+        proof {
+            lemma_min_num_bytes_unique(v);
+            assert(data@ =~= seq_splice(old(data)@, pos, self@.spec_serialize(v).unwrap()));
+        }
+
+        Ok(len + 1)
     }
 }
 
