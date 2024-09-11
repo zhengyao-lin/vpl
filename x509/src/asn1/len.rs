@@ -1,11 +1,10 @@
 // Combinator for the length field in a TLV tuple
 
-use std::f32::consts::E;
-
 use vstd::prelude::*;
-use crate::polyfill::slice_drop_first;
+
+use crate::polyfill::*;
 use crate::vest::*;
-use crate::vint::*;
+use crate::asn1::*;
 
 verus! {
 

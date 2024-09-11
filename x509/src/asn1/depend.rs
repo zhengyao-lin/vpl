@@ -1,4 +1,4 @@
-// Copied from Vest to avoid a Verus export/import issue
+// Copied from Vest to avoid a Verus export/import issue with some tweaks on Depend
 
 use vstd::prelude::*;
 use vstd::slice::slice_subrange;
@@ -132,44 +132,60 @@ impl<Fst, Snd> SecureSpecCombinator for SpecDepend<Fst, Snd> where
     }
 }
 
+/// Use this Continuation trait instead of Fn(Input) -> Output
+/// to avoid unsupported Verus features
+pub trait Continuation {
+    type Input<'a>;
+    type Output;
+
+    fn apply<'a>(&self, i: Self::Input<'a>) -> (o: Self::Output)
+        requires self.requires(i)
+        ensures self.ensures(i, o);
+
+    spec fn requires<'a>(&self, i: Self::Input<'a>) -> bool;
+    spec fn ensures<'a>(&self, i: Self::Input<'a>, o: Self::Output) -> bool;
+}
+
 /// Combinator that sequentially applies two combinators, where the second combinator depends on
 /// the result of the first one.
-pub struct Depend<Fst, Snd, F> where
+#[verifier::reject_recursive_types(Snd)]
+pub struct Depend<Fst, Snd, C> where
     Fst: Combinator,
     Snd: Combinator,
     Fst::V: SecureSpecCombinator<SpecResult = <Fst::Owned as View>::V>,
     Snd::V: SecureSpecCombinator<SpecResult = <Snd::Owned as View>::V>,
-    F: for <'a>Fn(Fst::Result<'a>) -> Snd,
+    C: for <'a>Continuation<Input<'a> = Fst::Result<'a>, Output = Snd>,
  {
     /// combinators that contain dependencies
     pub fst: Fst,
     /// closure that captures dependencies and maps them to the dependent combinators
-    pub snd: F,
+    // pub snd: for <'a>fn(Fst::Result<'a>) -> Snd,
+    pub snd: C,
     /// spec closure for well-formedness
     pub spec_snd: Ghost<spec_fn(<Fst::Owned as View>::V) -> Snd::V>,
 }
 
-impl<Fst, Snd, F> Depend<Fst, Snd, F> where
+impl<Fst, Snd, C> Depend<Fst, Snd, C> where
     Fst: Combinator,
     Snd: Combinator,
     Fst::V: SecureSpecCombinator<SpecResult = <Fst::Owned as View>::V>,
     Snd::V: SecureSpecCombinator<SpecResult = <Snd::Owned as View>::V>,
-    F: for <'a>Fn(Fst::Result<'a>) -> Snd,
+    C: for <'a>Continuation<Input<'a> = Fst::Result<'a>, Output = Snd>,
  {
     /// well-formed [`DepPair`] should have its clousre [`snd`] well-formed w.r.t. [`spec_snd`]
     pub open spec fn wf(&self) -> bool {
         let Ghost(spec_snd_dep) = self.spec_snd;
-        &&& forall|i| #[trigger] (self.snd).requires((i,))
-        &&& forall|i, snd| (self.snd).ensures((i,), snd) ==> spec_snd_dep(i@) == snd@
+        &&& forall|i| #[trigger] self.snd.requires(i)
+        &&& forall|i, snd| self.snd.ensures(i, snd) ==> spec_snd_dep(i@) == snd@
     }
 }
 
-impl<Fst, Snd, F> View for Depend<Fst, Snd, F> where
+impl<Fst, Snd, C> View for Depend<Fst, Snd, C> where
     Fst: Combinator,
     Snd: Combinator,
     Fst::V: SecureSpecCombinator<SpecResult = <Fst::Owned as View>::V>,
     Snd::V: SecureSpecCombinator<SpecResult = <Snd::Owned as View>::V>,
-    F: for <'a>Fn(Fst::Result<'a>) -> Snd,
+    C: for <'a>Continuation<Input<'a> = Fst::Result<'a>, Output = Snd>,
  {
     type V = SpecDepend<Fst::V, Snd::V>;
 
@@ -179,12 +195,12 @@ impl<Fst, Snd, F> View for Depend<Fst, Snd, F> where
     }
 }
 
-impl<Fst, Snd, F> Combinator for Depend<Fst, Snd, F> where
+impl<Fst, Snd, C> Combinator for Depend<Fst, Snd, C> where
     Fst: Combinator,
     Snd: Combinator,
     Fst::V: SecureSpecCombinator<SpecResult = <Fst::Owned as View>::V>,
     Snd::V: SecureSpecCombinator<SpecResult = <Snd::Owned as View>::V>,
-    F: for <'a>Fn(Fst::Result<'a>) -> Snd,
+    C: for <'a>Continuation<Input<'a> = Fst::Result<'a>, Output = Snd>,
     for <'a>Fst::Result<'a>: Copy,
  {
     type Result<'a> = (Fst::Result<'a>, Snd::Result<'a>);
@@ -206,14 +222,14 @@ impl<Fst, Snd, F> Combinator for Depend<Fst, Snd, F> where
     open spec fn parse_requires(&self) -> bool {
         &&& self.wf()
         &&& self.fst.parse_requires()
-        &&& forall|i, snd| (self.snd).ensures((i,), snd) ==> snd.parse_requires()
+        &&& forall |i, snd| self.snd.ensures(i, snd) ==> snd.parse_requires()
     }
 
     fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ()>) {
         if Fst::exec_is_prefix_secure() {
             let (n, v1) = self.fst.parse(s)?;
             let s_ = slice_subrange(s, n, s.len());
-            let snd = (self.snd)(v1);
+            let snd = self.snd.apply(v1);
             let (m, v2) = snd.parse(s_)?;
             if n <= usize::MAX - m {
                 Ok(((n + m), (v1, v2)))
@@ -228,7 +244,7 @@ impl<Fst, Snd, F> Combinator for Depend<Fst, Snd, F> where
     open spec fn serialize_requires(&self) -> bool {
         &&& self.wf()
         &&& self.fst.serialize_requires()
-        &&& forall|i, snd| (self.snd).ensures((i,), snd) ==> snd.serialize_requires()
+        &&& forall |i, snd| self.snd.ensures(i, snd) ==> snd.serialize_requires()
     }
 
     fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<
@@ -238,7 +254,7 @@ impl<Fst, Snd, F> Combinator for Depend<Fst, Snd, F> where
         if Fst::exec_is_prefix_secure() {
             let n = self.fst.serialize(v.0, data, pos)?;
             if n <= usize::MAX - pos && n + pos <= data.len() {
-                let snd = (self.snd)(v.0);
+                let snd = self.snd.apply(v.0);
                 let m = snd.serialize(v.1, data, pos + n)?;
                 if m <= usize::MAX - n {
                     assert(data@.subrange(pos as int, pos + n + m as int) == self@.spec_serialize(

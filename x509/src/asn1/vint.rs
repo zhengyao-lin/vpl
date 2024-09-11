@@ -513,11 +513,13 @@ macro_rules! sign_extend {
 macro_rules! n_byte_max_signed {
     ($n:expr) => { (n_byte_max!($n) >> 1) as VarIntResult }
 }
+pub(crate) use n_byte_max_signed;
 
 #[allow(unused_macros)]
 macro_rules! n_byte_min_signed {
     ($n:expr) => { if $n == 0 { 0 as VarIntResult } else { !(n_byte_max!($n) >> 1) as VarIntResult } }
 }
+pub(crate) use n_byte_min_signed;
 
 impl SpecCombinator for VarInt {
     type SpecResult = VarIntResult;

@@ -7,7 +7,6 @@ pub use vest::regular::tag::*;
 pub use vest::regular::choice::*;
 pub use vest::regular::uints::*;
 pub use vest::regular::map::*;
-// pub use vest::regular::depend::*;
-pub use crate::depend::*;
+pub use vest::regular::preceded::*;
 pub use vest::regular::refined::*;
 pub use vest::utils::*;
