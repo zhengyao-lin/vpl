@@ -94,7 +94,7 @@ fn diff_test_int_serialize() {
 }
 
 fn serialize_octet_string(v: &[u8]) -> Result<Vec<u8>, ()> {
-    let mut data = vec![0; v.len() + 9];
+    let mut data = vec![0; v.len() + 10];
     data[0] = 0x04; // Prepend the tag byte
     let len = OctetString.serialize(v, &mut data, 1)?;
     data.truncate(len + 1);
@@ -123,7 +123,7 @@ fn diff_test_octet_string_serialize() {
 }
 
 fn serialize_utf8_string(v: &str) -> Result<Vec<u8>, ()> {
-    let mut data = vec![0; v.len() + 9];
+    let mut data = vec![0; v.len() + 10];
     data[0] = 0x0c; // Prepend the tag byte
     let len = UTF8String.serialize(v, &mut data, 1)?;
     data.truncate(len + 1);
@@ -134,7 +134,7 @@ fn diff_test_utf8_string_serialize() {
     let diff = |s: &str| {
         let res1 = serialize_utf8_string(s);
         let res2 = s.to_string().to_der();
-        
+
         match (&res1, &res2) {
             (Ok(v1), Ok(v2)) => assert!(v1 == v2, "Mismatch when encoding {:?}: {:?} {:?}", s, v1, v2),
             (Err(_), Err(_)) => {},
@@ -149,6 +149,34 @@ fn diff_test_utf8_string_serialize() {
     diff("黑风雷".repeat(256).as_str());
 }
 
+fn serialize_bit_string(v: BitStringValue) -> Result<Vec<u8>, ()> {
+    let mut data = vec![0; v.bit_string().len() + 10];
+    data[0] = 0x03; // Prepend the tag byte
+    let len = BitString.serialize(v, &mut data, 1)?;
+    data.truncate(len + 1);
+    Ok(data)
+}
+
+fn diff_test_bit_string_serialize() {
+    // The first byte of raw should denote the number of trailing zeros
+    let diff = |raw: &[u8]| {
+        let res1 = serialize_bit_string(BitStringValue::new_raw(raw).unwrap());
+        let res2 = der::asn1::BitString::new(raw[0], &raw[1..]).unwrap().to_der();
+        
+        println!("Testing {:?}: {:?} {:?}", raw, res1, res2);
+
+        match (&res1, &res2) {
+            (Ok(v1), Ok(v2)) => assert!(v1 == v2, "Mismatch when encoding {:?}: {:?} {:?}", raw, res1, res2),
+            (Err(_), Err(_)) => {},
+            _ => panic!("Mismatch when encoding {:?}: {:?} {:?}", raw, res1, res2),
+        }
+    };
+
+    diff(&[0]);
+    diff(&[5, 0b11100000]);
+    diff(&[4, 0b11100000]);
+}
+
 pub fn main() {
     test_var_int();
     test_length();
@@ -156,4 +184,5 @@ pub fn main() {
     diff_test_int_serialize();
     diff_test_octet_string_serialize();
     diff_test_utf8_string_serialize();
+    diff_test_bit_string_serialize();
 }

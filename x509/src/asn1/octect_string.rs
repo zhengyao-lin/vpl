@@ -116,14 +116,12 @@ pub open spec fn new_spec_octet_string_inner() -> SpecOctetStringInner {
 fn new_octet_string_inner() -> (res: OctetStringInner)
     ensures res@ == new_spec_octet_string_inner()
 {
-    let ghost spec_snd = |l| {
-        Bytes(l as usize)
-    };
-
     Depend {
         fst: Length,
         snd: BytesCont,
-        spec_snd: Ghost(spec_snd),
+        spec_snd: Ghost(|l| {
+            Bytes(l as usize)
+        }),
     }
 }
 

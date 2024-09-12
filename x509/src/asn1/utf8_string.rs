@@ -4,7 +4,6 @@ use polyfill::*;
 
 use super::len::*;
 use super::vest::*;
-use super::depend::*;
 
 verus! {
 
