@@ -4,6 +4,7 @@ use std::fmt::Debug;
 use std::fmt::Display;
 use std::num::TryFromIntError;
 use std::rc::Rc;
+use std::str::from_utf8;
 
 use vstd::prelude::*;
 
@@ -47,6 +48,37 @@ pub fn rc_as_ref<T: View>(rc: &Rc<T>) -> (res: &T)
         rc.view() == res.view(),
 {
     rc.as_ref()
+}
+
+/// Currently we do not have a specification in Verus for UTF-8
+/// so we just assume the implementation of `from_utf8` is correct
+pub closed spec fn spec_parse_utf8(s: Seq<u8>) -> Option<Seq<char>>;
+pub closed spec fn spec_serialize_utf8(s: Seq<char>) -> Seq<u8>;
+
+#[verifier::external_body]
+pub proof fn spec_utf8_parse_serialize_roundtrip(buf: Seq<u8>)
+    ensures spec_parse_utf8(buf) matches Some(s) ==> spec_serialize_utf8(s) == buf
+{}
+
+#[verifier::external_body]
+pub proof fn spec_utf8_serialize_parse_roundtrip(s: Seq<char>)
+    ensures spec_parse_utf8(spec_serialize_utf8(s)) == Some(s)
+{}
+
+#[verifier::external_body]
+pub fn utf8_to_str(s: &[u8]) -> (res: Option<&str>)
+    ensures
+        res is Some <==> spec_parse_utf8(s@) is Some,
+        res matches Some(res) ==> res@ == spec_parse_utf8(s@).unwrap(),
+{
+    from_utf8(s).ok()
+}
+
+#[verifier::external_body]
+pub fn str_to_utf8(s: &str) -> (res: &[u8])
+    ensures res@ =~= spec_serialize_utf8(s.view())
+{
+    s.as_bytes()
 }
 
 /// By Travis
@@ -158,6 +190,22 @@ pub fn slice_drop_first<V>(s: &[V]) -> (res: &[V])
     ensures res@ == s@.drop_first()
 {
     &s[1..]
+}
+
+#[verifier::external_body]
+pub fn slice_skip<V>(s: &[V], n: usize) -> (res: &[V])
+    requires n <= s@.len()
+    ensures res@ == s@.skip(n as int)
+{
+    &s[n..]
+}
+
+#[verifier::external_body]
+pub fn slice_take<V>(s: &[V], n: usize) -> (res: &[V])
+    requires n <= s@.len()
+    ensures res@ == s@.take(n as int)
+{
+    &s[..n]
 }
 
 #[verifier::external_type_specification]

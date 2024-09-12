@@ -122,10 +122,38 @@ fn diff_test_octet_string_serialize() {
     diff(&[ 0; 65536 ]);
 }
 
+fn serialize_utf8_string(v: &str) -> Result<Vec<u8>, ()> {
+    let mut data = vec![0; v.len() + 9];
+    data[0] = 0x0c; // Prepend the tag byte
+    let len = UTF8String.serialize(v, &mut data, 1)?;
+    data.truncate(len + 1);
+    Ok(data)
+}
+
+fn diff_test_utf8_string_serialize() {
+    let diff = |s: &str| {
+        let res1 = serialize_utf8_string(s);
+        let res2 = s.to_string().to_der();
+        
+        match (&res1, &res2) {
+            (Ok(v1), Ok(v2)) => assert!(v1 == v2, "Mismatch when encoding {:?}: {:?} {:?}", s, v1, v2),
+            (Err(_), Err(_)) => {},
+            _ => panic!("Mismatch when encoding {:?}: {:?} {:?}", s, &res1, &res2),
+        }
+    };
+
+    diff("");
+    diff("asdsad");
+    diff("黑风雷");
+    diff("👨‍👩‍👧‍👦");
+    diff("黑风雷".repeat(256).as_str());
+}
+
 pub fn main() {
     test_var_int();
     test_length();
     test_asn1_int();
     diff_test_int_serialize();
     diff_test_octet_string_serialize();
+    diff_test_utf8_string_serialize();
 }
