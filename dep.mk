@@ -26,15 +26,19 @@ target/%/$(TARGET): \
 	$(foreach dep,$(CARGO_DEPS),target/%/lib$(dep).rlib) \
 	$(SOURCE)
 
-	mkdir -p target/$*
+	@mkdir -p target/$*
 
-# Check if each dependency in VERUS_DEPS exists
+# Bulid each dependency in VERUS_DEPS
 	@for dep in $(VERUS_DEPS); do \
-		rlib=../$$dep/target/$*/lib$$dep.rlib; \
+		pushd ../$$dep; \
+		echo "Building $$dep"; \
+		rlib=target/$*/lib$$dep.rlib; \
+		make $*; \
 		if [ ! -f $$rlib ] || [ ! -f $$rlib.verusdata ]; then \
 			echo "Cannot find external Verus library $$rlib (or $$rlib.verusdata)"; \
 			exit 1; \
-		fi \
+		fi; \
+		popd; \
     done
 
 # Each dependency <dep> in CARGO_DEPS is mapped to verus argument --extern <dep>=target/<release/debug>/deps/lib<dep>-*.rlib
