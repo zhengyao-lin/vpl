@@ -163,7 +163,7 @@ fn diff_test_bit_string_serialize() {
         let res1 = serialize_bit_string(BitStringValue::new_raw(raw).unwrap());
         let res2 = der::asn1::BitString::new(raw[0], &raw[1..]).unwrap().to_der();
         
-        println!("Testing {:?}: {:?} {:?}", raw, res1, res2);
+        // println!("Testing {:?}: {:?} {:?}", raw, res1, res2);
 
         match (&res1, &res2) {
             (Ok(v1), Ok(v2)) => assert!(v1 == v2, "Mismatch when encoding {:?}: {:?} {:?}", raw, res1, res2),
@@ -177,6 +177,35 @@ fn diff_test_bit_string_serialize() {
     diff(&[4, 0b11100000]);
 }
 
+fn serialize_ia5_string(v: &str) -> Result<Vec<u8>, ()> {
+    let mut data = vec![0; v.len() + 10];
+    data[0] = 0x16; // Prepend the tag byte
+    let len = IA5String.serialize(IA5StringValue(v.as_bytes()), &mut data, 1)?;
+    data.truncate(len + 1);
+    Ok(data)
+}
+
+fn diff_test_ia5_string_serialize() {
+    let diff = |s: &str| {
+        let res1 = serialize_ia5_string(s);
+        let res2 = der::asn1::Ia5StringRef::new(s).unwrap().to_der();
+
+        // println!("Testing {:?}: {:?} {:?}", s, res1, res2);
+
+        match (&res1, &res2) {
+            (Ok(v1), Ok(v2)) => assert!(v1 == v2, "Mismatch when encoding {:?}: {:?} {:?}", s, v1, v2),
+            (Err(_), Err(_)) => {},
+            _ => panic!("Mismatch when encoding {:?}: {:?} {:?}", s, &res1, &res2),
+        }
+    };
+
+    diff("");
+    diff("\x7f");
+    diff("asdsad");
+    diff("aaaaaa");
+    diff("aaaaa".repeat(100).as_str());
+}
+
 pub fn main() {
     test_var_int();
     test_length();
@@ -185,4 +214,5 @@ pub fn main() {
     diff_test_octet_string_serialize();
     diff_test_utf8_string_serialize();
     diff_test_bit_string_serialize();
+    diff_test_ia5_string_serialize();
 }

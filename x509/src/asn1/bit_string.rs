@@ -3,10 +3,8 @@ use vstd::std_specs::bits::u8_trailing_zeros;
 
 use polyfill::*;
 
-use super::len::*;
 use super::vest::*;
-use super::depend::*;
-use super::octect_string::*;
+use super::octet_string::*;
 
 verus! {
 
