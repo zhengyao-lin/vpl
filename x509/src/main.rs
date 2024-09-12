@@ -180,7 +180,7 @@ fn diff_test_bit_string_serialize() {
 fn serialize_ia5_string(v: &str) -> Result<Vec<u8>, ()> {
     let mut data = vec![0; v.len() + 10];
     data[0] = 0x16; // Prepend the tag byte
-    let len = IA5String.serialize(IA5StringValue(v.as_bytes()), &mut data, 1)?;
+    let len = IA5String.serialize(IA5StringValue::new(v.as_bytes()).unwrap(), &mut data, 1)?;
     data.truncate(len + 1);
     Ok(data)
 }

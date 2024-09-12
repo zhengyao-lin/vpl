@@ -11,6 +11,7 @@ mod octet_string;
 mod utf8_string;
 mod bit_string;
 mod ia5_string;
+mod identifier;
 
 pub use var_int::*;
 pub use len::*;
@@ -19,6 +20,7 @@ pub use octet_string::*;
 pub use utf8_string::*;
 pub use bit_string::*;
 pub use ia5_string::*;
+pub use identifier::*;
 
 pub use vest::SpecCombinator;
 pub use vest::Combinator;

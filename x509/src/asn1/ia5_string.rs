@@ -1,6 +1,5 @@
 /// TODO: maybe refactor this using Refined
 
-use der::asn1::Ia5String;
 use vstd::prelude::*;
 
 use polyfill::*;
@@ -11,8 +10,8 @@ use super::octet_string::*;
 verus! {
 
 pub struct SpecIA5StringValue(pub Seq<u8>);
-pub struct IA5StringValue<'a>(pub &'a [u8]);
-pub struct IA5StringValueOwned(pub Vec<u8>);
+pub struct IA5StringValue<'a>(&'a [u8]);
+pub struct IA5StringValueOwned(Vec<u8>);
 
 impl SpecIA5StringValue {
     pub open spec fn wf(&self) -> bool {
@@ -36,7 +35,25 @@ impl View for IA5StringValueOwned {
     }
 }
 
-impl IA5StringValue<'_> {
+impl<'a> IA5StringValue<'a> {
+    pub fn new(s: &'a [u8]) -> (res: Option<IA5StringValue<'a>>)
+        ensures
+            res matches Some(res) ==> res@.wf(),
+            res is None ==> !SpecIA5StringValue(s@).wf(),
+    {
+        let res = IA5StringValue(s);
+
+        if res.wf() {
+            Some(res)
+        } else {
+            None
+        }
+    }
+
+    pub fn as_bytes(&self) -> &'a [u8] {
+        self.0
+    }
+
     pub fn wf(&self) -> (res: bool)
         ensures res == self@.wf()
     {
