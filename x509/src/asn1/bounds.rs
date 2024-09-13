@@ -59,6 +59,12 @@ macro_rules! fits_n_bytes_signed {
 }
 pub(super) use fits_n_bytes_signed;
 
+#[allow(unused_macros)]
+macro_rules! n_bit_max_unsigned {
+    ($n:expr) => { if $n == 0 { 0 } else { UInt::MAX >> (((8 * uint_size!()) - $n) as usize) } }
+}
+pub(super) use n_bit_max_unsigned;
+
 /// Get the nth-least significant byte (counting from 0)
 #[allow(unused_macros)]
 macro_rules! get_nth_byte {
