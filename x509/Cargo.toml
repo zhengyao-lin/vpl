@@ -9,4 +9,4 @@ builtin = { git = "https://github.com/verus-lang/verus", branch = "main" }
 vstd = { git = "https://github.com/verus-lang/verus", branch = "main" }
 vest = { path = "../vest" }
 polyfill = { path = "../polyfill" }
-der = { version = "0.7.9", features = [ "alloc" ] }
+der = { version = "0.7.9", features = [ "alloc", "oid" ] }

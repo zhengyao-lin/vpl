@@ -206,6 +206,15 @@ fn diff_test_ia5_string_serialize() {
     diff("aaaaa".repeat(100).as_str());
 }
 
+fn hexdump(data: &[u8]) {
+    for chunk in data.chunks(16) {
+        for byte in chunk {
+            print!("{:02x} ", byte);
+        }
+        println!();
+    }
+}
+
 pub fn main() {
     test_var_int();
     test_length();
@@ -215,4 +224,6 @@ pub fn main() {
     diff_test_utf8_string_serialize();
     diff_test_bit_string_serialize();
     diff_test_ia5_string_serialize();
+
+    hexdump(&der::asn1::ObjectIdentifier::new_unwrap("1.2.0").to_der().unwrap());
 }
