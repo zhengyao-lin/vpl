@@ -12,6 +12,8 @@ mod utf8_string;
 mod bit_string;
 mod ia5_string;
 mod identifier;
+mod arcs;
+mod base128;
 
 pub use var_int::*;
 pub use len::*;

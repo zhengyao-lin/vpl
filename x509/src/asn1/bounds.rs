@@ -97,6 +97,33 @@ macro_rules! sign_extend {
 }
 pub(super) use sign_extend;
 
+/// Take the lowest 7 bits as an u8
+#[allow(unused_macros)]
+macro_rules! take_low_7_bits {
+    ($v:expr) => {
+        $v as u8 & 0x7f
+    };
+}
+pub(super) use take_low_7_bits;
+
+/// Set the highest bit to 1 as an u8
+#[allow(unused_macros)]
+macro_rules! set_high_8_bit {
+    ($v:expr) => {
+        ($v | 0x80) as u8
+    };
+}
+pub(super) use set_high_8_bit;
+
+/// Check if the highest bit is set in an u8
+#[allow(unused_macros)]
+macro_rules! is_high_8_bit_set {
+    ($v:expr) => {
+        $v as u8 >= 0x80
+    };
+}
+pub(super) use is_high_8_bit_set;
+
 /// Specifies the minimum number of bytes required to represent an unsigned integer
 pub open spec fn is_min_num_bytes_unsigned(v: UInt, n: UInt) -> bool
 {
