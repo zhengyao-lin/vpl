@@ -2,7 +2,6 @@ use vstd::prelude::*;
 
 use super::bounds::*;
 use super::vest::*;
-use super::arcs::*;
 
 verus! {
 

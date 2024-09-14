@@ -1,6 +1,6 @@
 mod asn1;
 
-use der::Encode;
+use der::{Decode, Encode};
 
 use asn1::*;
 
@@ -206,6 +206,41 @@ fn diff_test_ia5_string_serialize() {
     diff("aaaaa".repeat(100).as_str());
 }
 
+/// Wrap a base 128 uint in an object identifier for testing
+fn serialize_base_128_uint(v: UInt) -> Result<Vec<u8>, ()> {
+    let mut data = vec![0; 3 + 10];
+    data[0] = 0x06;
+    data[2] = 0x2a;
+    let len = Base128UInt.serialize(v, &mut data, 3)?;
+    data.truncate(len + 3);
+    data[1] = (len + 1) as u8;
+    Ok(data)
+}
+
+fn diff_test_base_128_uint_serialize() {
+    let diff = |v: UInt| {
+        let res1 = serialize_base_128_uint(v);
+        let res2 = &der::asn1::ObjectIdentifier::new_unwrap(format!("1.2.{}", v).as_str()).to_der();
+
+        // println!("Testing {:?}: {:?} {:?}", v, res1, res2);
+
+        match (&res1, &res2) {
+            (Ok(v1), Ok(v2)) => assert!(v1 == v2, "Mismatch when encoding {:?}: {:?} {:?}", v, v1, v2),
+            (Err(_), Err(_)) => {},
+            _ => panic!("Mismatch when encoding {:?}: {:?} {:?}", v, &res1, &res2),
+        }
+    };
+
+    for i in 0..16383 {
+        // TODO: this seems to a bug in the der crate
+        if i == 128 {
+            continue;
+        }
+
+        diff(i);
+    }
+}
+
 fn hexdump(data: &[u8]) {
     for chunk in data.chunks(16) {
         for byte in chunk {
@@ -224,6 +259,12 @@ pub fn main() {
     diff_test_utf8_string_serialize();
     diff_test_bit_string_serialize();
     diff_test_ia5_string_serialize();
+    diff_test_base_128_uint_serialize();
 
-    hexdump(&der::asn1::ObjectIdentifier::new_unwrap("1.2.0").to_der().unwrap());
+    // https://github.com/RustCrypto/formats/issues/1520
+    // hexdump(&der::asn1::ObjectIdentifier::new_unwrap("1.2.128").to_der().unwrap());
+    // println!("decoded: {:?}", der::asn1::ObjectIdentifier::from_der(&der::asn1::ObjectIdentifier::new_unwrap("1.2.128").to_der().unwrap()));
+    // println!("decoded: {:?}", der::asn1::ObjectIdentifier::from_der(&der::asn1::ObjectIdentifier::new_unwrap("1.2.16388").to_der().unwrap()));
+    // println!("decoded: {:?}", der::asn1::ObjectIdentifier::from_der(&der::asn1::ObjectIdentifier::new_unwrap("1.2.840.113549").to_der().unwrap()));
+    // hexdump(&der::asn1::ObjectIdentifier::new_unwrap("1.2.0").to_der().unwrap());
 }
