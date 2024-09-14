@@ -165,7 +165,6 @@ impl<C: SecureSpecCombinator> SecureSpecCombinator for Repeat<C> {
 
 impl<C: Combinator> Repeat<C> where
     <C as View>::V: SecureSpecCombinator<SpecResult = <C::Owned as View>::V>,
-    for<'a> C::Result<'a>: Clone,
 {
     pub open spec fn deep_view<'a>(v: &'a [C::Result<'a>]) -> Seq<<C::Owned as View>::V> {
         Seq::new(v.len() as nat, |i: int| v@[i]@)
@@ -211,9 +210,6 @@ impl<C: Combinator> Repeat<C> where
         requires
             self.0.serialize_requires(),
 
-            // Cloning should not change view
-            // forall |i| 0 <= i < v.0.len() ==> v.0[i].clone()@ == v.0[i]@,
-
         ensures
             data@.len() == old(data)@.len(),
             res matches Some(n) ==> {
@@ -234,8 +230,6 @@ impl<C: Combinator> Repeat<C> where
             assert(data@ =~= seq_splice(old(data)@, pos, seq![]));
             return Some(0);
         }
-
-        // let cloned = v.0[v_offset].clone();
         
         if let Ok(n1) = self.0.serialize(v.0.remove(0), data, pos) {
             assert(v@ =~= old(v)@.drop_first());
@@ -243,24 +237,9 @@ impl<C: Combinator> Repeat<C> where
             if n1 != 0 {
                 let ghost data2 = data@;
 
-                // TODO!
-                // assume(cloned@ == v.0[v_offset as int]@);
-
-                // assert(self@.0.spec_serialize(v[0]@).is_ok());
-                // assert(data2 =~= seq_splice(data1, pos, self@.0.spec_serialize(v[0]@).unwrap()));
-                
                 if let Some(n2) = self.serialize_helper(v, data, pos + n1) {
                     if let Some(n) = n1.checked_add(n2) {
-
-                        // assert(old(v)@.remove(0) == old(v)@.drop_first());
-                        // assert(v.0@ =~= old(v).0@.remove(0));
                         assert(data@ =~= seq_splice(old(data)@, pos, self@.spec_serialize(old(v)@).unwrap()));
-
-                        // let ghost first_serialized = self@.0.spec_serialize(v.0[v_offset as int]@).unwrap();
-                        // let ghost rest_serialized = self@.spec_serialize(v@.skip(v_offset + 1)).unwrap();
-                        // assert(data@ =~= seq_splice(old(data)@, pos, first_serialized + rest_serialized));
-                        // assume(false);
-
                         return Some(n);
                     }
                 }
@@ -273,9 +252,6 @@ impl<C: Combinator> Repeat<C> where
 
 impl<C: Combinator> Combinator for Repeat<C> where
     <C as View>::V: SecureSpecCombinator<SpecResult = <C::Owned as View>::V>,
-
-    // TODO: can we remove this?
-    for<'a> C::Result<'a>: Clone,
 {
     type Result<'a> = RepeatResult<'a, C>;
     type Owned = RepeatResultOwned<C>;
