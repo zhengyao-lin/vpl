@@ -375,6 +375,24 @@ impl Base128UInt {
         }
     }
 
+    proof fn lemma_spec_parse_helper_error_prop(s: Seq<u8>, len: int)
+        requires
+            0 < len <= s.len(),
+            Self::spec_parse_helper(s.take(len), false).is_none(),
+
+        ensures
+            Self::spec_parse_helper(s, false).is_none()
+
+        decreases s.len()
+    {
+        if len < s.len() {
+            assert(s.drop_last().take(len) == s.take(len));
+            Self::lemma_spec_parse_helper_error_prop(s.drop_last(), len);
+        } else {
+            assert(s.take(len) == s);
+        }
+    }
+
     pub proof fn spec_parse_serialize_helper_roundtrip(s: Seq<u8>, last_byte: bool)
         ensures
             Self::spec_parse_helper(s, last_byte) matches Some(v) ==>
@@ -444,6 +462,155 @@ impl Base128UInt {
 
             Self::lemma_spec_serialize_non_zero(v);
         }
+    }
+}
+
+impl Combinator for Base128UInt {
+    type Result<'a> = UInt;
+    type Owned = UInt;
+
+    open spec fn spec_length(&self) -> Option<usize> {
+        None
+    }
+
+    fn length(&self) -> Option<usize> {
+        None
+    }
+
+    fn exec_is_prefix_secure() -> bool {
+        true
+    }
+
+    fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ()>) {
+        let mut len = 0;
+
+        // Compute the boundary first
+        // TODO: this is somewhat unnecessary, but aligns with the spec better
+        while len < s.len() && is_high_8_bit_set!(s[len])
+            invariant
+                0 <= len <= s.len(),
+                Self::all_high_8_bit_set(s@.take(len as int)),
+        {
+            len = len + 1;
+
+            assert(Self::all_high_8_bit_set(s@.take(len as int))) by {
+                assert forall |i| 0 <= i < len implies #[trigger] Self::is_high_8_bit_set(s@[i])
+                by {
+                    if i < len - 1 {
+                        // By loop inv
+                        assert(Self::is_high_8_bit_set(s@.take(len - 1)[i]));
+                    }
+                }
+            }
+        }
+
+        // No first arc found
+        if len == s.len() {
+            proof {
+                assert(s@ == s@.take(len as int));
+                Self::lemma_find_first_arc_alt(s@);
+            }
+            return Err(());
+        }
+
+        len = len + 1;
+
+        proof {
+            // Prove that len is unique (TODO: factor this proof out)
+            Self::lemma_find_first_arc_alt(s@);
+            assert(!Self::is_high_8_bit_set(s@[len - 1]));
+            assert(Self::find_first_arc(s@) == Some(len as int)) by {
+                let len2 = Self::find_first_arc(s@).unwrap();
+
+                if len2 < len {
+                    assert(Self::is_high_8_bit_set(s@.take(len - 1)[len2 - 1]));
+                } else if len < len2 {
+                    assert(Self::is_high_8_bit_set(s@.take(len2 - 1)[len - 1]));
+                }
+            }
+        }
+
+        let len = len; // Make len immutable
+        let mut v = 0;
+
+        if len > 1 && take_low_7_bits!(s[0]) == 0 {
+            proof {
+                assert(Self::spec_parse_helper(s@.take(len - 1), false).is_none());
+                assert(s@.take(len as int).drop_last() == s@.take(len - 1));
+                assert(Self::spec_parse_helper(s@.take(len as int), true).is_none());
+            }
+            return Err(());
+        }
+
+        // Parse the high-8-bit part
+        let mut i = 0;
+
+        while i < len - 1
+            invariant_except_break
+                0 <= i <= len - 1,
+                0 < len <= s.len(),
+
+                len > 1 ==> { let first = s@.first(); take_low_7_bits!(first) != 0 },
+                Self::all_high_8_bit_set(s@.take(len - 1)),
+                !Self::is_high_8_bit_set(s@[len - 1]),
+            
+                Self::find_first_arc(s@) == Some(len as int),
+
+                Self::spec_parse_helper(s@.take(i as int), false).is_some(),
+                v == Self::spec_parse_helper(s@.take(i as int), false).unwrap(),
+
+            ensures
+                i == len - 1,
+                !Self::is_high_8_bit_set(s@[len - 1]),
+                Self::spec_parse_helper(s@.take(i as int), false).is_some(),
+                v == Self::spec_parse_helper(s@.take(i as int), false).unwrap(),
+        {
+            assert(s@.take(i + 1).drop_last() == s@.take(i as int));
+            assert(Self::is_high_8_bit_set(s@.take(len - 1)[i as int]));
+
+            if v > n_bit_max_unsigned!(8 * uint_size!() - 7) {
+                // Propagate this error to the top
+                proof {
+                    assert(s@.take(len - 1).take(i + 1) == s@.take(i + 1));
+                    Self::lemma_spec_parse_helper_error_prop(s@.take(len - 1), i + 1);
+
+                    assert(s@.take(len as int).drop_last() == s@.take(len - 1));
+                    assert(Self::spec_parse_helper(s@.take(len as int), true).is_none());
+                }
+                
+                return Err(());
+            }
+
+            // assert(s@.take(i + 1).last() == s@[i as int]);
+            // assert(s@.take(i + 1).first() == s@.first());
+            // let ghost first = s@.take(i + 1).first();
+            // assert(take_low_7_bits!(first) != 0);
+        
+            // let ghost cur = s@[i as int];
+            // assert(is_high_8_bit_set!(cur));
+            // assert(v <= n_bit_max_unsigned!(8 * uint_size!() - 7));
+            // assert(Self::spec_parse_helper(s@.take(i + 1), false).is_some());
+
+            v = v << 7 | take_low_7_bits!(s[i]) as UInt;
+            i = i + 1;
+        }
+
+        assert(s@.take(len as int).drop_last() == s@.take(i as int));
+
+        if v > n_bit_max_unsigned!(8 * uint_size!() - 7) {
+            assert(Self::spec_parse_helper(s@.take(len as int), true).is_none());
+            return Err(());
+        }
+
+        // Add the last byte
+        v = v << 7 | take_low_7_bits!(s[i]) as UInt;
+
+        Ok((len, v))
+    }
+
+    fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, ()>) {
+        assume(false);
+        Err(())
     }
 }
 
