@@ -463,25 +463,13 @@ impl Base128UInt {
             Self::lemma_spec_serialize_non_zero(v);
         }
     }
-}
 
-impl Combinator for Base128UInt {
-    type Result<'a> = UInt;
-    type Owned = UInt;
-
-    open spec fn spec_length(&self) -> Option<usize> {
-        None
-    }
-
-    fn length(&self) -> Option<usize> {
-        None
-    }
-
-    fn exec_is_prefix_secure() -> bool {
-        true
-    }
-
-    fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ()>) {
+    /// Exec version of find_first_arc
+    fn exec_find_first_arc<'a>(s: &'a [u8]) -> (res: Option<usize>)
+        ensures
+            res matches Some(len) ==> Self::find_first_arc(s@) == Some(len as int),
+            res is None ==> Self::find_first_arc(s@) is None
+    {
         let mut len = 0;
 
         // Compute the boundary first
@@ -510,7 +498,7 @@ impl Combinator for Base128UInt {
                 assert(s@ == s@.take(len as int));
                 Self::lemma_find_first_arc_alt(s@);
             }
-            return Err(());
+            return None;
         }
 
         len = len + 1;
@@ -530,19 +518,50 @@ impl Combinator for Base128UInt {
             }
         }
 
-        let len = len; // Make len immutable
-        let mut v = 0;
+        return Some(len);
+    }
+}
 
+impl Combinator for Base128UInt {
+    type Result<'a> = UInt;
+    type Owned = UInt;
+
+    open spec fn spec_length(&self) -> Option<usize> {
+        None
+    }
+
+    fn length(&self) -> Option<usize> {
+        None
+    }
+
+    fn exec_is_prefix_secure() -> bool {
+        true
+    }
+
+    fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ()>) {
+        let len = if let Some(len) = Self::exec_find_first_arc(s) {
+            len
+        } else {
+            return Err(());
+        };
+
+        proof {
+            Self::lemma_find_first_arc_alt(s@);
+        }
+
+        // The prefix we will be parsing
+        let ghost prefix = s@.take(len as int);
+
+        // If the first byte is 0, the encoding is not minimal
         if len > 1 && take_low_7_bits!(s[0]) == 0 {
-            proof {
-                assert(Self::spec_parse_helper(s@.take(len - 1), false).is_none());
-                assert(s@.take(len as int).drop_last() == s@.take(len - 1));
-                assert(Self::spec_parse_helper(s@.take(len as int), true).is_none());
-            }
+            assert(prefix.drop_last() == s@.take(len - 1));
+            assert(Self::spec_parse_helper(s@.take(len - 1), false).is_none());
+            assert(Self::spec_parse_helper(prefix, true).is_none());
             return Err(());
         }
 
         // Parse the high-8-bit part
+        let mut v = 0;
         let mut i = 0;
 
         while i < len - 1
@@ -550,12 +569,17 @@ impl Combinator for Base128UInt {
                 0 <= i <= len - 1,
                 0 < len <= s.len(),
 
+                // First byte is not 0
                 len > 1 ==> { let first = s@.first(); take_low_7_bits!(first) != 0 },
+                
+                // Results of find_first_arc
                 Self::all_high_8_bit_set(s@.take(len - 1)),
                 !Self::is_high_8_bit_set(s@[len - 1]),
-            
                 Self::find_first_arc(s@) == Some(len as int),
 
+                prefix == s@.take(len as int),
+
+                // Invariant that the prefix s@.take(i) is correctly parsed
                 Self::spec_parse_helper(s@.take(i as int), false).is_some(),
                 v == Self::spec_parse_helper(s@.take(i as int), false).unwrap(),
 
@@ -569,36 +593,22 @@ impl Combinator for Base128UInt {
             assert(Self::is_high_8_bit_set(s@.take(len - 1)[i as int]));
 
             if v > n_bit_max_unsigned!(8 * uint_size!() - 7) {
-                // Propagate this error to the top
+                // Show that if a prefix failed to parse, so does the entire sequence
                 proof {
-                    assert(s@.take(len - 1).take(i + 1) == s@.take(i + 1));
-                    Self::lemma_spec_parse_helper_error_prop(s@.take(len - 1), i + 1);
-
-                    assert(s@.take(len as int).drop_last() == s@.take(len - 1));
-                    assert(Self::spec_parse_helper(s@.take(len as int), true).is_none());
+                    assert(prefix.drop_last().take(i + 1) == s@.take(i + 1));
+                    Self::lemma_spec_parse_helper_error_prop(prefix.drop_last(), i + 1);
                 }
-                
                 return Err(());
             }
-
-            // assert(s@.take(i + 1).last() == s@[i as int]);
-            // assert(s@.take(i + 1).first() == s@.first());
-            // let ghost first = s@.take(i + 1).first();
-            // assert(take_low_7_bits!(first) != 0);
-        
-            // let ghost cur = s@[i as int];
-            // assert(is_high_8_bit_set!(cur));
-            // assert(v <= n_bit_max_unsigned!(8 * uint_size!() - 7));
-            // assert(Self::spec_parse_helper(s@.take(i + 1), false).is_some());
 
             v = v << 7 | take_low_7_bits!(s[i]) as UInt;
             i = i + 1;
         }
 
-        assert(s@.take(len as int).drop_last() == s@.take(i as int));
+        assert(prefix.drop_last() == s@.take(i as int));
 
         if v > n_bit_max_unsigned!(8 * uint_size!() - 7) {
-            assert(Self::spec_parse_helper(s@.take(len as int), true).is_none());
+            assert(Self::spec_parse_helper(prefix, true).is_none());
             return Err(());
         }
 
