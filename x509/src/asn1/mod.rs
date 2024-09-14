@@ -14,6 +14,7 @@ mod ia5_string;
 mod identifier;
 mod arcs;
 mod base128;
+mod repeat;
 
 pub use var_int::*;
 pub use len::*;

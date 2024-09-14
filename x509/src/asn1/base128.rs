@@ -42,7 +42,7 @@ impl Base128UInt {
                 None
             } else {
                 // Parse the prefix first
-                match self.spec_parse(s.take(s.len() - 1), false) {
+                match self.spec_parse(s.drop_last(), false) {
                     Some(v) =>
                         // Check for overflow
                         if v <= n_bit_max_unsigned!(8 * uint_size!() - 7) {
@@ -89,20 +89,20 @@ impl Base128UInt {
                 // Show that the only byte should not be a zero
 
                 let empty: Seq<u8> = seq![];
-                assert(s.take(s.len() - 1) == empty);
+                assert(s.drop_last() == empty);
 
                 let last = s.last();
 
-                assert(self.spec_parse(s.take(s.len() - 1), false).unwrap() == 0);
+                assert(self.spec_parse(s.drop_last(), false).unwrap() == 0);
                 assert(
                     v == 0 ==>
                     (v << 7 | take_low_7_bits!(last) as UInt) == 0 ==>
                     take_low_7_bits!(last) == 0
                 ) by (bit_vector);
             } else if s.len() > 1 {
-                self.lemma_spec_parse_unique_zero_encoding_alt(s.take(s.len() - 1));
+                self.lemma_spec_parse_unique_zero_encoding_alt(s.drop_last());
 
-                let prefix = s.take(s.len() - 1);
+                let prefix = s.drop_last();
                 let last = s.last();
                 let parsed_prefix = self.spec_parse(prefix, false).unwrap();
                 
@@ -133,7 +133,7 @@ impl Base128UInt {
         // reveal_with_fuel(Base128UInt::spec_parse, 2);
 
         if let Some(v) = self.spec_parse(s, true) {
-            let prefix = s.take(s.len() - 1);
+            let prefix = s.drop_last();
             let last = s.last();
             let parsed_prefix = self.spec_parse(prefix, false).unwrap();
 
@@ -204,7 +204,7 @@ impl Base128UInt {
                 let empty: Seq<u8> = seq![];
                 assert(s == empty);
             } else {
-                let prefix = s.take(s.len() - 1);
+                let prefix = s.drop_last();
                 let last = s.last();
                 let parsed_prefix = self.spec_parse(prefix, false).unwrap();
                 let s2 = self.spec_serialize(v, last_byte);
@@ -225,6 +225,13 @@ impl Base128UInt {
                 assert(s == s2);
             }
         }
+    }
+
+    pub proof fn lemma_spec_parse_is_arc(&self, s: Seq<u8>)
+        requires self.spec_parse(s, true).is_some()
+        ensures Arcs.is_arc(s)
+    {
+        assume(false);
     }
 
     pub proof fn lemma_spec_serialize_is_arc(&self, v: UInt)
@@ -256,7 +263,7 @@ impl Base128UInt {
             //     seq![set_high_8_bit!(v)]
             // });
 
-            assert(s.take(s.len() - 1) == prefix);
+            assert(s.drop_last() == prefix);
 
             // Some required BV facts
             assert(!is_high_8_bit_set!(take_low_7_bits!(v))) by (bit_vector);

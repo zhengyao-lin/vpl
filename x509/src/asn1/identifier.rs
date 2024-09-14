@@ -129,4 +129,95 @@ impl SecureSpecCombinator for ObjectIdentifierInner {
     proof fn lemma_prefix_secure(&self, s1: Seq<u8>, s2: Seq<u8>) {}
 }
 
+impl Combinator for ObjectIdentifierInner {
+    type Result<'a> = &'a [UInt];
+    type Owned = Vec<UInt>;
+
+    open spec fn spec_length(&self) -> Option<usize> {
+        None
+    }
+
+    fn length(&self) -> Option<usize> {
+        None
+    }
+
+    fn exec_is_prefix_secure() -> bool {
+        false
+    }
+
+    fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ()>) {
+        let mut arcs: Vec<UInt> = Vec::new();
+
+        let mut i = 0;
+
+        while i < s.len()
+            invariant
+                i > 0 ==> { let last_byte = s@[i - 1]; !is_high_8_bit_set!(last_byte) },
+        {
+            let j = i;
+            let mut arc: UInt = 0;
+
+            // Parse an arc from j
+            while i < s.len() && is_high_8_bit_set!(s[i])
+                invariant
+                    0 <= j <= i <= s.len(),
+                    Base128UInt.spec_parse(s@.subrange(j as int, i as int), false) =~= Some(arc),
+            {
+                if i == j && take_low_7_bits!(s[i]) == 0 {
+                    assert(Base128UInt.spec_parse(s@.subrange(j as int, i + 1), false).is_none());
+                    assert(Base128UInt.spec_parse(s@.subrange(j as int, i + 1), true).is_none());
+                    assume(false);
+                    return Err(());
+                }
+
+                // Check bound
+                if arc > n_bit_max_unsigned!(8 * uint_size!() - 7) {
+                    assert(Base128UInt.spec_parse(s@.subrange(j as int, i + 1), true).is_none());
+                    assume(false);
+                    return Err(());
+                }
+
+                assert(s@.subrange(j as int, i as int) =~= s@.subrange(j as int, i + 1).drop_last());
+                arc = arc << 7 | take_low_7_bits!(s[i]) as UInt;
+                i = i + 1;
+            }
+            
+            if i == s.len() {
+                assert(Base128UInt.spec_parse(s@.subrange(j as int, i as int), true).is_none());
+                assume(false);
+                return Err(());
+            }
+            
+            // Bound check
+            if arc > n_bit_max_unsigned!(8 * uint_size!() - 7) {
+                assume(false);
+                return Err(());
+            }
+
+            // Add the final byte
+            assert(s@.subrange(j as int, i as int) =~= s@.subrange(j as int, i + 1).drop_last());
+            arc = arc << 7 | take_low_7_bits!(s[i]) as UInt;
+            i = i + 1;
+
+            assert(Base128UInt.spec_parse(s@.subrange(j as int, i as int), true) =~= Some(arc));
+
+            proof {
+                Base128UInt.lemma_spec_parse_is_arc(s@.subrange(j as int, i as int));
+                assert(s@.subrange(0, i as int).subrange(j as int, i as int) == s@.subrange(j as int, i as int));
+                assert(Arcs.is_last_arc_chunk(s@.subrange(0, i as int), i - j));
+            }
+
+            arcs.push(arc);
+        }
+
+        assume(false);
+        Err(())
+    }
+
+    fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, ()>) {
+        assume(false);
+        Err(())
+    }
+}
+
 }
