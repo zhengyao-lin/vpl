@@ -520,6 +520,23 @@ impl Base128UInt {
 
         return Some(len);
     }
+
+    /// TODO: change this to a non-recursive function
+    fn serialize_helper(v: UInt) -> (r: Vec<u8>)
+        ensures r@ == Self::spec_serialize_helper(v, false)
+    {
+        if v == 0 {
+            Vec::new()
+        } else {
+            // Add the lowest 7 bits with the highest bit set to 0
+            let mut r = Self::serialize_helper(v >> 7);
+            let ghost old_r = r@;
+
+            r.push(set_high_8_bit!(v));
+            assert(r@ == old_r + seq![set_high_8_bit!(v)]);
+            r
+        }
+    }
 }
 
 impl Combinator for Base128UInt {
@@ -618,9 +635,54 @@ impl Combinator for Base128UInt {
         Ok((len, v))
     }
 
-    fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, ()>) {
-        assume(false);
-        Err(())
+    fn serialize(&self, mut v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, ()>) {
+        if pos >= data.len() {
+            return Err(());
+        }
+
+        // For 0, we just emit a single byte
+        if v < 0x80 {
+            data.set(pos, take_low_7_bits!(v));
+
+            // Unfold the evaluation of the spec_serialize_helper
+            assert(v < 0x80 ==> v >> 7 == 0) by (bit_vector);
+            assert(v == 0 ==> take_low_7_bits!(v) == 0) by (bit_vector);
+            if v != 0 {
+                let ghost empty: Seq<u8> = seq![];
+                assert(Self::spec_serialize_helper(0, false) == empty);
+            }
+            assert(data@ == seq_splice(old(data)@, pos, Self::spec_serialize_helper(v, true)));
+
+            return Ok(1);
+        }
+
+        let rest = Self::serialize_helper(v >> 7);
+
+        // Check some bounds
+        let end = if let Some(end) = pos.checked_add(rest.len()) {
+            end
+        } else {
+            return Err(());
+        };
+        if end > data.len() - 1 {
+            return Err(());
+        }
+
+        // Write rest to data at pos
+        for i in 0..rest.len()
+            invariant
+                data@.len() == old(data)@.len(),
+                pos + rest.len() + 1 <= data.len(),
+                data@ =~= seq_splice(old(data)@, pos, rest@.take(i as int)),
+        {
+            data.set(pos + i, rest[i]);
+        }
+
+        // Write the last byte
+        data.set(pos + rest.len(), take_low_7_bits!(v));
+        assert(data@ =~= seq_splice(old(data)@, pos, Self::spec_serialize_helper(v, true)));
+
+        Ok(rest.len() + 1)
     }
 }
 
