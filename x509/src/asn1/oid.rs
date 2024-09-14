@@ -1,3 +1,4 @@
+use polyfill::slice_skip;
 use vstd::prelude::*;
 
 use super::bounds::*;
@@ -46,17 +47,13 @@ impl ObjectIdentifier {
         ensures
             Self::serialize_first_two_arcs(arc1, arc2) matches Some(byte) ==>
                 Self::parse_first_two_arcs(byte) == Some((arc1, arc2))
-    {
-        assume(false);
-    }
+    {}
 
     proof fn lemma_parse_serialize_first_two_arcs(byte: u8)
         ensures
             Self::parse_first_two_arcs(byte) matches Some((arc1, arc2)) ==>
                 Self::serialize_first_two_arcs(arc1, arc2) == Some(byte)
-    {
-        assume(false);
-    }
+    {}
 }
 
 impl SpecCombinator for ObjectIdentifier {
@@ -136,6 +133,82 @@ impl SecureSpecCombinator for ObjectIdentifier {
 
     proof fn lemma_prefix_secure(&self, s1: Seq<u8>, s2: Seq<u8>) {
         new_spec_object_identifier_inner().lemma_prefix_secure(s1, s2);
+    }
+}
+
+impl Combinator for ObjectIdentifier {
+    type Result<'a> = Vec<UInt>;
+    type Owned = Vec<UInt>;
+
+    open spec fn spec_length(&self) -> Option<usize> {
+        None
+    }
+
+    fn length(&self) -> Option<usize> {
+        None
+    }
+
+    fn exec_is_prefix_secure() -> bool {
+        true
+    }
+
+    fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ()>) {
+        if let Ok((len, (_, (first, mut rest_arcs)))) = new_object_identifier_inner().parse(s) {
+            let arc1 = first / 40;
+            let arc2 = first % 40;
+
+            if arc1 > 2 || arc2 > 39 {
+                return Err(());
+            }
+
+            let mut res = vec![ arc1 as UInt, arc2 as UInt ];
+            res.append(&mut rest_arcs.0);
+
+            assert(res@ == self.spec_parse(s@).unwrap().1);
+
+            Ok((len, res))
+        } else {
+            Err(())
+        }
+    }
+
+    fn serialize(&self, mut v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, ()>) {
+        let ghost old_v = v@;
+
+        if v.len() < 2 {
+            return Err(());
+        }
+
+        if v[0] > 2 || v[1] > 39 {
+            return Err(());
+        }
+
+        let first_byte = v[0] as u8 * 40 + v[1] as u8;
+
+        let rest_arcs_inner = v.split_off(2);
+
+        // Need to figure out the content length first
+        // TODO: this seems inefficient
+        let rest_arcs_cloned = RepeatResult(rest_arcs_inner.clone());
+        let rest_arcs = RepeatResult(rest_arcs_inner);
+
+        if let Ok(len) = (U8, Repeat(Base128UInt)).serialize((first_byte, rest_arcs_cloned), data, pos) {
+            let ghost data2 = data@;
+
+            if let Ok(len2) = new_object_identifier_inner().serialize((len as LengthValue, (first_byte, rest_arcs)), data, pos) {
+                // assert(data@ == seq_splice(old(data)@, pos, b));
+                // assert(len2 >= len);
+
+                if pos.checked_add(len2).is_some() && pos + len2 <= data.len() {
+                    assert(rest_arcs_cloned@ == old_v.skip(2));
+                    assert(data@ =~= seq_splice(old(data)@, pos, self.spec_serialize(old_v).unwrap()));
+                    
+                    return Ok(len2);
+                }
+            }
+        }
+
+        Err(())
     }
 }
 

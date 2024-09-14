@@ -241,6 +241,37 @@ fn diff_test_base_128_uint_serialize() {
     }
 }
 
+fn serialize_oid(v: Vec<UInt>) -> Result<Vec<u8>, ()> {
+    let mut data = vec![0; 1 + 4 + v.len() * 8];
+    data[0] = 0x06;
+    let len = ObjectIdentifier.serialize(v, &mut data, 1)?;
+    data.truncate(len + 1);
+    Ok(data)
+}
+
+fn diff_test_oid_serialize() {
+    let diff = |v: Vec<UInt>| {
+        let res1 = serialize_oid(v.clone());
+        let res2 = &der::asn1::ObjectIdentifier::new_unwrap(
+            v.iter().map(|i| i.to_string()).collect::<Vec<_>>().join(".").as_str()
+        ).to_der();
+
+        // println!("Testing {:?}: {:?} {:?}", v, res1, res2);
+
+        match (&res1, &res2) {
+            (Ok(v1), Ok(v2)) => assert!(v1 == v2, "Mismatch when encoding {:?}: {:?} {:?}", v, v1, v2),
+            (Err(_), Err(_)) => {},
+            _ => panic!("Mismatch when encoding {:?}: {:?} {:?}", v, &res1, &res2),
+        }
+    };
+
+    diff(vec![1, 2, 3]);
+    diff(vec![1, 2, 123214]);
+    diff(vec![1, 2, 123214, 1231, 4534, 231]);
+    diff(vec![2, 10, 123214, 1231, 4534, 231]);
+    diff(vec![2, 39, 123214, 1231, 4534, 231]);
+}
+
 fn hexdump(data: &[u8]) {
     for chunk in data.chunks(16) {
         for byte in chunk {
@@ -260,15 +291,16 @@ pub fn main() {
     diff_test_bit_string_serialize();
     diff_test_ia5_string_serialize();
     diff_test_base_128_uint_serialize();
+    diff_test_oid_serialize();
 
-    let c = asn1::repeat::Repeat(Base128UInt);
+    // let c = asn1::repeat::Repeat(Base128UInt);
 
-    let mut data = vec![0; 64];
-    let len = c.serialize(asn1::repeat::RepeatResult(vec![ 1, 2, 12321 ]), &mut data, 0).unwrap();
-    let (_, parsed) = c.parse(&data[..len]).unwrap();
+    // let mut data = vec![0; 64];
+    // let len = c.serialize(asn1::repeat::RepeatResult(vec![ 1, 2, 12321 ]), &mut data, 0).unwrap();
+    // let (_, parsed) = c.parse(&data[..len]).unwrap();
 
-    hexdump(data.as_slice());
-    println!("parsed: {:?}", parsed);
+    // hexdump(data.as_slice());
+    // println!("parsed: {:?}", parsed);
 
     // https://github.com/RustCrypto/formats/issues/1520
     // hexdump(&der::asn1::ObjectIdentifier::new_unwrap("1.2.128").to_der().unwrap());

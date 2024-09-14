@@ -393,7 +393,7 @@ impl Base128UInt {
         }
     }
 
-    pub proof fn spec_parse_serialize_helper_roundtrip(s: Seq<u8>, last_byte: bool)
+    proof fn spec_parse_serialize_helper_roundtrip(s: Seq<u8>, last_byte: bool)
         ensures
             Self::spec_parse_helper(s, last_byte) matches Some(v) ==>
             Self::spec_serialize_helper(v, last_byte) == s
@@ -428,7 +428,7 @@ impl Base128UInt {
         }
     }
 
-    pub proof fn spec_serialize_parse_helper_roundtrip(v: UInt, last_byte: bool)
+    proof fn spec_serialize_parse_helper_roundtrip(v: UInt, last_byte: bool)
         ensures
             Self::spec_parse_helper(Self::spec_serialize_helper(v, last_byte), last_byte) == Some(v)
 
