@@ -46,7 +46,7 @@ impl SpecCombinator for Base128UInt {
     }
 
     proof fn spec_parse_wf(&self, s: Seq<u8>) {
-        Self::lemma_find_first_arc(s);
+        Self::lemma_find_first_arc_alt(s);
     }
 
     open spec fn spec_serialize(&self, v: Self::SpecResult) -> Result<Seq<u8>, ()> {
@@ -69,7 +69,7 @@ impl SecureSpecCombinator for Base128UInt {
 
     proof fn theorem_parse_serialize_roundtrip(&self, buf: Seq<u8>) {
         if let Some(len) = Self::find_first_arc(buf) {
-            Self::lemma_find_first_arc(buf);
+            Self::lemma_find_first_arc_alt(buf);
             self.lemma_prefix_secure(buf.take(len), buf.skip(len));
             Self::spec_parse_serialize_helper_roundtrip(buf.take(len), true);
 
@@ -79,7 +79,7 @@ impl SecureSpecCombinator for Base128UInt {
     }
 
     proof fn lemma_prefix_secure(&self, s1: Seq<u8>, s2: Seq<u8>) {
-        Self::lemma_find_first_arc(s1);
+        Self::lemma_find_first_arc_alt(s1);
         Self::lemma_find_first_arc_prefix_secure(s1, s2);
 
         if let Some(len) = Self::find_first_arc(s1) {
@@ -89,55 +89,6 @@ impl SecureSpecCombinator for Base128UInt {
 }
 
 impl Base128UInt {
-    pub open spec fn find_first_arc(s: Seq<u8>) -> Option<int>
-        decreases s.len()
-    {
-        if s.len() == 0 {
-            None
-        } else {
-            if !is_high_8_bit_set!(s.first()) {
-                Some(1)
-            } else {
-                match Self::find_first_arc(s.drop_first()) {
-                    Some(len) => Some(len + 1),
-                    None => None
-                }
-            }
-        }
-    }
-
-    proof fn lemma_find_first_arc(s: Seq<u8>)
-        ensures Self::find_first_arc(s) matches Some(len) ==> 0 < len <= s.len()
-        decreases s.len()
-    {
-        if s.len() != 0 {
-            Self::lemma_find_first_arc(s.drop_first());
-        }
-    }
-
-    proof fn lemma_find_first_arc_prefix_secure(s1: Seq<u8>, s2: Seq<u8>)
-        ensures
-            Self::find_first_arc(s1) matches Some(len) ==>
-                Self::find_first_arc(s1 + s2) == Some(len)
-    
-        decreases s1.len()
-    {
-        if s1.len() != 0 {
-            Self::lemma_find_first_arc_prefix_secure(s1.drop_first(), s2);
-            assert(s1.drop_first() + s2 == (s1 + s2).drop_first());
-        }
-    }
-
-    proof fn lemma_spec_serialize_find_first_arc(v: UInt)
-        ensures
-            ({
-                let s = Self::spec_serialize_helper(v, true);
-                Self::find_first_arc(s) == Some(s.len() as int)
-            })
-    {
-        assume(false);
-    }
-
     /// last_byte is true iff s includes the last byte (which much exists and have the highest bit set to 0)
     pub open spec fn spec_parse_helper(s: Seq<u8>, last_byte: bool) -> Option<UInt>
         decreases s.len()
@@ -192,6 +143,120 @@ impl Base128UInt {
         } else {
             // Add the lowest 7 bits with the highest bit set to 0
             Self::spec_serialize_helper(v >> 7, false) + seq![set_high_8_bit!(v)]
+        }
+    }
+
+    pub open spec fn find_first_arc(s: Seq<u8>) -> Option<int>
+        decreases s.len()
+    {
+        if s.len() == 0 {
+            None
+        } else {
+            if !is_high_8_bit_set!(s.first()) {
+                Some(1)
+            } else {
+                match Self::find_first_arc(s.drop_first()) {
+                    Some(len) => Some(len + 1),
+                    None => None
+                }
+            }
+        }
+    }
+
+    /// A spec fn wrapper of the macro for quantifier triggers
+    closed spec fn is_high_8_bit_set(v: u8) -> bool
+    {
+        is_high_8_bit_set!(v)
+    }
+
+    closed spec fn all_high_8_bit_set(s: Seq<u8>) -> bool
+    {
+        forall |i: int| 0 <= i < s.len() ==> #[trigger] Self::is_high_8_bit_set(s.index(i))
+    }
+
+    /// An alternative characterization of find_first_arc
+    proof fn lemma_find_first_arc_alt(s: Seq<u8>)
+        ensures
+            Self::find_first_arc(s) matches Some(len) ==> {
+                let last = s[len - 1];
+
+                &&& 0 < len <= s.len()
+                &&& !Self::is_high_8_bit_set(last)
+                &&& Self::all_high_8_bit_set(s.take(len - 1))
+            },
+            Self::find_first_arc(s) is None ==> Self::all_high_8_bit_set(s),
+
+        decreases s.len()
+    {
+        if s.len() != 0 {
+            if is_high_8_bit_set!(s.first()) {
+                Self::lemma_find_first_arc_alt(s.drop_first());
+
+                if let Some(len) = Self::find_first_arc(s.drop_first()) {
+                    assert(0 < len <= s.drop_first().len());
+
+                    let last = s[len];
+                    assert(last == s.drop_first()[len - 1]);
+                    
+                    assert forall |i: int| 0 <= i < len implies #[trigger] Self::is_high_8_bit_set(s.index(i))
+                    by {
+                        if i > 0 {
+                            assert(s.index(i) == s.drop_first().take(len - 1).index(i - 1));
+                        }
+                    }
+                } else {
+                    assert forall |i: int| 0 <= i < s.len() implies #[trigger] Self::is_high_8_bit_set(s.index(i))
+                    by {
+                        if i > 0 {
+                            assert(s.index(i) == s.drop_first().index(i - 1));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    proof fn lemma_find_first_arc_prefix_secure(s1: Seq<u8>, s2: Seq<u8>)
+        ensures
+            Self::find_first_arc(s1) matches Some(len) ==>
+                Self::find_first_arc(s1 + s2) == Some(len)
+    
+        decreases s1.len()
+    {
+        if s1.len() != 0 {
+            Self::lemma_find_first_arc_prefix_secure(s1.drop_first(), s2);
+            assert(s1.drop_first() + s2 == (s1 + s2).drop_first());
+        }
+    }
+
+    proof fn lemma_spec_serialize_non_last_byte_all_high_8_bit_set(v: UInt)
+        ensures
+            Self::all_high_8_bit_set(Self::spec_serialize_helper(v, false))
+
+        decreases v
+    {
+        if v != 0 {
+            assert(v != 0 ==> v >> 7 < v) by (bit_vector);
+            assert(is_high_8_bit_set!(set_high_8_bit!(v))) by (bit_vector);
+            Self::lemma_spec_serialize_non_last_byte_all_high_8_bit_set(v >> 7);
+        }
+    }
+
+    proof fn lemma_spec_serialize_find_first_arc(v: UInt)
+        ensures
+            ({
+                let s = Self::spec_serialize_helper(v, true);
+                Self::find_first_arc(s) == Some(s.len() as int)
+            })
+    {
+        let s = Self::spec_serialize_helper(v, true);
+        Self::lemma_spec_serialize_non_last_byte_all_high_8_bit_set(v >> 7);
+        Self::lemma_find_first_arc_alt(s);
+
+        assert(!is_high_8_bit_set!(take_low_7_bits!(v))) by (bit_vector);
+
+        if Self::find_first_arc(s).is_none() {
+            assert(Self::is_high_8_bit_set(s.last()));
         }
     }
 
