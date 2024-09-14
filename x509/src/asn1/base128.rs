@@ -17,6 +17,7 @@ verus! {
 /// 
 /// NOTE: the first and second arc of an OID are encoded differently
 /// than this combinator
+#[derive(Debug)]
 pub struct Base128UInt;
 
 impl View for Base128UInt {

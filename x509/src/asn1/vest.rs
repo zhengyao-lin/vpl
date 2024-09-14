@@ -9,4 +9,5 @@ pub use vest::regular::uints::*;
 pub use vest::regular::map::*;
 pub use vest::regular::preceded::*;
 pub use vest::regular::refined::*;
+pub use vest::regular::and_then::*;
 pub use vest::utils::*;

@@ -1,6 +1,6 @@
 mod asn1;
 
-use der::{Decode, Encode};
+use der::Encode;
 
 use asn1::*;
 
@@ -260,6 +260,15 @@ pub fn main() {
     diff_test_bit_string_serialize();
     diff_test_ia5_string_serialize();
     diff_test_base_128_uint_serialize();
+
+    let c = asn1::repeat::Repeat(Base128UInt);
+
+    let mut data = vec![0; 64];
+    let len = c.serialize(asn1::repeat::RepeatResult(vec![ 1, 2, 12321 ]), &mut data, 0).unwrap();
+    let (_, parsed) = c.parse(&data[..len]).unwrap();
+
+    hexdump(data.as_slice());
+    println!("parsed: {:?}", parsed);
 
     // https://github.com/RustCrypto/formats/issues/1520
     // hexdump(&der::asn1::ObjectIdentifier::new_unwrap("1.2.128").to_der().unwrap());

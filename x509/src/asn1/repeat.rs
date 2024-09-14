@@ -13,9 +13,11 @@ verus! {
 pub struct Repeat<C>(pub C);
 
 /// Wrappers around Vec so that their View's can be implemented as DeepView
+#[derive(Debug)]
 pub struct RepeatResult<'a, C: Combinator>(pub Vec<C::Result<'a>>)
     where <C as View>::V: SecureSpecCombinator<SpecResult = <C::Owned as View>::V>;
 
+#[derive(Debug)]
 pub struct RepeatResultOwned<C: Combinator>(pub Vec<C::Owned>)
     where <C as View>::V: SecureSpecCombinator<SpecResult = <C::Owned as View>::V>;
 
