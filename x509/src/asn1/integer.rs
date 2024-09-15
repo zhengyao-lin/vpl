@@ -7,6 +7,7 @@ use super::var_int::*;
 use super::len::*;
 use super::bounds::*;
 use super::depend::*;
+use super::tag::*;
 
 verus! {
 
@@ -22,6 +23,24 @@ impl View for Integer {
 
     open spec fn view(&self) -> Self::V {
         *self
+    }
+}
+
+impl ASN1Tagged for Integer {
+    open spec fn spec_tag() -> TagValue {
+        TagValue {
+            class: TagClass::Universal,
+            form: TagForm::Primitive,
+            num: 2,
+        }        
+    }
+
+    fn tag() -> TagValue {
+        TagValue {
+            class: TagClass::Universal,
+            form: TagForm::Primitive,
+            num: 2,
+        }        
     }
 }
 

@@ -59,9 +59,8 @@ fn test_asn1_int() {
 
 fn serialize_int(v: IntegerValue) -> Result<Vec<u8>, ()> {
     let mut data = vec![0; 16];
-    data[0] = 0x02; // Prepend the tag byte
-    let len = Integer.serialize(v, &mut data, 1)?;
-    data.truncate(len + 1);
+    let len = ASN1(Integer).serialize(v, &mut data, 0)?;
+    data.truncate(len);
     Ok(data)
 }
 

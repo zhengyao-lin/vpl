@@ -1,11 +1,13 @@
 use vstd::prelude::*;
 
+use polyfill::*;
+
 use super::vest::*;
 
 verus! {
 
 #[derive(Debug)]
-pub struct Tag {
+pub struct TagValue {
     pub class: TagClass,
     pub form: TagForm,
 
@@ -28,26 +30,45 @@ pub enum TagForm {
     Constructed,
 }
 
-impl View for Tag {
-    type V = Tag;
+impl View for TagValue {
+    type V = TagValue;
 
     open spec fn view(&self) -> Self::V {
         *self
     }
 }
 
-pub struct TagParser;
+impl TagValue {
+    pub fn eq(self, other: TagValue) -> (res: bool)
+        ensures res == (self == other)
+    {
+        // TODO: fix this once Verus supports equality for enum
+        (match (self.class, other.class) {
+            (TagClass::Universal, TagClass::Universal) => true,
+            (TagClass::Application, TagClass::Application) => true,
+            (TagClass::ContextSpecific, TagClass::ContextSpecific) => true,
+            (TagClass::Private, TagClass::Private) => true,
+            _ => false,
+        }) && (match (self.form, other.form) {
+            (TagForm::Primitive, TagForm::Primitive) => true,
+            (TagForm::Constructed, TagForm::Constructed) => true,
+            _ => false,
+        }) && self.num == other.num
+    }
+}
 
-impl View for TagParser {
-    type V = TagParser;
+pub struct ASN1Tag;
+
+impl View for ASN1Tag {
+    type V = ASN1Tag;
 
     open spec fn view(&self) -> Self::V {
         *self
     }
 }
 
-impl SpecCombinator for TagParser {
-    type SpecResult = Tag;
+impl SpecCombinator for ASN1Tag {
+    type SpecResult = TagValue;
 
     open spec fn spec_parse(&self, s: Seq<u8>) -> Result<(usize, Self::SpecResult), ()> {
         if s.len() == 0 {
@@ -71,7 +92,7 @@ impl SpecCombinator for TagParser {
                 TagForm::Constructed
             };
 
-            Ok((1, Tag {
+            Ok((1, TagValue {
                 class,
                 form,
                 num: s[0] & 0b11111,
@@ -102,7 +123,7 @@ impl SpecCombinator for TagParser {
     }
 }
 
-impl SecureSpecCombinator for TagParser {
+impl SecureSpecCombinator for ASN1Tag {
     open spec fn spec_is_prefix_secure() -> bool {
         true
     }
@@ -156,9 +177,9 @@ impl SecureSpecCombinator for TagParser {
     proof fn lemma_prefix_secure(&self, s1: Seq<u8>, s2: Seq<u8>) {}
 }
 
-impl Combinator for TagParser {
-    type Result<'a> = Tag;
-    type Owned = Tag;
+impl Combinator for ASN1Tag {
+    type Result<'a> = TagValue;
+    type Owned = TagValue;
 
     open spec fn spec_length(&self) -> Option<usize> {
         Some(1)
@@ -194,7 +215,7 @@ impl Combinator for TagParser {
                 TagForm::Constructed
             };
 
-            Ok((1, Tag {
+            Ok((1, TagValue {
                 class,
                 form,
                 num: s[0] & 0b11111,
@@ -224,6 +245,133 @@ impl Combinator for TagParser {
             data.set(pos, tag);
             assert(data@ == seq_splice(old(data)@, pos, seq![tag]));
             Ok(1)
+        } else {
+            Err(())
+        }
+    }
+}
+
+/// A trait for combinators to mark their original tags
+/// (e.g. 0x02 for INTEGER)
+/// 
+/// Can be overwritten by explicit or implicit tagging
+pub trait ASN1Tagged
+{
+    spec fn spec_tag() -> TagValue;
+    fn tag() -> (res: TagValue)
+        ensures res == Self::spec_tag();
+}
+
+/// A combinator wrapper that also emits a tag before
+/// parsing/serializing the inner value
+pub struct ASN1<T>(pub T);
+
+impl<T: View> View for ASN1<T> {
+    type V = ASN1<T::V>;
+
+    open spec fn view(&self) -> Self::V {
+        ASN1(self.0.view())
+    }
+}
+
+impl<T: ASN1Tagged + SpecCombinator> SpecCombinator for ASN1<T> {
+    type SpecResult = <T as SpecCombinator>::SpecResult;
+
+    open spec fn spec_parse(&self, s: Seq<u8>) -> Result<(usize, Self::SpecResult), ()> {
+        match (ASN1Tag, self.0).spec_parse(s) {
+            Ok((n, (tag, v))) =>
+                if tag == T::spec_tag() {
+                    Ok((n, v))
+                } else {
+                    Err(())
+                }
+            Err(()) => Err(()),
+        }
+    }
+
+    proof fn spec_parse_wf(&self, s: Seq<u8>) {
+        (ASN1Tag, self.0).spec_parse_wf(s);
+    }
+
+    open spec fn spec_serialize(&self, v: Self::SpecResult) -> Result<Seq<u8>, ()> {
+        (ASN1Tag, self.0).spec_serialize((T::spec_tag(), v))
+    }
+}
+
+impl<T: ASN1Tagged + SecureSpecCombinator> SecureSpecCombinator for ASN1<T> {
+    open spec fn spec_is_prefix_secure() -> bool {
+        T::spec_is_prefix_secure()
+    }
+
+    proof fn theorem_serialize_parse_roundtrip(&self, v: Self::SpecResult) {
+        (ASN1Tag, self.0).theorem_serialize_parse_roundtrip((T::spec_tag(), v));
+    }
+
+    proof fn theorem_parse_serialize_roundtrip(&self, buf: Seq<u8>) {
+        (ASN1Tag, self.0).theorem_parse_serialize_roundtrip(buf);
+    }
+
+    proof fn lemma_prefix_secure(&self, s1: Seq<u8>, s2: Seq<u8>) {
+        (ASN1Tag, self.0).lemma_prefix_secure(s1, s2);
+    }
+}
+
+impl<T: ASN1Tagged + Combinator> Combinator for ASN1<T> where
+    T: SecureSpecCombinator<SpecResult = <<T as Combinator>::Owned as View>::V>,
+    <T as View>::V: SecureSpecCombinator<SpecResult = <<T as Combinator>::Owned as View>::V>,
+    <T as View>::V: ASN1Tagged,
+{
+    type Result<'a> = T::Result<'a>;
+    type Owned = T::Owned;
+
+    open spec fn spec_length(&self) -> Option<usize> {
+        match self.0.spec_length() {
+            Some(len) => len.checked_add(1),
+            None => None,
+        }
+    }
+
+    fn length(&self) -> Option<usize> {
+        match self.0.length() {
+            Some(len) => len.checked_add(1),
+            None => None,
+        }
+    }
+
+    fn exec_is_prefix_secure() -> bool {
+        T::exec_is_prefix_secure()
+    }
+
+    open spec fn parse_requires(&self) -> bool {
+        (ASN1Tag, self.0).parse_requires() && T::V::spec_tag() == T::spec_tag()
+    }
+
+    fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ()>) {
+        let (n1, tag) = ASN1Tag.parse(s)?;
+        let (n2, v) = self.0.parse(slice_skip(s, n1))?;
+
+        if tag.eq(T::tag()) && n1 <= usize::MAX - n2 {
+            Ok((n1 + n2, v))
+        } else {
+            Err(())
+        }
+    }
+
+    open spec fn serialize_requires(&self) -> bool {
+        (ASN1Tag, self.0).serialize_requires() && T::V::spec_tag() == T::spec_tag()
+    }
+
+    fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, ()>) {
+        let n1 = ASN1Tag.serialize(T::tag(), data, pos)?;
+        if n1 > usize::MAX - pos || n1 + pos > data.len() {
+            return Err(());
+        }
+
+        let n2 = self.0.serialize(v, data, pos + n1)?;
+
+        if n1 <= usize::MAX - n2 {
+            assert(data@ =~= seq_splice(old(data)@, pos, self@.spec_serialize(v@).unwrap()));
+            Ok(n1 + n2)
         } else {
             Err(())
         }
