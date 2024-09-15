@@ -362,7 +362,8 @@ impl<T: ASN1Tagged + Combinator> Combinator for ASN1<T> where
     }
 
     open spec fn parse_requires(&self) -> bool {
-        (ASN1Tag, self.0).parse_requires() && self.0.view().spec_tag() == self.0.spec_tag()
+        &&& self.0.parse_requires()
+        &&& self.0.view().spec_tag() == self.0.spec_tag()
     }
 
     fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ()>) {
@@ -377,7 +378,8 @@ impl<T: ASN1Tagged + Combinator> Combinator for ASN1<T> where
     }
 
     open spec fn serialize_requires(&self) -> bool {
-        (ASN1Tag, self.0).serialize_requires() && self.0.view().spec_tag() == self.0.spec_tag()
+        &&& self.0.serialize_requires()
+        &&& self.0.view().spec_tag() == self.0.spec_tag()
     }
 
     fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, ()>) {

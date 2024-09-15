@@ -16,6 +16,9 @@ pub trait PolyfillClone: View + Sized {
         ensures
             res == self.spec_clone(),
             res@ == self@;
+
+    proof fn lemma_spec_clone(&self)
+        ensures self.spec_clone()@ == self@;
 }
 
 impl PolyfillClone for UInt {
@@ -26,6 +29,8 @@ impl PolyfillClone for UInt {
     fn clone(&self) -> Self {
         *self
     }
+
+    proof fn lemma_spec_clone(&self) {}
 }
 
 impl PolyfillClone for Int {
@@ -36,6 +41,8 @@ impl PolyfillClone for Int {
     fn clone(&self) -> Self {
         *self
     }
+
+    proof fn lemma_spec_clone(&self) {}
 }
 
 impl PolyfillClone for Integer {
@@ -46,6 +53,8 @@ impl PolyfillClone for Integer {
     fn clone(&self) -> Self {
         Integer
     }
+
+    proof fn lemma_spec_clone(&self) {}
 }
 
 }

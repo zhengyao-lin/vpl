@@ -95,20 +95,28 @@ impl<T: PolyfillClone + ASN1Tagged + Combinator> Combinator for ExplicitTag<T> w
     }
 
     open spec fn parse_requires(&self) -> bool {
-        new_explicit_tag_inner_spec(self.1.spec_clone()).parse_requires()
+        // Extra clone coming from the exec parse() function
+        self.1.spec_clone().spec_clone().parse_requires()
     }
 
     fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ()>) {
+        proof {
+            lemma_new_explicit_tag_inner_parse_requires(self.1.spec_clone());
+        }
         let (len, (_, v)) = new_explicit_tag_inner(self.1.clone()).parse(s)?;
         Ok((len, v))
     }
 
     open spec fn serialize_requires(&self) -> bool {
-        new_explicit_tag_inner_spec(self.1.spec_clone()).serialize_requires() &&
-        self.1.serialize_requires()
+        self.1.serialize_requires() &&
+        self.1.spec_clone().spec_clone().serialize_requires()
     }
 
     fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, ()>) {
+        proof {
+            lemma_new_explicit_tag_inner_serialize_requires(self.1.spec_clone());
+        }
+
         // TODO: can we avoid serializing twice?
         let v_cloned = v.clone();
         let len = self.1.serialize(v_cloned, data, pos)?;
@@ -150,6 +158,7 @@ impl<T: PolyfillClone> Continuation for ExplicitTagCont<T> {
 type SpecExplicitTagInner<T> = SpecDepend<Length, AndThen<Bytes, T>>;
 type ExplicitTagInner<T> = Depend<Length, AndThen<Bytes, T>, ExplicitTagCont<T>>;
 
+/// SpecDepend version of new_explicit_tag_inner
 pub open spec fn new_spec_explicit_tag_inner<T: SpecCombinator>(inner: T) -> SpecExplicitTagInner<T> {
     SpecDepend {
         fst: Length,
@@ -172,6 +181,31 @@ pub open spec fn new_explicit_tag_inner_spec<T: PolyfillClone + Combinator>(inne
             AndThen(Bytes(l as usize), inner@)
         }),
     }
+}
+
+/// Reduce parse_requires() of ExplicitTagInner to
+/// the parse_requires() of the inner combinator
+proof fn lemma_new_explicit_tag_inner_parse_requires<T: PolyfillClone + Combinator>(inner: T) where
+    T: SecureSpecCombinator<SpecResult = <<T as Combinator>::Owned as View>::V>,
+    <T as View>::V: SecureSpecCombinator<SpecResult = <<T as Combinator>::Owned as View>::V>,
+    <T as View>::V: ASN1Tagged,
+
+    requires inner.spec_clone().parse_requires(),
+    ensures new_explicit_tag_inner_spec(inner).parse_requires(),
+{
+    inner.lemma_spec_clone();
+}
+
+/// Similar to above, but for serialize_requires()
+proof fn lemma_new_explicit_tag_inner_serialize_requires<T: PolyfillClone + Combinator>(inner: T) where
+    T: SecureSpecCombinator<SpecResult = <<T as Combinator>::Owned as View>::V>,
+    <T as View>::V: SecureSpecCombinator<SpecResult = <<T as Combinator>::Owned as View>::V>,
+    <T as View>::V: ASN1Tagged,
+
+    requires inner.spec_clone().serialize_requires(),
+    ensures new_explicit_tag_inner_spec(inner).serialize_requires(),
+{
+    inner.lemma_spec_clone();
 }
 
 fn new_explicit_tag_inner<T: PolyfillClone + Combinator>(inner: T) -> (res: ExplicitTagInner<T>) where
