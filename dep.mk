@@ -33,11 +33,11 @@ target/%/$(TARGET): \
 		pushd ../$$dep; \
 		echo "Building $$dep"; \
 		rlib=target/$*/lib$$dep.rlib; \
-		make $*; \
+		make $* || (echo "Fail to compile dependency $$dep"; exit 1) && \
 		if [ ! -f $$rlib ] || [ ! -f $$rlib.verusdata ]; then \
 			echo "Cannot find external Verus library $$rlib (or $$rlib.verusdata)"; \
 			exit 1; \
-		fi; \
+		fi && \
 		popd; \
     done
 

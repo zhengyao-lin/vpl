@@ -292,6 +292,17 @@ pub fn main() {
     diff_test_base_128_uint_serialize();
     diff_test_oid_serialize();
 
+    let mut data = vec![0; 32];
+
+    let len = ASN1(ExplicitTag(TagValue {
+        class: TagClass::ContextSpecific,
+        form: TagForm::Constructed,
+        num: 0x03,
+    }, Integer)).serialize(1023, &mut data, 0).unwrap();
+
+    data.truncate(len);
+    hexdump(data.as_slice());
+
     // let c = asn1::repeat::Repeat(Base128UInt);
 
     // let mut data = vec![0; 64];
