@@ -27,7 +27,7 @@ impl View for Integer {
 }
 
 impl ASN1Tagged for Integer {
-    open spec fn spec_tag() -> TagValue {
+    open spec fn spec_tag(&self) -> TagValue {
         TagValue {
             class: TagClass::Universal,
             form: TagForm::Primitive,
@@ -35,7 +35,7 @@ impl ASN1Tagged for Integer {
         }        
     }
 
-    fn tag() -> TagValue {
+    fn tag(&self) -> TagValue {
         TagValue {
             class: TagClass::Universal,
             form: TagForm::Primitive,

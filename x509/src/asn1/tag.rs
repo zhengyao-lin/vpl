@@ -55,6 +55,25 @@ impl TagValue {
             _ => false,
         }) && self.num == other.num
     }
+
+    /// TODO: fix after Verus supports Clone
+    pub fn clone(&self) -> (res: TagValue)
+        ensures res == *self
+    {
+        TagValue {
+            class: match self.class {
+                TagClass::Universal => TagClass::Universal,
+                TagClass::Application => TagClass::Application,
+                TagClass::ContextSpecific => TagClass::ContextSpecific,
+                TagClass::Private => TagClass::Private,
+            },
+            form: match self.form {
+                TagForm::Primitive => TagForm::Primitive,
+                TagForm::Constructed => TagForm::Constructed,
+            },
+            num: self.num,
+        }
+    }
 }
 
 pub struct ASN1Tag;
@@ -257,9 +276,9 @@ impl Combinator for ASN1Tag {
 /// Can be overwritten by explicit or implicit tagging
 pub trait ASN1Tagged
 {
-    spec fn spec_tag() -> TagValue;
-    fn tag() -> (res: TagValue)
-        ensures res == Self::spec_tag();
+    spec fn spec_tag(&self) -> TagValue;
+    fn tag(&self) -> (res: TagValue)
+        ensures res == self.spec_tag();
 }
 
 /// A combinator wrapper that also emits a tag before
@@ -280,7 +299,7 @@ impl<T: ASN1Tagged + SpecCombinator> SpecCombinator for ASN1<T> {
     open spec fn spec_parse(&self, s: Seq<u8>) -> Result<(usize, Self::SpecResult), ()> {
         match (ASN1Tag, self.0).spec_parse(s) {
             Ok((n, (tag, v))) =>
-                if tag == T::spec_tag() {
+                if tag == self.0.spec_tag() {
                     Ok((n, v))
                 } else {
                     Err(())
@@ -294,7 +313,7 @@ impl<T: ASN1Tagged + SpecCombinator> SpecCombinator for ASN1<T> {
     }
 
     open spec fn spec_serialize(&self, v: Self::SpecResult) -> Result<Seq<u8>, ()> {
-        (ASN1Tag, self.0).spec_serialize((T::spec_tag(), v))
+        (ASN1Tag, self.0).spec_serialize((self.0.spec_tag(), v))
     }
 }
 
@@ -304,7 +323,7 @@ impl<T: ASN1Tagged + SecureSpecCombinator> SecureSpecCombinator for ASN1<T> {
     }
 
     proof fn theorem_serialize_parse_roundtrip(&self, v: Self::SpecResult) {
-        (ASN1Tag, self.0).theorem_serialize_parse_roundtrip((T::spec_tag(), v));
+        (ASN1Tag, self.0).theorem_serialize_parse_roundtrip((self.0.spec_tag(), v));
     }
 
     proof fn theorem_parse_serialize_roundtrip(&self, buf: Seq<u8>) {
@@ -343,14 +362,14 @@ impl<T: ASN1Tagged + Combinator> Combinator for ASN1<T> where
     }
 
     open spec fn parse_requires(&self) -> bool {
-        (ASN1Tag, self.0).parse_requires() && T::V::spec_tag() == T::spec_tag()
+        (ASN1Tag, self.0).parse_requires() && self.0.view().spec_tag() == self.0.spec_tag()
     }
 
     fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ()>) {
         let (n1, tag) = ASN1Tag.parse(s)?;
         let (n2, v) = self.0.parse(slice_skip(s, n1))?;
 
-        if tag.eq(T::tag()) && n1 <= usize::MAX - n2 {
+        if tag.eq(self.0.tag()) && n1 <= usize::MAX - n2 {
             Ok((n1 + n2, v))
         } else {
             Err(())
@@ -358,11 +377,11 @@ impl<T: ASN1Tagged + Combinator> Combinator for ASN1<T> where
     }
 
     open spec fn serialize_requires(&self) -> bool {
-        (ASN1Tag, self.0).serialize_requires() && T::V::spec_tag() == T::spec_tag()
+        (ASN1Tag, self.0).serialize_requires() && self.0.view().spec_tag() == self.0.spec_tag()
     }
 
     fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, ()>) {
-        let n1 = ASN1Tag.serialize(T::tag(), data, pos)?;
+        let n1 = ASN1Tag.serialize(self.0.tag(), data, pos)?;
         if n1 > usize::MAX - pos || n1 + pos > data.len() {
             return Err(());
         }

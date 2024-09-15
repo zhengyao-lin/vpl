@@ -15,6 +15,7 @@ mod base128;
 mod repeat;
 mod oid;
 mod tag;
+mod implicit;
 
 pub use bounds::UInt;
 pub use var_int::*;
@@ -27,6 +28,7 @@ pub use ia5_string::*;
 pub use base128::*;
 pub use oid::*;
 pub use tag::*;
+pub use implicit::*;
 
 pub use vest::SpecCombinator;
 pub use vest::Combinator;
