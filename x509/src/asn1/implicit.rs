@@ -19,6 +19,12 @@ impl<T: ASN1Tagged> ASN1Tagged for ImplicitTag<T> {
     }
 }
 
+impl<T: View + ASN1Tagged> ViewWithASN1Tagged for ImplicitTag<T> where
+    T::V: ASN1Tagged,
+{
+    proof fn lemma_view_preserves_tag(&self) {}
+}
+
 impl<T: View> View for ImplicitTag<T> {
     type V = ImplicitTag<T::V>;
 

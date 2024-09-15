@@ -61,6 +61,10 @@ impl ASN1Tagged for BitString {
     }
 }
 
+impl ViewWithASN1Tagged for BitString {
+    proof fn lemma_view_preserves_tag(&self) {}
+}
+
 impl SpecBitStringValue {
     pub open spec fn wf(&self) -> bool {
         // Empty string

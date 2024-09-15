@@ -36,6 +36,10 @@ impl ASN1Tagged for OctetString {
     }
 }
 
+impl ViewWithASN1Tagged for OctetString {
+    proof fn lemma_view_preserves_tag(&self) {}
+}
+
 impl SpecCombinator for OctetString {
     type SpecResult = Seq<u8>;
 

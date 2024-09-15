@@ -41,6 +41,10 @@ impl ASN1Tagged for ObjectIdentifier {
     }
 }
 
+impl ViewWithASN1Tagged for ObjectIdentifier {
+    proof fn lemma_view_preserves_tag(&self) {}
+}
+
 impl ObjectIdentifier {
     /// First byte of an OID is 40 * arc1 + arc2
     pub open spec fn parse_first_two_arcs(byte: u8) -> Option<(UInt, UInt)> {

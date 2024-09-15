@@ -70,4 +70,18 @@ impl_polyfill_clone_for_base_combinator!(OctetString);
 impl_polyfill_clone_for_base_combinator!(ObjectIdentifier);
 impl_polyfill_clone_for_base_combinator!(UTF8String);
 
+impl<T: PolyfillClone> PolyfillClone for ASN1<T> {
+    open spec fn spec_clone(&self) -> Self {
+        ASN1(self.0.spec_clone())
+    }
+
+    fn clone(&self) -> Self {
+        ASN1(self.0.clone())
+    }
+
+    proof fn lemma_spec_clone(&self) {
+        self.0.lemma_spec_clone();
+    }
+}
+
 }

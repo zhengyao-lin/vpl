@@ -1,6 +1,6 @@
 #![allow(unused_imports)]
 
-mod vest;
+pub mod vest;
 
 mod var_int;
 mod len;

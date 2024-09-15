@@ -44,6 +44,10 @@ impl ASN1Tagged for Integer {
     }
 }
 
+impl ViewWithASN1Tagged for Integer {
+    proof fn lemma_view_preserves_tag(&self) {}
+}
+
 impl SpecCombinator for Integer {
     type SpecResult = IntegerValue;
 

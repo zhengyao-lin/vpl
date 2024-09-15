@@ -54,6 +54,10 @@ impl ASN1Tagged for IA5String {
     }
 }
 
+impl ViewWithASN1Tagged for IA5String {
+    proof fn lemma_view_preserves_tag(&self) {}
+}
+
 impl<'a> IA5StringValue<'a> {
     pub fn new(s: &'a [u8]) -> (res: Option<IA5StringValue<'a>>)
         ensures

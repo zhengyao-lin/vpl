@@ -37,6 +37,10 @@ impl ASN1Tagged for UTF8String {
     }
 }
 
+impl ViewWithASN1Tagged for UTF8String {
+    proof fn lemma_view_preserves_tag(&self) {}
+}
+
 impl SpecCombinator for UTF8String {
     type SpecResult = Seq<char>;
 

@@ -281,6 +281,15 @@ pub trait ASN1Tagged
         ensures res == self.spec_tag();
 }
 
+/// An additional property that if an ASN1Tagged
+/// implements View, then the viewed version preserves the tag
+pub trait ViewWithASN1Tagged: View + ASN1Tagged where
+    Self::V: ASN1Tagged,
+{
+    proof fn lemma_view_preserves_tag(&self)
+        ensures self@.spec_tag() == self.spec_tag();
+}
+
 /// A combinator wrapper that also emits a tag before
 /// parsing/serializing the inner value
 pub struct ASN1<T>(pub T);
@@ -290,6 +299,24 @@ impl<T: View> View for ASN1<T> {
 
     open spec fn view(&self) -> Self::V {
         ASN1(self.0.view())
+    }
+}
+
+impl<T: ASN1Tagged> ASN1Tagged for ASN1<T> {
+    open spec fn spec_tag(&self) -> TagValue {
+        self.0.spec_tag()
+    }
+
+    fn tag(&self) -> TagValue {
+        self.0.tag()
+    }
+}
+
+impl<T: ASN1Tagged + ViewWithASN1Tagged> ViewWithASN1Tagged for ASN1<T> where
+    T::V: ASN1Tagged,
+{
+    proof fn lemma_view_preserves_tag(&self) {
+        self.0.lemma_view_preserves_tag();
     }
 }
 
@@ -339,6 +366,7 @@ impl<T: ASN1Tagged + Combinator> Combinator for ASN1<T> where
     T: SecureSpecCombinator<SpecResult = <<T as Combinator>::Owned as View>::V>,
     <T as View>::V: SecureSpecCombinator<SpecResult = <<T as Combinator>::Owned as View>::V>,
     <T as View>::V: ASN1Tagged,
+    T: ViewWithASN1Tagged,
 {
     type Result<'a> = T::Result<'a>;
     type Owned = T::Owned;
@@ -362,11 +390,14 @@ impl<T: ASN1Tagged + Combinator> Combinator for ASN1<T> where
     }
 
     open spec fn parse_requires(&self) -> bool {
-        &&& self.0.parse_requires()
-        &&& self.0.view().spec_tag() == self.0.spec_tag()
+        self.0.parse_requires()
     }
 
     fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ()>) {
+        proof {
+            self.0.lemma_view_preserves_tag();
+        }
+
         let (n1, tag) = ASN1Tag.parse(s)?;
         let (n2, v) = self.0.parse(slice_skip(s, n1))?;
 
@@ -378,11 +409,14 @@ impl<T: ASN1Tagged + Combinator> Combinator for ASN1<T> where
     }
 
     open spec fn serialize_requires(&self) -> bool {
-        &&& self.0.serialize_requires()
-        &&& self.0.view().spec_tag() == self.0.spec_tag()
+        self.0.serialize_requires()
     }
 
     fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, ()>) {
+        proof {
+            self.0.lemma_view_preserves_tag();
+        }
+
         let n1 = ASN1Tag.serialize(self.0.tag(), data, pos)?;
         if n1 > usize::MAX - pos || n1 + pos > data.len() {
             return Err(());
@@ -396,6 +430,80 @@ impl<T: ASN1Tagged + Combinator> Combinator for ASN1<T> where
         } else {
             Err(())
         }
+    }
+}
+
+/// If T1 and T2 have different tags, then their tagged encodings are disjoint
+impl<T1, T2> SpecDisjointFrom<ASN1<T1>> for ASN1<T2> where
+    T1: ASN1Tagged + SpecCombinator,
+    T2: ASN1Tagged + SpecCombinator,
+{
+    open spec fn spec_disjoint_from(&self, other: &ASN1<T1>) -> bool {
+        self.0.spec_tag() != other.0.spec_tag()
+    }
+
+    proof fn spec_parse_disjoint_on(&self, other: &ASN1<T1>, buf: Seq<u8>) {}
+}
+
+impl<T1, T2> DisjointFrom<ASN1<T1>> for ASN1<T2> where
+    T1: ASN1Tagged + Combinator,
+    T1: SecureSpecCombinator<SpecResult = <<T1 as Combinator>::Owned as View>::V>,
+    <T1 as View>::V: SecureSpecCombinator<SpecResult = <<T1 as Combinator>::Owned as View>::V>,
+    <T1 as View>::V: ASN1Tagged,
+
+    T2: ASN1Tagged + Combinator,
+    T2: SecureSpecCombinator<SpecResult = <<T2 as Combinator>::Owned as View>::V>,
+    <T2 as View>::V: SecureSpecCombinator<SpecResult = <<T2 as Combinator>::Owned as View>::V>,
+    <T2 as View>::V: ASN1Tagged,
+
+    T1: ViewWithASN1Tagged,
+    T2: ViewWithASN1Tagged,
+{
+    fn disjoint_from(&self, other: &ASN1<T1>) -> bool {
+        proof {
+            self.0.lemma_view_preserves_tag();
+            other.0.lemma_view_preserves_tag();
+        }
+        !self.0.tag().eq(other.0.tag())
+    }
+}
+
+/// If T1 and T2 have different tags, then (T1, ...) is disjoint from T2
+impl<T1, T2, S> SpecDisjointFrom<(ASN1<T1>, S)> for ASN1<T2> where
+    T1: ASN1Tagged + SpecCombinator + SecureSpecCombinator,
+    T2: ASN1Tagged + SpecCombinator,
+    S: SpecCombinator,
+{
+    open spec fn spec_disjoint_from(&self, other: &(ASN1<T1>, S)) -> bool {
+        self.0.spec_tag() != other.0.0.spec_tag()
+    }
+
+    proof fn spec_parse_disjoint_on(&self, other: &(ASN1<T1>, S), buf: Seq<u8>) {}
+}
+
+impl<T1, T2, S> DisjointFrom<(ASN1<T1>, S)> for ASN1<T2> where
+    T1: ASN1Tagged + Combinator,
+    T1: SecureSpecCombinator<SpecResult = <<T1 as Combinator>::Owned as View>::V>,
+    <T1 as View>::V: SecureSpecCombinator<SpecResult = <<T1 as Combinator>::Owned as View>::V>,
+    <T1 as View>::V: ASN1Tagged,
+
+    T2: ASN1Tagged + Combinator,
+    T2: SecureSpecCombinator<SpecResult = <<T2 as Combinator>::Owned as View>::V>,
+    <T2 as View>::V: SecureSpecCombinator<SpecResult = <<T2 as Combinator>::Owned as View>::V>,
+    <T2 as View>::V: ASN1Tagged,
+
+    T1: ViewWithASN1Tagged,
+    T2: ViewWithASN1Tagged,
+
+    S: Combinator,
+    S::V: SecureSpecCombinator<SpecResult = <<S as Combinator>::Owned as View>::V>,
+{
+    fn disjoint_from(&self, other: &(ASN1<T1>, S)) -> bool {
+        proof {
+            self.0.lemma_view_preserves_tag();
+            other.0.0.lemma_view_preserves_tag();
+        }
+        !self.0.tag().eq(other.0.tag())
     }
 }
 
