@@ -5,6 +5,7 @@ use polyfill::*;
 
 use super::vest::*;
 use super::octet_string::*;
+use super::tag::*;
 
 verus! {
 
@@ -39,6 +40,24 @@ impl View for BitStringValueOwned {
 
     closed spec fn view(&self) -> Self::V {
         SpecBitStringValue(self.0@)
+    }
+}
+
+impl ASN1Tagged for BitString {
+    open spec fn spec_tag(&self) -> TagValue {
+        TagValue {
+            class: TagClass::Universal,
+            form: TagForm::Primitive,
+            num: 0x03,
+        }
+    }
+
+    fn tag(&self) -> TagValue {
+        TagValue {
+            class: TagClass::Universal,
+            form: TagForm::Primitive,
+            num: 0x03,
+        }
     }
 }
 

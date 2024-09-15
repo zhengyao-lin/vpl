@@ -7,6 +7,7 @@ use super::repeat::*;
 use super::base128::*;
 use super::depend::*;
 use super::len::*;
+use super::tag::*;
 
 verus! {
 
@@ -19,6 +20,24 @@ impl View for ObjectIdentifier {
 
     open spec fn view(&self) -> Self::V {
         *self
+    }
+}
+
+impl ASN1Tagged for ObjectIdentifier {
+    open spec fn spec_tag(&self) -> TagValue {
+        TagValue {
+            class: TagClass::Universal,
+            form: TagForm::Primitive,
+            num: 0x06,
+        }
+    }
+
+    fn tag(&self) -> TagValue {
+        TagValue {
+            class: TagClass::Universal,
+            form: TagForm::Primitive,
+            num: 0x06,
+        }
     }
 }
 

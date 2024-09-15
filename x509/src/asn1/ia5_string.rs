@@ -6,6 +6,7 @@ use polyfill::*;
 
 use super::vest::*;
 use super::octet_string::*;
+use super::tag::*;
 
 verus! {
 
@@ -32,6 +33,24 @@ impl View for IA5StringValueOwned {
 
     closed spec fn view(&self) -> Self::V {
         SpecIA5StringValue(self.0@)
+    }
+}
+
+impl ASN1Tagged for IA5String {
+    open spec fn spec_tag(&self) -> TagValue {
+        TagValue {
+            class: TagClass::Universal,
+            form: TagForm::Primitive,
+            num: 0x16,
+        }
+    }
+
+    fn tag(&self) -> TagValue {
+        TagValue {
+            class: TagClass::Universal,
+            form: TagForm::Primitive,
+            num: 0x16,
+        }
     }
 }
 

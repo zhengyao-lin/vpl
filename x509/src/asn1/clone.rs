@@ -4,7 +4,7 @@ use vstd::prelude::*;
 
 use super::vest::*;
 use super::bounds::*;
-use super::integer::Integer;
+use super::*;
 
 verus! {
 
@@ -45,16 +45,29 @@ impl PolyfillClone for Int {
     proof fn lemma_spec_clone(&self) {}
 }
 
-impl PolyfillClone for Integer {
-    open spec fn spec_clone(&self) -> Self {
-        *self
-    }
+macro_rules! impl_polyfill_clone_for_base_combinator {
+    ($t:ty) => {
+        ::builtin_macros::verus! {
+            impl PolyfillClone for $t {
+                open spec fn spec_clone(&self) -> Self {
+                    *self
+                }
 
-    fn clone(&self) -> Self {
-        Integer
-    }
+                fn clone(&self) -> Self {
+                    $t
+                }
 
-    proof fn lemma_spec_clone(&self) {}
+                proof fn lemma_spec_clone(&self) {}
+            }
+        }
+    };
 }
+
+impl_polyfill_clone_for_base_combinator!(super::integer::Integer);
+impl_polyfill_clone_for_base_combinator!(BitString);
+impl_polyfill_clone_for_base_combinator!(IA5String);
+impl_polyfill_clone_for_base_combinator!(OctetString);
+impl_polyfill_clone_for_base_combinator!(ObjectIdentifier);
+impl_polyfill_clone_for_base_combinator!(UTF8String);
 
 }

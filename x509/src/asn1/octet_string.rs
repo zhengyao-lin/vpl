@@ -3,6 +3,7 @@ use vstd::prelude::*;
 use super::len::*;
 use super::vest::*;
 use super::depend::*;
+use super::tag::*;
 
 verus! {
 
@@ -14,6 +15,24 @@ impl View for OctetString {
 
     open spec fn view(&self) -> Self::V {
         *self
+    }
+}
+
+impl ASN1Tagged for OctetString {
+    open spec fn spec_tag(&self) -> TagValue {
+        TagValue {
+            class: TagClass::Universal,
+            form: TagForm::Primitive,
+            num: 0x04,
+        }
+    }
+
+    fn tag(&self) -> TagValue {
+        TagValue {
+            class: TagClass::Universal,
+            form: TagForm::Primitive,
+            num: 0x04,
+        }
     }
 }
 

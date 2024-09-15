@@ -31,16 +31,16 @@ impl ASN1Tagged for Integer {
         TagValue {
             class: TagClass::Universal,
             form: TagForm::Primitive,
-            num: 2,
-        }        
+            num: 0x02,
+        }
     }
 
     fn tag(&self) -> TagValue {
         TagValue {
             class: TagClass::Universal,
             form: TagForm::Primitive,
-            num: 2,
-        }        
+            num: 0x02,
+        }
     }
 }
 

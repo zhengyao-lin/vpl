@@ -4,6 +4,7 @@ use polyfill::*;
 
 use super::len::*;
 use super::vest::*;
+use super::tag::*;
 
 verus! {
 
@@ -15,6 +16,24 @@ impl View for UTF8String {
 
     open spec fn view(&self) -> Self::V {
         *self
+    }
+}
+
+impl ASN1Tagged for UTF8String {
+    open spec fn spec_tag(&self) -> TagValue {
+        TagValue {
+            class: TagClass::Universal,
+            form: TagForm::Primitive,
+            num: 0x0c,
+        }
+    }
+
+    fn tag(&self) -> TagValue {
+        TagValue {
+            class: TagClass::Universal,
+            form: TagForm::Primitive,
+            num: 0x0c,
+        }
     }
 }
 
