@@ -12,8 +12,9 @@ mod utf8_string;
 mod bit_string;
 mod ia5_string;
 mod base128;
-pub mod repeat;
+mod repeat;
 mod oid;
+mod tag;
 
 pub use bounds::UInt;
 pub use var_int::*;
@@ -25,6 +26,7 @@ pub use bit_string::*;
 pub use ia5_string::*;
 pub use base128::*;
 pub use oid::*;
+pub use tag::*;
 
 pub use vest::SpecCombinator;
 pub use vest::Combinator;
