@@ -363,7 +363,7 @@ impl<T: ASN1Tagged + SecureSpecCombinator> SecureSpecCombinator for ASN1<T> {
 }
 
 impl<T: ASN1Tagged + Combinator> Combinator for ASN1<T> where
-    T: SecureSpecCombinator<SpecResult = <<T as Combinator>::Owned as View>::V>,
+    // T: SecureSpecCombinator<SpecResult = <<T as Combinator>::Owned as View>::V>,
     <T as View>::V: SecureSpecCombinator<SpecResult = <<T as Combinator>::Owned as View>::V>,
     <T as View>::V: ASN1Tagged,
     T: ViewWithASN1Tagged,

@@ -258,10 +258,10 @@ impl Continuation for OIDCont {
 /// The inner version parses a length first
 /// then read a single byte (for the first two arcs)
 /// and then repeatedly read a sequence of Base128UInt's
-type SpeObjectIdentifierInner = SpecDepend<Length, AndThen<Bytes, (U8, Repeat<Base128UInt>)>>;
+type SpecObjectIdentifierInner = SpecDepend<Length, AndThen<Bytes, (U8, Repeat<Base128UInt>)>>;
 type ObjectIdentifierInner = Depend<Length, AndThen<Bytes, (U8, Repeat<Base128UInt>)>, OIDCont>;
 
-pub open spec fn new_spec_object_identifier_inner() -> SpeObjectIdentifierInner {
+pub open spec fn new_spec_object_identifier_inner() -> SpecObjectIdentifierInner {
     SpecDepend {
         fst: Length,
         snd: |l| {

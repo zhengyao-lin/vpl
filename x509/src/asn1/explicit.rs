@@ -12,7 +12,7 @@ verus! {
 /// TODO: the spec of this combinator is hard to read
 pub struct ExplicitTag<T>(pub TagValue, pub T);
 
-impl<T: ASN1Tagged> ASN1Tagged for ExplicitTag<T> {
+impl<T> ASN1Tagged for ExplicitTag<T> {
     open spec fn spec_tag(&self) -> TagValue {
         self.0
     }
@@ -22,8 +22,7 @@ impl<T: ASN1Tagged> ASN1Tagged for ExplicitTag<T> {
     }
 }
 
-impl<T: View + ASN1Tagged> ViewWithASN1Tagged for ExplicitTag<T> where
-    T::V: ASN1Tagged,
+impl<T: View> ViewWithASN1Tagged for ExplicitTag<T> where
 {
     proof fn lemma_view_preserves_tag(&self) {}
 }
@@ -79,10 +78,8 @@ impl<T: SecureSpecCombinator> SecureSpecCombinator for ExplicitTag<T> {
     }
 }
 
-impl<T: PolyfillClone + ASN1Tagged + Combinator> Combinator for ExplicitTag<T> where
-    T: SecureSpecCombinator<SpecResult = <<T as Combinator>::Owned as View>::V>,
+impl<T: PolyfillCloneCombinator + Combinator> Combinator for ExplicitTag<T> where
     <T as View>::V: SecureSpecCombinator<SpecResult = <<T as Combinator>::Owned as View>::V>,
-    <T as View>::V: ASN1Tagged,
     for<'a> T::Result<'a>: PolyfillClone,
 {
     type Result<'a> = T::Result<'a>;
@@ -101,31 +98,24 @@ impl<T: PolyfillClone + ASN1Tagged + Combinator> Combinator for ExplicitTag<T> w
     }
 
     open spec fn parse_requires(&self) -> bool {
-        // Extra clone coming from the exec parse() function
-        self.1.spec_clone().spec_clone().parse_requires()
+        // Due to a combination of ExplicitTagCont and PolyfillCloneCombinator
+        &&& self.1.parse_requires()
+        &&& self.1.serialize_requires()
     }
 
     fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ()>) {
-        proof {
-            lemma_new_explicit_tag_inner_parse_requires(self.1.spec_clone());
-        }
         let (len, (_, v)) = new_explicit_tag_inner(self.1.clone()).parse(s)?;
         Ok((len, v))
     }
 
     open spec fn serialize_requires(&self) -> bool {
-        self.1.serialize_requires() &&
-        self.1.spec_clone().spec_clone().serialize_requires()
+        &&& self.1.parse_requires()
+        &&& self.1.serialize_requires()
     }
 
     fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, ()>) {
-        proof {
-            lemma_new_explicit_tag_inner_serialize_requires(self.1.spec_clone());
-        }
-
         // TODO: can we avoid serializing twice?
-        let v_cloned = v.clone();
-        let len = self.1.serialize(v_cloned, data, pos)?;
+        let len = self.1.serialize(v.clone(), data, pos)?;
         let final_len = new_explicit_tag_inner(self.1.clone()).serialize((len as LengthValue, v), data, pos)?;
 
         if pos < data.len() && final_len < data.len() - pos {
@@ -140,7 +130,9 @@ impl<T: PolyfillClone + ASN1Tagged + Combinator> Combinator for ExplicitTag<T> w
 /// The function |i| AndThen<Bytes, T>
 pub struct ExplicitTagCont<T>(pub T);
 
-impl<T: PolyfillClone> Continuation for ExplicitTagCont<T> {
+impl<T: PolyfillCloneCombinator + Combinator> Continuation for ExplicitTagCont<T> where
+    <T as View>::V: SecureSpecCombinator<SpecResult = <<T as Combinator>::Owned as View>::V>,
+{
     type Input<'a> = LengthValue;
     type Output = AndThen<Bytes, T>;
 
@@ -152,12 +144,15 @@ impl<T: PolyfillClone> Continuation for ExplicitTagCont<T> {
     }
 
     open spec fn requires<'a>(&self, i: Self::Input<'a>) -> bool {
-        true
+        self.0.parse_requires() &&
+        self.0.serialize_requires()
     }
 
     open spec fn ensures<'a>(&self, i: Self::Input<'a>, o: Self::Output) -> bool {
         // TODO: here we are cheating a bit: maybe we should use two output types (T and <T as View>::V) instead
-        o == AndThen(Bytes(i as usize), self.0.spec_clone())
+        &&& o.parse_requires()
+        &&& o.serialize_requires()
+        &&& o@ == AndThen(Bytes(i as usize), self.0@)
     }
 }
 
@@ -175,10 +170,8 @@ pub open spec fn new_spec_explicit_tag_inner<T: SpecCombinator>(inner: T) -> Spe
 }
 
 /// Spec version of new_explicit_tag_inner
-pub open spec fn new_explicit_tag_inner_spec<T: PolyfillClone + Combinator>(inner: T) -> ExplicitTagInner<T> where
-    T: SecureSpecCombinator<SpecResult = <<T as Combinator>::Owned as View>::V>,
+pub open spec fn new_explicit_tag_inner_spec<T: PolyfillCloneCombinator + Combinator>(inner: T) -> ExplicitTagInner<T> where
     <T as View>::V: SecureSpecCombinator<SpecResult = <<T as Combinator>::Owned as View>::V>,
-    <T as View>::V: ASN1Tagged,
 {
     Depend {
         fst: Length,
@@ -191,33 +184,29 @@ pub open spec fn new_explicit_tag_inner_spec<T: PolyfillClone + Combinator>(inne
 
 /// Reduce parse_requires() of ExplicitTagInner to
 /// the parse_requires() of the inner combinator
-proof fn lemma_new_explicit_tag_inner_parse_requires<T: PolyfillClone + Combinator>(inner: T) where
-    T: SecureSpecCombinator<SpecResult = <<T as Combinator>::Owned as View>::V>,
-    <T as View>::V: SecureSpecCombinator<SpecResult = <<T as Combinator>::Owned as View>::V>,
-    <T as View>::V: ASN1Tagged,
+// proof fn lemma_new_explicit_tag_inner_parse_requires<T: PolyfillCloneCombinator + Combinator>(inner: T) where
+//     T: SecureSpecCombinator<SpecResult = <<T as Combinator>::Owned as View>::V>,
+//     <T as View>::V: SecureSpecCombinator<SpecResult = <<T as Combinator>::Owned as View>::V>,
 
-    requires inner.spec_clone().parse_requires(),
-    ensures new_explicit_tag_inner_spec(inner).parse_requires(),
-{
-    inner.lemma_spec_clone();
-}
+//     requires inner.spec_clone().parse_requires(),
+//     ensures new_explicit_tag_inner_spec(inner).parse_requires(),
+// {
+//     inner.lemma_spec_clone();
+// }
 
 /// Similar to above, but for serialize_requires()
-proof fn lemma_new_explicit_tag_inner_serialize_requires<T: PolyfillClone + Combinator>(inner: T) where
-    T: SecureSpecCombinator<SpecResult = <<T as Combinator>::Owned as View>::V>,
-    <T as View>::V: SecureSpecCombinator<SpecResult = <<T as Combinator>::Owned as View>::V>,
-    <T as View>::V: ASN1Tagged,
+// proof fn lemma_new_explicit_tag_inner_serialize_requires<T: PolyfillCloneCombinator + Combinator>(inner: T) where
+//     T: SecureSpecCombinator<SpecResult = <<T as Combinator>::Owned as View>::V>,
+//     <T as View>::V: SecureSpecCombinator<SpecResult = <<T as Combinator>::Owned as View>::V>,
 
-    requires inner.spec_clone().serialize_requires(),
-    ensures new_explicit_tag_inner_spec(inner).serialize_requires(),
-{
-    inner.lemma_spec_clone();
-}
+//     requires inner.spec_clone().serialize_requires(),
+//     ensures new_explicit_tag_inner_spec(inner).serialize_requires(),
+// {
+//     inner.lemma_spec_clone();
+// }
 
-fn new_explicit_tag_inner<T: PolyfillClone + Combinator>(inner: T) -> (res: ExplicitTagInner<T>) where
-    T: SecureSpecCombinator<SpecResult = <<T as Combinator>::Owned as View>::V>,
+fn new_explicit_tag_inner<T: PolyfillCloneCombinator + Combinator>(inner: T) -> (res: ExplicitTagInner<T>) where
     <T as View>::V: SecureSpecCombinator<SpecResult = <<T as Combinator>::Owned as View>::V>,
-    <T as View>::V: ASN1Tagged,
     
     ensures
         res == new_explicit_tag_inner_spec(inner),
