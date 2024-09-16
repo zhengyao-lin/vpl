@@ -126,6 +126,21 @@ verus! {
         println_join!("serialized:");
         hexdump(buf.as_slice());
 
+        let attribute: Vec<u8> = vec![0x30, 0x09, 0x06, 0x03, 0x55, 0x04, 0x06, 0x13, 0x02, 0x55, 0x53];
+
+        let x509_attribute_type_and_value = ASN1(ExplicitTag(TagValue {
+            class: TagClass::Universal,
+            form: TagForm::Constructed,
+            num: 0x10,
+        }, (ASN1(ObjectIdentifier), Tail)));
+
+        println_join!("parsed: ", format_dbg(x509_attribute_type_and_value.parse(attribute.as_slice())?));
+
+        // let x509_name = ASN1(SequenceOf(
+        //     ASN1(SequenceOf(ASN1(
+
+        // )))))
+
         Ok(())
     }
 }
