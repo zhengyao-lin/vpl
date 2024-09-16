@@ -9,7 +9,6 @@ use super::clone::*;
 verus! {
 
 /// Explicit tagging wrapps the inner combinator in a new TLV tuple
-/// TODO: the spec of this combinator is hard to read
 pub struct ExplicitTag<T>(pub TagValue, pub T);
 
 impl<T> ASN1Tagged for ExplicitTag<T> {
@@ -99,8 +98,7 @@ impl<T: PolyfillCloneCombinator + Combinator> Combinator for ExplicitTag<T> wher
 
     open spec fn parse_requires(&self) -> bool {
         // Due to a combination of ExplicitTagCont and PolyfillCloneCombinator
-        &&& self.1.parse_requires()
-        &&& self.1.serialize_requires()
+        self.1.parse_requires()
     }
 
     fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ()>) {
@@ -109,8 +107,7 @@ impl<T: PolyfillCloneCombinator + Combinator> Combinator for ExplicitTag<T> wher
     }
 
     open spec fn serialize_requires(&self) -> bool {
-        &&& self.1.parse_requires()
-        &&& self.1.serialize_requires()
+        self.1.serialize_requires()
     }
 
     fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, ()>) {
@@ -137,21 +134,16 @@ impl<T: PolyfillCloneCombinator + Combinator> Continuation for ExplicitTagCont<T
     type Output = AndThen<Bytes, T>;
 
     fn apply<'a>(&self, i: Self::Input<'a>) -> (o: Self::Output) {
-        let res = AndThen(Bytes(i as usize), self.0.clone());
-        // TODO: requiring this seems to be a Verus bug
-        assert(self.ensures(i, res));
-        res
+        AndThen(Bytes(i as usize), self.0.clone())
     }
 
     open spec fn requires<'a>(&self, i: Self::Input<'a>) -> bool {
-        self.0.parse_requires() &&
-        self.0.serialize_requires()
+        true
     }
 
     open spec fn ensures<'a>(&self, i: Self::Input<'a>, o: Self::Output) -> bool {
-        // TODO: here we are cheating a bit: maybe we should use two output types (T and <T as View>::V) instead
-        &&& o.parse_requires()
-        &&& o.serialize_requires()
+        &&& self.0.parse_requires() ==> o.parse_requires()
+        &&& self.0.serialize_requires() ==> o.serialize_requires()
         &&& o@ == AndThen(Bytes(i as usize), self.0@)
     }
 }
@@ -170,7 +162,7 @@ pub open spec fn new_spec_explicit_tag_inner<T: SpecCombinator>(inner: T) -> Spe
 }
 
 /// Spec version of new_explicit_tag_inner
-pub open spec fn new_explicit_tag_inner_spec<T: PolyfillCloneCombinator + Combinator>(inner: T) -> ExplicitTagInner<T> where
+closed spec fn new_explicit_tag_inner_spec<T: PolyfillCloneCombinator + Combinator>(inner: T) -> ExplicitTagInner<T> where
     <T as View>::V: SecureSpecCombinator<SpecResult = <<T as Combinator>::Owned as View>::V>,
 {
     Depend {
@@ -181,29 +173,6 @@ pub open spec fn new_explicit_tag_inner_spec<T: PolyfillCloneCombinator + Combin
         }),
     }
 }
-
-/// Reduce parse_requires() of ExplicitTagInner to
-/// the parse_requires() of the inner combinator
-// proof fn lemma_new_explicit_tag_inner_parse_requires<T: PolyfillCloneCombinator + Combinator>(inner: T) where
-//     T: SecureSpecCombinator<SpecResult = <<T as Combinator>::Owned as View>::V>,
-//     <T as View>::V: SecureSpecCombinator<SpecResult = <<T as Combinator>::Owned as View>::V>,
-
-//     requires inner.spec_clone().parse_requires(),
-//     ensures new_explicit_tag_inner_spec(inner).parse_requires(),
-// {
-//     inner.lemma_spec_clone();
-// }
-
-/// Similar to above, but for serialize_requires()
-// proof fn lemma_new_explicit_tag_inner_serialize_requires<T: PolyfillCloneCombinator + Combinator>(inner: T) where
-//     T: SecureSpecCombinator<SpecResult = <<T as Combinator>::Owned as View>::V>,
-//     <T as View>::V: SecureSpecCombinator<SpecResult = <<T as Combinator>::Owned as View>::V>,
-
-//     requires inner.spec_clone().serialize_requires(),
-//     ensures new_explicit_tag_inner_spec(inner).serialize_requires(),
-// {
-//     inner.lemma_spec_clone();
-// }
 
 fn new_explicit_tag_inner<T: PolyfillCloneCombinator + Combinator>(inner: T) -> (res: ExplicitTagInner<T>) where
     <T as View>::V: SecureSpecCombinator<SpecResult = <<T as Combinator>::Owned as View>::V>,

@@ -102,7 +102,6 @@ impl<C: PolyfillCloneCombinator + Combinator> Combinator for SequenceOf<C> where
     open spec fn parse_requires(&self) -> bool {
         &&& <C as View>::V::spec_is_prefix_secure()
         &&& self.0.parse_requires()
-        &&& self.0.serialize_requires()
     }
 
     fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ()>) {
@@ -111,7 +110,6 @@ impl<C: PolyfillCloneCombinator + Combinator> Combinator for SequenceOf<C> where
 
     open spec fn serialize_requires(&self) -> bool {
         &&& <C as View>::V::spec_is_prefix_secure()
-        &&& self.0.parse_requires()
         &&& self.0.serialize_requires()
     }
 
