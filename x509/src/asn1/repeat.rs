@@ -1,15 +1,14 @@
 use vstd::prelude::*;
-
-use polyfill::*;
+use vstd::slice::slice_subrange;
 
 use super::vest::*;
 
 verus! {
 
-/// A combinator to repeated parse/serialize another combinator C
-/// until the end of the buffer
-/// 
-/// If the combinator fails before the end of the buffer, we fail
+/// A combinator to repeatedly parse/serialize the inner combinator C
+/// until the end of the buffer.
+///
+/// If the inner combinator fails before the end of the buffer, Repeat fails
 pub struct Repeat<C>(pub C);
 
 /// Wrappers around Vec so that their View's can be implemented as DeepView
@@ -17,6 +16,7 @@ pub struct Repeat<C>(pub C);
 pub struct RepeatResult<'a, C: Combinator>(pub Vec<C::Result<'a>>)
     where <C as View>::V: SecureSpecCombinator<SpecResult = <C::Owned as View>::V>;
 
+/// Owned version of RepeatResult
 #[derive(Debug)]
 pub struct RepeatResultOwned<C: Combinator>(pub Vec<C::Owned>)
     where <C as View>::V: SecureSpecCombinator<SpecResult = <C::Owned as View>::V>;
@@ -108,8 +108,9 @@ impl<C: SpecCombinator + SecureSpecCombinator> SpecCombinator for Repeat<C> {
 }
 
 impl<C: SecureSpecCombinator> SecureSpecCombinator for Repeat<C> {
+    /// Prepending bytes to the buffer may result in more items parsed
+    /// so Repeat is not prefix secure
     open spec fn spec_is_prefix_secure() -> bool {
-        // Prepending stuff to the buffer may result in more elements read
         false
     }
 
@@ -132,7 +133,7 @@ impl<C: SecureSpecCombinator> SecureSpecCombinator for Repeat<C> {
                     self.0.lemma_prefix_secure(s, rest);
                     let (n, _) = self.0.spec_parse(s + rest).unwrap();
                     self.0.spec_parse_wf(s + rest);
-                    
+
                     assert((s + rest).skip(n as int) =~= rest);
                     assert(seq![v[0]] + v.drop_first() == v);
                 }
@@ -172,23 +173,21 @@ impl<C: Combinator> Repeat<C> where
         Seq::new(v.len() as nat, |i: int| v@[i]@)
     }
 
-    /// TODO: Not ideal, but hopefully tail call opt will kick in
+    /// Helper function for parse()
+    /// TODO: Recursion is not ideal, but hopefully tail call opt will kick in
     fn parse_helper<'a>(&self, s: &'a [u8], res: &mut Vec<C::Result<'a>>) -> (suc: bool)
         requires
             self.0.parse_requires(),
+            <C as View>::V::spec_is_prefix_secure(),
 
         ensures
             suc ==> {
                 &&& self@.spec_parse(s@) is Ok
                 &&& self@.spec_parse(s@) matches Ok((n, v)) ==>
-                    RepeatResult::<C>(*res)@ == RepeatResult::<C>(*old(res))@ + v
+                    RepeatResult::<C>(*res)@ =~= RepeatResult::<C>(*old(res))@ + v
             },
             !suc ==> self@.spec_parse(s@) is Err
     {
-        if !C::exec_is_prefix_secure() {
-            return false;
-        }
-
         if s.len() == 0 {
             return true;
         }
@@ -196,54 +195,43 @@ impl<C: Combinator> Repeat<C> where
         if let Ok((n, v)) = self.0.parse(s) {
             if n > 0 {
                 res.push(v);
-
-                if self.parse_helper(slice_skip(s, n), res) {
-                    assert(seq![v@] + self@.spec_parse(s@.skip(n as int)).unwrap().1 == self@.spec_parse(s@).unwrap().1);
-                    assert(RepeatResult::<C>(*res)@ == RepeatResult::<C>(*old(res))@ + (seq![v@] + self@.spec_parse(s@.skip(n as int)).unwrap().1));
-                    return true;
-                }
+                return self.parse_helper(slice_subrange(s, n, s.len()), res);
             }
         }
 
         return false;
     }
 
-    fn serialize_helper(&self, v: &mut RepeatResult<'_, C>, data: &mut Vec<u8>, pos: usize) -> (res: Option<usize>)
+    fn serialize_helper(&self, v: &mut RepeatResult<'_, C>, data: &mut Vec<u8>, pos: usize, len: usize) -> (res: Option<usize>)
         requires
             self.0.serialize_requires(),
+            <C as View>::V::spec_is_prefix_secure(),
 
         ensures
             data@.len() == old(data)@.len(),
             res matches Some(n) ==> {
                 &&& self@.spec_serialize(old(v)@) is Ok
                 &&& self@.spec_serialize(old(v)@) matches Ok(s) ==>
-                    n == s.len() && data@ =~= seq_splice(old(data)@, pos, s)
+                    n == (len + s.len()) && data@ =~= seq_splice(old(data)@, (pos + len) as usize, s)
             },
     {
-        if !C::exec_is_prefix_secure() {
-            return None;
-        }
-
-        if pos >= data.len() {
+        if pos > usize::MAX - len || pos + len >= data.len() {
             return None;
         }
 
         if v.0.len() == 0 {
             assert(data@ =~= seq_splice(old(data)@, pos, seq![]));
-            return Some(0);
+            return Some(len);
         }
-        
-        if let Ok(n1) = self.0.serialize(v.0.remove(0), data, pos) {
+
+        if let Ok(n1) = self.0.serialize(v.0.remove(0), data, pos + len) {
             assert(v@ =~= old(v)@.drop_first());
 
             if n1 != 0 {
                 let ghost data2 = data@;
 
-                if let Some(n2) = self.serialize_helper(v, data, pos + n1) {
-                    if let Some(n) = n1.checked_add(n2) {
-                        assert(data@ =~= seq_splice(old(data)@, pos, self@.spec_serialize(old(v)@).unwrap()));
-                        return Some(n);
-                    }
+                if let Some(next_len) = len.checked_add(n1) {
+                    return self.serialize_helper(v, data, pos, next_len);
                 }
             }
         }
@@ -271,12 +259,13 @@ impl<C: Combinator> Combinator for Repeat<C> where
     }
 
     open spec fn parse_requires(&self) -> bool {
-        self.0.parse_requires()
+        &&& <C as View>::V::spec_is_prefix_secure()
+        &&& self.0.parse_requires()
     }
 
     fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ()>) {
         let mut res = Vec::new();
-    
+
         if self.parse_helper(s, &mut res) {
             Ok((s.len(), RepeatResult(res)))
         } else {
@@ -285,11 +274,12 @@ impl<C: Combinator> Combinator for Repeat<C> where
     }
 
     open spec fn serialize_requires(&self) -> bool {
-        self.0.serialize_requires()
+        &&& <C as View>::V::spec_is_prefix_secure()
+        &&& self.0.serialize_requires()
     }
 
     fn serialize(&self, mut v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, ()>) {
-        if let Some(n) = self.serialize_helper(&mut v, data, pos) {
+        if let Some(n) = self.serialize_helper(&mut v, data, pos, 0) {
             assert(v@.skip(0) == v@);
             Ok(n)
         } else {
