@@ -9,6 +9,16 @@ use asn1::*;
 use asn1::vest::*;
 
 verus! {
+    #[verifier::external_body]
+    fn hexdump(data: &[u8]) {
+        for chunk in data.chunks(16) {
+            for byte in chunk {
+                print!("{:02x} ", byte);
+            }
+            println!();
+        }
+    }
+
     fn test_x509() -> Result<(), ()> {
         // -----BEGIN CERTIFICATE-----
         // MIIFWTCCA0GgAwIBAgIBAjANBgkqhkiG9w0BAQsFADBOMQswCQYDVQQGEwJOTzEd
@@ -108,6 +118,14 @@ verus! {
 
         println_join!("parsed: ", format_dbg(res));
 
+        let string_seq = RepeatResult(vec![ "hello", "world" ]);
+        let mut buf = vec![ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ];
+        let len = ASN1(SequenceOf(ASN1(UTF8String))).serialize(string_seq, &mut buf, 0)?;
+        buf.truncate(len);
+
+        println_join!("serialized:");
+        hexdump(buf.as_slice());
+
         Ok(())
     }
 }
@@ -177,7 +195,7 @@ fn diff_test_int_serialize() {
     let diff = |i| {
         let res1 = serialize_int(i);
         let res2 = i.to_der();
-        
+
         // println!("Testing {}", i);
 
         match (&res1, &res2) {
@@ -212,7 +230,7 @@ fn diff_test_octet_string_serialize() {
     let diff = |bytes: &[u8]| {
         let res1 = serialize_octet_string(bytes);
         let res2 = der::asn1::OctetString::new(bytes).unwrap().to_der();
-        
+
         // println!("Testing {:?}: {:?} {:?}", bytes, res1, res2);
 
         match (&res1, &res2) {
@@ -269,7 +287,7 @@ fn diff_test_bit_string_serialize() {
     let diff = |raw: &[u8]| {
         let res1 = serialize_bit_string(BitStringValue::new_raw(raw).unwrap());
         let res2 = der::asn1::BitString::new(raw[0], &raw[1..]).unwrap().to_der();
-        
+
         // println!("Testing {:?}: {:?} {:?}", raw, res1, res2);
 
         match (&res1, &res2) {
@@ -379,15 +397,6 @@ fn diff_test_oid_serialize() {
     diff(vec![2, 39, 123214, 1231, 4534, 231]);
 }
 
-fn hexdump(data: &[u8]) {
-    for chunk in data.chunks(16) {
-        for byte in chunk {
-            print!("{:02x} ", byte);
-        }
-        println!();
-    }
-}
-
 pub fn main() {
     test_var_int();
     test_length();
@@ -401,6 +410,8 @@ pub fn main() {
     diff_test_oid_serialize();
 
     println!("{:?}", test_x509());
+
+    // hexdump(&(vec!["hello".to_string(), "world".to_string()]).to_der().unwrap());
 
     // Large serial numbers
     // ASN1(Integer).parse(&[0x02, 0x0D, 0x02, 0x03, 0xE5, 0x93, 0x6F, 0x31, 0xB0, 0x13, 0x49, 0x88, 0x6B, 0xA2, 0x17]).unwrap();

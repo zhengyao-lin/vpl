@@ -40,6 +40,12 @@ impl PolyfillClone for Int {
     }
 }
 
+impl<'a> PolyfillClone for &'a str {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
 macro_rules! impl_polyfill_clone_for_base_combinator {
     ($t:ty) => {
         ::builtin_macros::verus! {
