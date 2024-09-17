@@ -9,6 +9,7 @@ use super::tag::*;
 verus! {
 
 /// Combainator for UTF8String in ASN.1
+#[derive(Debug)]
 pub struct UTF8String;
 
 impl View for UTF8String {
@@ -171,7 +172,7 @@ impl Combinator for UTF8String {
         }
 
         let ghost data_after_len = data@;
-        
+
         // No Vec::splice yet in Verus
         for i in 0..s.len()
             invariant

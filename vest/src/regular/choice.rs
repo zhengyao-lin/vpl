@@ -23,6 +23,7 @@ impl<A: View, B: View> View for Either<A, B> {
 }
 
 /// Combinator that tries the `Fst` combinator and if it fails, tries the `Snd` combinator.
+#[derive(Debug)]
 pub struct OrdChoice<Fst, Snd>(pub Fst, pub Snd);
 
 impl<Fst, Snd> OrdChoice<Fst, Snd> where

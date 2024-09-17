@@ -79,6 +79,15 @@ impl<T1: PolyfillClone, T2: PolyfillClone> PolyfillClone for (T1, T2) {
     }
 }
 
+impl<T1: PolyfillClone, T2: PolyfillClone> PolyfillClone for Either<T1, T2> {
+    fn clone(&self) -> Self {
+        match self {
+            Either::Left(v) => Either::Left(v.clone()),
+            Either::Right(v) => Either::Right(v.clone()),
+        }
+    }
+}
+
 macro_rules! impl_polyfill_clone_for_base_combinator {
     ($t:ty) => {
         ::builtin_macros::verus! {
@@ -98,6 +107,7 @@ impl_polyfill_clone_for_base_combinator!(IA5String);
 impl_polyfill_clone_for_base_combinator!(OctetString);
 impl_polyfill_clone_for_base_combinator!(ObjectIdentifier);
 impl_polyfill_clone_for_base_combinator!(UTF8String);
+impl_polyfill_clone_for_base_combinator!(PrintableString);
 
 impl<T1: PolyfillCloneCombinator, T2: PolyfillCloneCombinator> PolyfillCloneCombinator for (T1, T2) where
     <T1 as View>::V: SecureSpecCombinator<SpecResult = <T1::Owned as View>::V>,
@@ -105,6 +115,17 @@ impl<T1: PolyfillCloneCombinator, T2: PolyfillCloneCombinator> PolyfillCloneComb
 {
     fn clone(&self) -> Self {
         (self.0.clone(), self.1.clone())
+    }
+}
+
+impl<T1: PolyfillCloneCombinator, T2: PolyfillCloneCombinator> PolyfillCloneCombinator for OrdChoice<T1, T2> where
+    <T1 as View>::V: SecureSpecCombinator<SpecResult = <T1::Owned as View>::V>,
+    <T2 as View>::V: SecureSpecCombinator<SpecResult = <T2::Owned as View>::V>,
+    <T2 as View>::V: SpecDisjointFrom<T1::V>,
+    T2: DisjointFrom<T1>,
+{
+    fn clone(&self) -> Self {
+        OrdChoice(self.0.clone(), self.1.clone())
     }
 }
 

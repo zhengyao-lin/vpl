@@ -1,4 +1,5 @@
 mod asn1;
+mod x509;
 
 use polyfill::*;
 use vstd::prelude::*;
@@ -133,7 +134,10 @@ verus! {
             class: TagClass::Universal,
             form: TagForm::Constructed,
             num: 0x10,
-        }, (ASN1(ObjectIdentifier), Tail)));
+        }, (ASN1(ObjectIdentifier), OrdChoice::new(
+            ASN1(UTF8String),
+            ASN1(PrintableString),
+        ))));
 
         let x509_relative_distinguished_name = ASN1(ImplicitTag(TagValue {
             class: TagClass::Universal,
