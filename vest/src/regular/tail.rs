@@ -4,6 +4,7 @@ use vstd::prelude::*;
 verus! {
 
 /// Combinator that returns the rest of the input bytes from the current position.
+#[derive(Debug)]
 pub struct Tail;
 
 impl View for Tail {

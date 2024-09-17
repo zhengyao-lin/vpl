@@ -9,6 +9,7 @@ use super::clone::*;
 verus! {
 
 /// Explicit tagging wrapps the inner combinator in a new TLV tuple
+#[derive(Debug)]
 pub struct ExplicitTag<T>(pub TagValue, pub T);
 
 impl<T> ASN1Tagged for ExplicitTag<T> {
@@ -176,7 +177,7 @@ closed spec fn new_explicit_tag_inner_spec<T: PolyfillCloneCombinator + Combinat
 
 fn new_explicit_tag_inner<T: PolyfillCloneCombinator + Combinator>(inner: T) -> (res: ExplicitTagInner<T>) where
     <T as View>::V: SecureSpecCombinator<SpecResult = <<T as Combinator>::Owned as View>::V>,
-    
+
     ensures
         res == new_explicit_tag_inner_spec(inner),
         res@ == new_spec_explicit_tag_inner(inner@),

@@ -241,7 +241,7 @@ impl Combinator for ASN1Tag {
             }))
         }
     }
-    
+
     fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, ()>) {
         let class: u8 = match v.class {
             TagClass::Universal => 0,
@@ -272,7 +272,7 @@ impl Combinator for ASN1Tag {
 
 /// A trait for combinators to mark their original tags
 /// (e.g. 0x02 for INTEGER)
-/// 
+///
 /// Can be overwritten by explicit or implicit tagging
 pub trait ASN1Tagged
 {
@@ -292,6 +292,7 @@ pub trait ViewWithASN1Tagged: View + ASN1Tagged where
 
 /// A combinator wrapper that also emits a tag before
 /// parsing/serializing the inner value
+#[derive(Debug)]
 pub struct ASN1<T>(pub T);
 
 impl<T: View> View for ASN1<T> {

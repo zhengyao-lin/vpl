@@ -1,3 +1,4 @@
+use der::Sequence;
 /// Implement PolyfillClone for some types
 
 use vstd::prelude::*;
@@ -104,6 +105,25 @@ impl<T1: PolyfillCloneCombinator, T2: PolyfillCloneCombinator> PolyfillCloneComb
 {
     fn clone(&self) -> Self {
         (self.0.clone(), self.1.clone())
+    }
+}
+
+impl<T: PolyfillCloneCombinator> PolyfillCloneCombinator for ImplicitTag<T> where
+    <T as View>::V: SecureSpecCombinator<SpecResult = <T::Owned as View>::V>,
+    <T as View>::V: ASN1Tagged,
+    T: ViewWithASN1Tagged,
+{
+    fn clone(&self) -> Self {
+        ImplicitTag(self.0.clone(), self.1.clone())
+    }
+}
+
+impl<T: PolyfillCloneCombinator> PolyfillCloneCombinator for ExplicitTag<T> where
+    <T as View>::V: SecureSpecCombinator<SpecResult = <T::Owned as View>::V>,
+    for<'a> <T as Combinator>::Result<'a>: PolyfillClone,
+{
+    fn clone(&self) -> Self {
+        ExplicitTag(self.0.clone(), self.1.clone())
     }
 }
 

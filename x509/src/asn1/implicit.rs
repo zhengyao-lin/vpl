@@ -7,6 +7,7 @@ verus! {
 
 /// Implicit tagging replaces the tag value in the ASN1Tagged trait,
 /// but otherwise parses/serializes exactly the same way as the inner combinator
+#[derive(Debug)]
 pub struct ImplicitTag<T>(pub TagValue, pub T);
 
 impl<T: ASN1Tagged> ASN1Tagged for ImplicitTag<T> {
@@ -68,7 +69,6 @@ impl<T: SecureSpecCombinator> SecureSpecCombinator for ImplicitTag<T> {
 }
 
 impl<T: ASN1Tagged + Combinator> Combinator for ImplicitTag<T> where
-    T: SecureSpecCombinator<SpecResult = <<T as Combinator>::Owned as View>::V>,
     <T as View>::V: SecureSpecCombinator<SpecResult = <<T as Combinator>::Owned as View>::V>,
     <T as View>::V: ASN1Tagged,
 {

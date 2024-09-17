@@ -126,7 +126,8 @@ verus! {
         println_join!("serialized:");
         hexdump(buf.as_slice());
 
-        let attribute: Vec<u8> = vec![0x30, 0x09, 0x06, 0x03, 0x55, 0x04, 0x06, 0x13, 0x02, 0x55, 0x53];
+        // 30 47 31 0B 30 09 06 03 55 04 06 13 02 55 53 31 22 30 20 06 03 55 04 0A 13 19 47 6F 6F 67 6C 65 20 54 72 75 73 74 20 53 65 72 76 69 63 65 73 20 4C 4C 43 31 14 30 12 06 03 55 04 03 13 0B 47 54 53 20 52 6F 6F 74 20 52 31
+        let issuer: Vec<u8> = vec![0x30, 0x47, 0x31, 0x0B, 0x30, 0x09, 0x06, 0x03, 0x55, 0x04, 0x06, 0x13, 0x02, 0x55, 0x53, 0x31, 0x22, 0x30, 0x20, 0x06, 0x03, 0x55, 0x04, 0x0A, 0x13, 0x19, 0x47, 0x6F, 0x6F, 0x67, 0x6C, 0x65, 0x20, 0x54, 0x72, 0x75, 0x73, 0x74, 0x20, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x73, 0x20, 0x4C, 0x4C, 0x43, 0x31, 0x14, 0x30, 0x12, 0x06, 0x03, 0x55, 0x04, 0x03, 0x13, 0x0B, 0x47, 0x54, 0x53, 0x20, 0x52, 0x6F, 0x6F, 0x74, 0x20, 0x52, 0x31];
 
         let x509_attribute_type_and_value = ASN1(ExplicitTag(TagValue {
             class: TagClass::Universal,
@@ -134,7 +135,15 @@ verus! {
             num: 0x10,
         }, (ASN1(ObjectIdentifier), Tail)));
 
-        println_join!("parsed: ", format_dbg(x509_attribute_type_and_value.parse(attribute.as_slice())?));
+        let x509_relative_distinguished_name = ASN1(ImplicitTag(TagValue {
+            class: TagClass::Universal,
+            form: TagForm::Constructed,
+            num: 0x11,
+        }, SequenceOf(x509_attribute_type_and_value)));
+
+        let x509_rdn_sequence = ASN1(SequenceOf(x509_relative_distinguished_name));
+
+        println_join!("parsed: ", format_dbg(x509_rdn_sequence.parse(issuer.as_slice())?));
 
         // let x509_name = ASN1(SequenceOf(
         //     ASN1(SequenceOf(ASN1(

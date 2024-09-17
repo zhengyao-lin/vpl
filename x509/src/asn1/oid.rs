@@ -12,6 +12,7 @@ use super::tag::*;
 verus! {
 
 /// Combinator for ASN.1 Object Identifier
+#[derive(Debug)]
 pub struct ObjectIdentifier;
 pub type ObjectIdentifierValue = Vec<UInt>;
 
@@ -50,7 +51,7 @@ impl ObjectIdentifier {
     pub open spec fn parse_first_two_arcs(byte: u8) -> Option<(UInt, UInt)> {
         let arc1 = byte / 40;
         let arc2 = byte % 40;
-        
+
         if arc1 <= 2 && arc2 <= 39 {
             Some((arc1 as UInt, arc2 as UInt))
         } else {
@@ -130,7 +131,7 @@ impl SecureSpecCombinator for ObjectIdentifier {
             let first_byte = Self::serialize_first_two_arcs(v[0], v[1]).unwrap();
             let rest_arcs = v.skip(2);
             let buf = (U8, Repeat(Base128UInt)).spec_serialize((first_byte, rest_arcs)).unwrap();
-        
+
             new_spec_object_identifier_inner().theorem_serialize_parse_roundtrip((buf.len() as LengthValue, (first_byte, rest_arcs)));
             Self::lemma_serialize_parse_first_two_arcs(v[0], v[1]);
 
@@ -143,7 +144,7 @@ impl SecureSpecCombinator for ObjectIdentifier {
     proof fn theorem_parse_serialize_roundtrip(&self, buf: Seq<u8>) {
         if let Ok((len, v)) = self.spec_parse(buf) {
             let (_, (_, (first_byte, rest_arcs))) = new_spec_object_identifier_inner().spec_parse(buf).unwrap();
-            
+
             new_spec_object_identifier_inner().theorem_parse_serialize_roundtrip(buf);
             Self::lemma_parse_serialize_first_two_arcs(first_byte);
 
@@ -225,7 +226,7 @@ impl Combinator for ObjectIdentifier {
                 if pos.checked_add(len2).is_some() && pos + len2 <= data.len() {
                     assert(rest_arcs_cloned@ == old_v.skip(2));
                     assert(data@ =~= seq_splice(old(data)@, pos, self.spec_serialize(old_v).unwrap()));
-                    
+
                     return Ok(len2);
                 }
             }
