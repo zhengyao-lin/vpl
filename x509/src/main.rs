@@ -4,6 +4,8 @@ mod name;
 mod rdn;
 mod dir_string;
 mod attr_typ_val;
+mod alg_id;
+
 mod utils;
 
 use polyfill::*;
@@ -143,6 +145,12 @@ verus! {
         // let x509_rdn_sequence = ASN1(SequenceOf(x509_relative_distinguished_name));
 
         println_join!("parsed: ", format_dbg(name::x509_name().parse(issuer.as_slice())?));
+
+        println_join!("parsed: ", format_dbg(alg_id::x509_algorithm_identifier().parse(
+            &[
+                0x30, 0x0D, 0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x01, 0x0C, 0x05, 0x00
+            ]
+        )?));
 
         // let x509_name = ASN1(SequenceOf(
         //     ASN1(SequenceOf(ASN1(
