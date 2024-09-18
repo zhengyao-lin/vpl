@@ -53,7 +53,8 @@ target/%/$(TARGET): \
 		--compile \
 		$(if $(filter release,$*),-C opt-level=3) \
 		-o target/$*/$(TARGET) \
-		--export target/$*/$(TARGET).verusdata
+		--export target/$*/$(TARGET).verusdata \
+		$(VERUS_FLAGS)
 
 target/debug/lib%.rlib: Cargo.toml
 	cargo build --package=$*

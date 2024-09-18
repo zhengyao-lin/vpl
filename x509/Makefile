@@ -4,5 +4,6 @@ MAIN = src/main.rs
 
 CARGO_DEPS = der
 VERUS_DEPS = vest polyfill
+VERUS_FLAGS = --rlimit 20
 
 include ../dep.mk
