@@ -2,6 +2,8 @@ use vstd::prelude::*;
 
 use polyfill::*;
 
+use crate::utils::*;
+
 use super::vest::*;
 use super::var_int::*;
 use super::len::*;
@@ -16,15 +18,9 @@ pub type IntegerValue = VarIntResult;
 /// Combinator for ASN.1 integers (without the preceding tag)
 /// This combinator uses IntegerInner with the additional constraint
 /// of is_min_num_bytes_signed
+#[derive(Debug)]
 pub struct Integer;
-
-impl View for Integer {
-    type V = Integer;
-
-    open spec fn view(&self) -> Self::V {
-        *self
-    }
-}
+impl_trivial_view!(Integer);
 
 impl ASN1Tagged for Integer {
     open spec fn spec_tag(&self) -> TagValue {

@@ -1,5 +1,7 @@
 use vstd::prelude::*;
 
+use crate::utils::*;
+
 use super::vest::*;
 use super::octet_string::*;
 use super::tag::*;
@@ -9,21 +11,15 @@ verus! {
 /// If it's expected that an INTEGER field is larger than the Int type,
 /// then use this combinator to read it as an octet string (with
 /// some minimality constraints).
+#[derive(Debug)]
 pub struct BigInt;
+impl_trivial_view!(BigInt);
 
 /// BigInt represents the integer with a sequence of bytes in big-endian order
 /// (same as ASN.1) and the most significant bit of the first byte is the sign bit.
 #[derive(Debug)]
 pub struct BigIntValue<'a>(&'a [u8]);
 pub struct BigIntValueOwned(Vec<u8>);
-
-impl View for BigInt {
-    type V = BigInt;
-
-    open spec fn view(&self) -> Self::V {
-        *self
-    }
-}
 
 impl<'a> View for BigIntValue<'a> {
     type V = Seq<u8>;

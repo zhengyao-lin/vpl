@@ -39,6 +39,7 @@ pub use explicit::*;
 pub use big_int::*;
 pub use seq_of::*;
 pub use repeat::*;
+pub use clone::*;
 
 pub use vest::SpecCombinator;
 pub use vest::Combinator;

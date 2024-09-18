@@ -2,6 +2,8 @@ use vstd::prelude::*;
 
 use polyfill::*;
 
+use crate::utils::*;
+
 use super::vest::*;
 use super::bounds::*;
 use super::var_int::*;
@@ -9,17 +11,11 @@ use super::var_int::*;
 verus! {
 
 /// Combinator for the length field in a TLV tuple
+#[derive(Debug)]
 pub struct Length;
+impl_trivial_view!(Length);
 
 pub type LengthValue = VarUIntResult;
-
-impl View for Length {
-    type V = Length;
-
-    open spec fn view(&self) -> Self::V {
-        *self
-    }
-}
 
 impl SpecCombinator for Length {
     type SpecResult = LengthValue;
@@ -146,7 +142,7 @@ impl Combinator for Length {
         if s.len() == 0 {
             return Err(());
         }
-        
+
         if s[0] < 0x80 {
             // One-byte length
             return Ok((1, s[0] as LengthValue));

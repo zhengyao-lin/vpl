@@ -1,5 +1,7 @@
 use vstd::prelude::*;
 
+use crate::utils::*;
+
 use super::len::*;
 use super::vest::*;
 use super::depend::*;
@@ -8,15 +10,9 @@ use super::tag::*;
 verus! {
 
 /// Combainator for OCTET STRING in ASN.1
+#[derive(Debug)]
 pub struct OctetString;
-
-impl View for OctetString {
-    type V = OctetString;
-
-    open spec fn view(&self) -> Self::V {
-        *self
-    }
-}
+impl_trivial_view!(OctetString);
 
 impl ASN1Tagged for OctetString {
     open spec fn spec_tag(&self) -> TagValue {

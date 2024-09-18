@@ -4,12 +4,21 @@ use vstd::prelude::*;
 
 use polyfill::*;
 
+use crate::utils::*;
+
 use super::vest::*;
 use super::octet_string::*;
 use super::tag::*;
 use super::clone::*;
 
 verus! {
+
+/// Combinator for PrintableString in ASN.1
+/// Essentially a wrapper around Octet
+/// that checks that each byte is <= 127
+#[derive(Debug)]
+pub struct PrintableString;
+impl_trivial_view!(PrintableString);
 
 pub struct SpecPrintableStringValue(pub Seq<u8>);
 
@@ -35,12 +44,6 @@ impl View for PrintableStringValueOwned {
     }
 }
 
-impl<'a> PolyfillClone for PrintableStringValue<'a> {
-    fn clone(&self) -> Self {
-        PrintableStringValue(PolyfillClone::clone(&self.0))
-    }
-}
-
 impl ASN1Tagged for PrintableString {
     open spec fn spec_tag(&self) -> TagValue {
         TagValue {
@@ -61,6 +64,12 @@ impl ASN1Tagged for PrintableString {
 
 impl ViewWithASN1Tagged for PrintableString {
     proof fn lemma_view_preserves_tag(&self) {}
+}
+
+impl<'a> PolyfillClone for PrintableStringValue<'a> {
+    fn clone(&self) -> Self {
+        PrintableStringValue(PolyfillClone::clone(&self.0))
+    }
 }
 
 impl SpecPrintableStringValue {
@@ -130,20 +139,6 @@ impl<'a> PrintableStringValue<'a> {
         c == 58 || // :
         c == 61 || // =
         c == 63 // ?
-    }
-}
-
-/// Combinator for PrintableString in ASN.1
-/// Essentially a wrapper around Octet
-/// that checks that each byte is <= 127
-#[derive(Debug)]
-pub struct PrintableString;
-
-impl View for PrintableString {
-    type V = PrintableString;
-
-    open spec fn view(&self) -> Self::V {
-        *self
     }
 }
 

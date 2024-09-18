@@ -1,6 +1,8 @@
 use polyfill::slice_skip;
 use vstd::prelude::*;
 
+use crate::utils::*;
+
 use super::bounds::*;
 use super::vest::*;
 use super::repeat::*;
@@ -14,15 +16,9 @@ verus! {
 /// Combinator for ASN.1 Object Identifier
 #[derive(Debug)]
 pub struct ObjectIdentifier;
+impl_trivial_view!(ObjectIdentifier);
+
 pub type ObjectIdentifierValue = Vec<UInt>;
-
-impl View for ObjectIdentifier {
-    type V = ObjectIdentifier;
-
-    open spec fn view(&self) -> Self::V {
-        *self
-    }
-}
 
 impl ASN1Tagged for ObjectIdentifier {
     open spec fn spec_tag(&self) -> TagValue {

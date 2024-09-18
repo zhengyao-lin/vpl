@@ -4,21 +4,25 @@ use vstd::prelude::*;
 
 use polyfill::*;
 
+use crate::utils::*;
+
 use super::vest::*;
 use super::octet_string::*;
 use super::tag::*;
+use super::clone::*;
 
 verus! {
+
+/// Combinator for IA5String in ASN.1
+/// Essentially a wrapper around Octet
+/// that checks that each byte is <= 127
+#[derive(Debug)]
+pub struct IA5String;
+impl_trivial_view!(IA5String);
 
 pub struct SpecIA5StringValue(pub Seq<u8>);
 pub struct IA5StringValue<'a>(&'a [u8]);
 pub struct IA5StringValueOwned(Vec<u8>);
-
-impl SpecIA5StringValue {
-    pub open spec fn wf(&self) -> bool {
-        forall |i| 0 <= i < self.0.len() ==> self.0[i] <= 127
-    }
-}
 
 impl View for IA5StringValue<'_> {
     type V = SpecIA5StringValue;
@@ -58,6 +62,18 @@ impl ViewWithASN1Tagged for IA5String {
     proof fn lemma_view_preserves_tag(&self) {}
 }
 
+impl<'a> PolyfillClone for IA5StringValue<'a> {
+    fn clone(&self) -> Self {
+        IA5StringValue(PolyfillClone::clone(&self.0))
+    }
+}
+
+impl SpecIA5StringValue {
+    pub open spec fn wf(&self) -> bool {
+        forall |i| 0 <= i < self.0.len() ==> self.0[i] <= 127
+    }
+}
+
 impl<'a> IA5StringValue<'a> {
     pub fn new(s: &'a [u8]) -> (res: Option<IA5StringValue<'a>>)
         ensures
@@ -91,19 +107,6 @@ impl<'a> IA5StringValue<'a> {
             }
         }
         return true;
-    }
-}
-
-/// Combinator for IA5String in ASN.1
-/// Essentially a wrapper around Octet
-/// that checks that each byte is <= 127
-pub struct IA5String;
-
-impl View for IA5String {
-    type V = IA5String;
-
-    open spec fn view(&self) -> Self::V {
-        *self
     }
 }
 

@@ -88,7 +88,8 @@ impl<T1: PolyfillClone, T2: PolyfillClone> PolyfillClone for Either<T1, T2> {
     }
 }
 
-macro_rules! impl_polyfill_clone_for_base_combinator {
+#[allow(unused_macros)]
+macro_rules! impl_trivial_poly_clone_combinator {
     ($t:ty) => {
         ::builtin_macros::verus! {
             impl PolyfillCloneCombinator for $t {
@@ -99,15 +100,30 @@ macro_rules! impl_polyfill_clone_for_base_combinator {
         }
     };
 }
+pub(crate) use impl_trivial_poly_clone_combinator;
 
-impl_polyfill_clone_for_base_combinator!(Tail);
-impl_polyfill_clone_for_base_combinator!(Integer);
-impl_polyfill_clone_for_base_combinator!(BitString);
-impl_polyfill_clone_for_base_combinator!(IA5String);
-impl_polyfill_clone_for_base_combinator!(OctetString);
-impl_polyfill_clone_for_base_combinator!(ObjectIdentifier);
-impl_polyfill_clone_for_base_combinator!(UTF8String);
-impl_polyfill_clone_for_base_combinator!(PrintableString);
+#[allow(unused_macros)]
+macro_rules! impl_trivial_poly_clone {
+    ($t:ty) => {
+        ::builtin_macros::verus! {
+            impl PolyfillClone for $t {
+                fn clone(&self) -> Self {
+                    $t
+                }
+            }
+        }
+    };
+}
+pub(crate) use impl_trivial_poly_clone;
+
+impl_trivial_poly_clone_combinator!(Tail);
+impl_trivial_poly_clone_combinator!(Integer);
+impl_trivial_poly_clone_combinator!(BitString);
+impl_trivial_poly_clone_combinator!(IA5String);
+impl_trivial_poly_clone_combinator!(OctetString);
+impl_trivial_poly_clone_combinator!(ObjectIdentifier);
+impl_trivial_poly_clone_combinator!(UTF8String);
+impl_trivial_poly_clone_combinator!(PrintableString);
 
 impl<T1: PolyfillCloneCombinator, T2: PolyfillCloneCombinator> PolyfillCloneCombinator for (T1, T2) where
     <T1 as View>::V: SecureSpecCombinator<SpecResult = <T1::Owned as View>::V>,
@@ -126,6 +142,22 @@ impl<T1: PolyfillCloneCombinator, T2: PolyfillCloneCombinator> PolyfillCloneComb
 {
     fn clone(&self) -> Self {
         OrdChoice(self.0.clone(), self.1.clone())
+    }
+}
+
+impl<Inner: PolyfillCloneCombinator, M: PolyfillClone> PolyfillCloneCombinator for Mapped<Inner, M> where
+    <Inner as View>::V: SecureSpecCombinator<SpecResult = <Inner::Owned as View>::V>,
+
+    for <'a> M: Iso<Src<'a> = Inner::Result<'a>, SrcOwned = Inner::Owned>,
+    for <'a>Inner::Result<'a>: From<M::Dst<'a>> + View,
+    for <'a>M::Dst<'a>: From<Inner::Result<'a>> + View,
+
+    M::V: SpecIso<Src = <Inner::Owned as View>::V, Dst = <M::DstOwned as View>::V>,
+    <Inner::Owned as View>::V: SpecFrom<<M::DstOwned as View>::V>,
+    <M::DstOwned as View>::V: SpecFrom<<Inner::Owned as View>::V>,
+{
+    fn clone(&self) -> Self {
+        Mapped { inner: self.inner.clone(), mapper: self.mapper.clone() }
     }
 }
 

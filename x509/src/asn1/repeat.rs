@@ -9,6 +9,7 @@ verus! {
 /// until the end of the buffer.
 ///
 /// If the inner combinator fails before the end of the buffer, Repeat fails
+#[derive(Debug)]
 pub struct Repeat<C>(pub C);
 
 /// Wrappers around Vec so that their View's can be implemented as DeepView

@@ -79,6 +79,7 @@ pub trait Iso: View where
 
 /// Combinator that maps the result of an `inner` combinator with an isomorphism that implements
 /// [`Iso`].
+#[derive(Debug)]
 pub struct Mapped<Inner, M> {
     /// The inner combinator.
     pub inner: Inner,

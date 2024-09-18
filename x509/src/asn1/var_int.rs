@@ -1,5 +1,7 @@
 use vstd::prelude::*;
 
+use crate::utils::*;
+
 use super::vest::*;
 use super::bounds::*;
 
@@ -7,18 +9,12 @@ verus! {
 
 /// Combinator for variable-length integers in big-endian
 /// The length is assumed to be <= uint_size!()
+#[derive(Debug)]
+pub struct VarUInt(pub usize);
+impl_trivial_view!(VarUInt);
+
 pub type VarUIntResult = UInt;
 pub type VarIntResult = Int;
-
-pub struct VarUInt(pub usize);
-
-impl View for VarUInt {
-    type V = VarUInt;
-
-    open spec fn view(&self) -> Self::V {
-        *self
-    }
-}
 
 impl VarUInt {
     pub open spec fn wf(&self) -> bool
@@ -92,7 +88,7 @@ impl VarUInt {
     {
         if self.0 > 0 {
             let rest = Self((self.0 - 1) as usize);
-            
+
             rest.lemma_parse_ok_bound(s.drop_first());
 
             let s_0 = s[0];
@@ -163,7 +159,7 @@ impl SecureSpecCombinator for VarUInt {
                 // By definition of spec_serialize
                 assert(b[0] == get_nth_byte!(v, self.0 - 1));
                 assert(b.drop_first() == rest.spec_serialize(v & n_byte_max_unsigned!(self.0 - 1)).unwrap());
-                
+
                 // Expand out everything purely in BV
                 // NOTE: this depends on the size of VarUIntResult
                 let self_len = self.0;
@@ -290,12 +286,12 @@ impl Combinator for VarUInt {
                 len <= s.len(),
 
                 fits_n_bytes_unsigned!(res, (uint_size!() - i)),
-                
+
                 // At each iteration, res is the parse result of a suffix of s
                 res == Self((len - i) as usize).spec_parse(s@.skip(i as int)).unwrap().1,
         {
             let byte = s[i - 1];
-            
+
             // Prove some bounds for ruling out arithmetic overflow
             assert(
                 // Some context not captured by BV solver
@@ -374,7 +370,7 @@ impl Combinator for VarUInt {
                 ),
         {
             let byte = get_nth_byte!(v, len - i);
-            
+
             let ghost old_data = data@;
             let ghost old_i = i;
 
@@ -476,7 +472,7 @@ impl SpecCombinator for VarInt {
             self.to_var_uint().spec_serialize((v as VarUIntResult) & n_byte_max_unsigned!(self.0))
         } else {
             Err(())
-        } 
+        }
     }
 }
 
@@ -509,7 +505,7 @@ impl SecureSpecCombinator for VarInt {
                 fits_n_bytes_unsigned!(v, self_len) ==> {
                     // sign extended value should fit in the bound
                     &&& n_byte_min_signed!(self_len) <= sign_extend!(v, self_len) <= n_byte_max_signed!(self_len)
-                
+
                     // truncate(sign_extend(v)) == v
                     &&& (sign_extend!(v, self_len) as VarUIntResult) & n_byte_max_unsigned!(self_len) == v
                 }
@@ -546,7 +542,7 @@ impl Combinator for VarInt {
 
         if self.0 > 0 {
             let (_, v) = VarUInt(self.0).parse(s)?;
-            
+
             proof {
                 VarUInt(self.0).lemma_parse_ok_bound(s@);
 

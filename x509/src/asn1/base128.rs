@@ -1,5 +1,7 @@
 use vstd::prelude::*;
 
+use crate::utils::*;
+
 use super::bounds::*;
 use super::vest::*;
 
@@ -8,25 +10,18 @@ verus! {
 /// Combinator for a single identifier component
 /// in the OBJECT IDENTIFIER ASN.1 type (called "arc"
 /// X.690)
-/// 
+///
 /// Basically an Arc is encoded as a "base-128" integer
 /// where the highest bit of every byte is set to 1
 /// except for the last byte
-/// 
+///
 /// e.g. 0b11111111 (0xff) => 0b1 * 128 + 0b01111111 => 0b10000001 0b011111111
-/// 
+///
 /// NOTE: the first and second arc of an OID are encoded differently
 /// than this combinator
 #[derive(Debug)]
 pub struct Base128UInt;
-
-impl View for Base128UInt {
-    type V = Base128UInt;
-
-    open spec fn view(&self) -> Self::V {
-        *self
-    }
-}
+impl_trivial_view!(Base128UInt);
 
 impl SpecCombinator for Base128UInt {
     type SpecResult = UInt;
@@ -197,7 +192,7 @@ impl Base128UInt {
 
                     let last = s[len];
                     assert(last == s.drop_first()[len - 1]);
-                    
+
                     assert forall |i: int| 0 <= i < len implies #[trigger] Self::is_high_8_bit_set(s.index(i))
                     by {
                         if i > 0 {
@@ -220,7 +215,7 @@ impl Base128UInt {
         ensures
             Self::find_first_arc(s1) matches Some(len) ==>
                 Self::find_first_arc(s1 + s2) == Some(len)
-    
+
         decreases s1.len()
     {
         if s1.len() != 0 {
@@ -288,7 +283,7 @@ impl Base128UInt {
                 let prefix = s.drop_last();
                 let last = s.last();
                 let parsed_prefix = Self::spec_parse_helper(prefix, false).unwrap();
-                
+
                 // Since prefix is not zero, neither is the final value
                 assert(
                     parsed_prefix <= n_bit_max_unsigned!(8 * uint_size!() - 7) ==>
@@ -357,7 +352,7 @@ impl Base128UInt {
         ensures
             Self::spec_serialize_helper(v, false).len() > 0,
             take_low_7_bits!(Self::spec_serialize_helper(v, false).first()) != 0,
-        
+
         decreases v
     {
         assert(
@@ -397,7 +392,7 @@ impl Base128UInt {
         ensures
             Self::spec_parse_helper(s, last_byte) matches Some(v) ==>
             Self::spec_serialize_helper(v, last_byte) == s
-        
+
         decreases s.len()
     {
         if let Some(v) = Self::spec_parse_helper(s, last_byte) {
@@ -588,7 +583,7 @@ impl Combinator for Base128UInt {
 
                 // First byte is not 0
                 len > 1 ==> { let first = s@.first(); take_low_7_bits!(first) != 0 },
-                
+
                 // Results of find_first_arc
                 Self::all_high_8_bit_set(s@.take(len - 1)),
                 !Self::is_high_8_bit_set(s@[len - 1]),

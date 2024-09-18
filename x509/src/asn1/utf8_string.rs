@@ -2,6 +2,8 @@ use vstd::prelude::*;
 
 use polyfill::*;
 
+use crate::utils::*;
+
 use super::len::*;
 use super::vest::*;
 use super::tag::*;
@@ -11,14 +13,7 @@ verus! {
 /// Combainator for UTF8String in ASN.1
 #[derive(Debug)]
 pub struct UTF8String;
-
-impl View for UTF8String {
-    type V = UTF8String;
-
-    open spec fn view(&self) -> Self::V {
-        *self
-    }
-}
+impl_trivial_view!(UTF8String);
 
 impl ASN1Tagged for UTF8String {
     open spec fn spec_tag(&self) -> TagValue {

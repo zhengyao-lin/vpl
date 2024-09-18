@@ -2,9 +2,16 @@ use vstd::prelude::*;
 
 use polyfill::*;
 
+use crate::utils::*;
+
 use super::vest::*;
 
 verus! {
+
+/// Combinator for ASN.1 tags
+#[derive(Debug)]
+pub struct ASN1Tag;
+impl_trivial_view!(ASN1Tag);
 
 #[derive(Debug)]
 pub struct TagValue {
@@ -15,6 +22,8 @@ pub struct TagValue {
     /// Larger tag numbers require the long form of tags
     pub num: u8,
 }
+
+impl_trivial_view!(TagValue);
 
 #[derive(Debug)]
 pub enum TagClass {
@@ -28,14 +37,6 @@ pub enum TagClass {
 pub enum TagForm {
     Primitive,
     Constructed,
-}
-
-impl View for TagValue {
-    type V = TagValue;
-
-    open spec fn view(&self) -> Self::V {
-        *self
-    }
 }
 
 impl TagValue {
@@ -73,16 +74,6 @@ impl TagValue {
             },
             num: self.num,
         }
-    }
-}
-
-pub struct ASN1Tag;
-
-impl View for ASN1Tag {
-    type V = ASN1Tag;
-
-    open spec fn view(&self) -> Self::V {
-        *self
     }
 }
 
