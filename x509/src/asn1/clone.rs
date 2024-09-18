@@ -42,6 +42,12 @@ impl PolyfillClone for Int {
     }
 }
 
+impl PolyfillClone for bool {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
 impl<'a> PolyfillClone for &'a str {
     fn clone(&self) -> Self {
         *self

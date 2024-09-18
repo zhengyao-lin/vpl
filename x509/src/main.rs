@@ -8,6 +8,7 @@ mod alg_id;
 mod time;
 mod validity;
 mod pub_key_info;
+mod extension;
 
 mod utils;
 

@@ -21,6 +21,7 @@ mod explicit;
 mod clone;
 mod big_int;
 mod seq_of;
+mod boolean;
 
 pub use bounds::UInt;
 pub use var_int::*;
@@ -40,6 +41,7 @@ pub use big_int::*;
 pub use seq_of::*;
 pub use repeat::*;
 pub use clone::*;
+pub use boolean::*;
 
 pub use vest::SpecCombinator;
 pub use vest::Combinator;
