@@ -12,27 +12,27 @@ verus! {
 ///     algorithm            AlgorithmIdentifier,
 ///     subjectPublicKey     BIT STRING
 /// }
-pub type PublicKeyInfoCombinator = Mapped<ASN1<ExplicitTag<(AlgorithmIdentifierCombinator, ASN1<BitString>)>>, PublicKeyInfoMapper>;
+pub type PublicKeyInfoCombinator = Mapped<ASN1<ExplicitTag<(AlgorithmIdentifier, ASN1<BitString>)>>, PublicKeyInfoMapper>;
 
-pub fn x509_public_key_info() -> PublicKeyInfoCombinator {
+pub fn public_key_info() -> PublicKeyInfoCombinator {
     Mapped {
         inner: ASN1(ExplicitTag(TagValue {
             class: TagClass::Universal,
             form: TagForm::Constructed,
             num: 0x10,
-        }, (x509_algorithm_identifier(), ASN1(BitString)))),
+        }, (algorithm_identifier(), ASN1(BitString)))),
         mapper: PublicKeyInfoMapper,
     }
 }
 
 pub struct SpecPublicKeyInfo {
-    pub alg: SpecAlgorithmIdentifier,
+    pub alg: SpecAlgorithmIdentifierValue,
     pub pub_key: SpecBitStringValue,
 }
 
 #[derive(Debug)]
 pub struct PublicKeyInfo<'a> {
-    pub alg: AlgorithmIdentifier<'a>,
+    pub alg: AlgorithmIdentifierValue<'a>,
     pub pub_key: BitStringValue<'a>,
 }
 
@@ -41,8 +41,8 @@ pub struct PublicKeyInfoOwned {
     pub pub_key: BitStringValueOwned,
 }
 
-type SpecPublicKeyInfoInner = (SpecAlgorithmIdentifier, SpecBitStringValue);
-type PublicKeyInfoInner<'a> = (AlgorithmIdentifier<'a>, BitStringValue<'a>);
+type SpecPublicKeyInfoInner = (SpecAlgorithmIdentifierValue, SpecBitStringValue);
+type PublicKeyInfoInner<'a> = (AlgorithmIdentifierValue<'a>, BitStringValue<'a>);
 type PublicKeyInfoInnerOwned = (AlgorithmIdentifierOwned, BitStringValueOwned);
 
 impl<'a> PolyfillClone for PublicKeyInfo<'a> {

@@ -18,28 +18,28 @@ verus! {
 /// AttributeValue ::= ANY DEFINED BY AttributeType
 ///
 /// where "in general AttributeValue will be a DirectoryString" (4.1.2.4, RFC 2459)
-pub type AttributeTypeAndValueCombinator = Mapped<ASN1<ExplicitTag<(ASN1<ObjectIdentifier>, DirectoryStringCombinator)>>, AttributeTypeAndValueMapper>;
+pub type AttributeTypeAndValue = Mapped<ASN1<ExplicitTag<(ASN1<ObjectIdentifier>, DirectoryString)>>, AttributeTypeAndValueMapper>;
 
-pub fn x509_attribute_type_and_value() -> AttributeTypeAndValueCombinator {
+pub fn attribute_type_and_value() -> AttributeTypeAndValue {
     Mapped {
         inner: ASN1(ExplicitTag(TagValue {
             class: TagClass::Universal,
             form: TagForm::Constructed,
             num: 0x10,
-        }, (ASN1(ObjectIdentifier), x509_directory_string()))),
+        }, (ASN1(ObjectIdentifier), directory_string()))),
         mapper: AttributeTypeAndValueMapper,
     }
 }
 
-pub struct SpecAttributeTypeAndValue {
+pub struct SpecAttributeTypeAndValueValue {
     pub typ: SpecObjectIdentifierValue,
-    pub value: SpecDirectoryString,
+    pub value: SpecDirectoryStringValue,
 }
 
 #[derive(Debug)]
-pub struct AttributeTypeAndValue<'a> {
+pub struct AttributeTypeAndValueValue<'a> {
     pub typ: ObjectIdentifierValue,
-    pub value: DirectoryString<'a>,
+    pub value: DirectoryStringValue<'a>,
 }
 
 pub struct AttributeTypeAndValueOwned {
@@ -47,24 +47,24 @@ pub struct AttributeTypeAndValueOwned {
     pub value: DirectoryStringOwned,
 }
 
-type SpecAttributeTypeAndValueInner = (SpecObjectIdentifierValue, SpecDirectoryString);
-type AttributeTypeAndValueInner<'a> = (ObjectIdentifierValue, DirectoryString<'a>);
+type SpecAttributeTypeAndValueInner = (SpecObjectIdentifierValue, SpecDirectoryStringValue);
+type AttributeTypeAndValueInner<'a> = (ObjectIdentifierValue, DirectoryStringValue<'a>);
 type AttributeTypeAndValueInnerOwned = (ObjectIdentifierValueOwned, DirectoryStringOwned);
 
-impl<'a> PolyfillClone for AttributeTypeAndValue<'a> {
+impl<'a> PolyfillClone for AttributeTypeAndValueValue<'a> {
     fn clone(&self) -> Self {
-        AttributeTypeAndValue {
+        AttributeTypeAndValueValue {
             typ: PolyfillClone::clone(&self.typ),
             value: PolyfillClone::clone(&self.value),
         }
     }
 }
 
-impl<'a> View for AttributeTypeAndValue<'a> {
-    type V = SpecAttributeTypeAndValue;
+impl<'a> View for AttributeTypeAndValueValue<'a> {
+    type V = SpecAttributeTypeAndValueValue;
 
     closed spec fn view(&self) -> Self::V {
-        SpecAttributeTypeAndValue {
+        SpecAttributeTypeAndValueValue {
             typ: self.typ@,
             value: self.value@,
         }
@@ -72,40 +72,40 @@ impl<'a> View for AttributeTypeAndValue<'a> {
 }
 
 impl View for AttributeTypeAndValueOwned {
-    type V = SpecAttributeTypeAndValue;
+    type V = SpecAttributeTypeAndValueValue;
 
     closed spec fn view(&self) -> Self::V {
-        SpecAttributeTypeAndValue {
+        SpecAttributeTypeAndValueValue {
             typ: self.typ@,
             value: self.value@,
         }
     }
 }
 
-impl SpecFrom<SpecAttributeTypeAndValue> for SpecAttributeTypeAndValueInner {
-    closed spec fn spec_from(s: SpecAttributeTypeAndValue) -> Self {
+impl SpecFrom<SpecAttributeTypeAndValueValue> for SpecAttributeTypeAndValueInner {
+    closed spec fn spec_from(s: SpecAttributeTypeAndValueValue) -> Self {
         (s.typ, s.value)
     }
 }
 
-impl SpecFrom<SpecAttributeTypeAndValueInner> for SpecAttributeTypeAndValue {
+impl SpecFrom<SpecAttributeTypeAndValueInner> for SpecAttributeTypeAndValueValue {
     closed spec fn spec_from(s: SpecAttributeTypeAndValueInner) -> Self {
-        SpecAttributeTypeAndValue {
+        SpecAttributeTypeAndValueValue {
             typ: s.0,
             value: s.1,
         }
     }
 }
 
-impl<'a> From<AttributeTypeAndValue<'a>> for AttributeTypeAndValueInner<'a> {
-    fn ex_from(s: AttributeTypeAndValue<'a>) -> Self {
+impl<'a> From<AttributeTypeAndValueValue<'a>> for AttributeTypeAndValueInner<'a> {
+    fn ex_from(s: AttributeTypeAndValueValue<'a>) -> Self {
         (s.typ, s.value)
     }
 }
 
-impl<'a> From<AttributeTypeAndValueInner<'a>> for AttributeTypeAndValue<'a> {
+impl<'a> From<AttributeTypeAndValueInner<'a>> for AttributeTypeAndValueValue<'a> {
     fn ex_from(s: AttributeTypeAndValueInner<'a>) -> Self {
-        AttributeTypeAndValue {
+        AttributeTypeAndValueValue {
             typ: s.0,
             value: s.1,
         }
@@ -134,7 +134,7 @@ impl_trivial_poly_clone!(AttributeTypeAndValueMapper);
 
 impl SpecIso for AttributeTypeAndValueMapper {
     type Src = SpecAttributeTypeAndValueInner;
-    type Dst = SpecAttributeTypeAndValue;
+    type Dst = SpecAttributeTypeAndValueValue;
 
     proof fn spec_iso(s: Self::Src) {}
     proof fn spec_iso_rev(s: Self::Dst) {}
@@ -142,7 +142,7 @@ impl SpecIso for AttributeTypeAndValueMapper {
 
 impl Iso for AttributeTypeAndValueMapper {
     type Src<'a> = AttributeTypeAndValueInner<'a>;
-    type Dst<'a> = AttributeTypeAndValue<'a>;
+    type Dst<'a> = AttributeTypeAndValueValue<'a>;
 
     type SrcOwned = AttributeTypeAndValueInnerOwned;
     type DstOwned = AttributeTypeAndValueOwned;

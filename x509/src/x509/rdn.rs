@@ -10,125 +10,125 @@ verus! {
 
 /// In X.509: RelativeDistinguishedName ::= SET OF AttributeTypeAndValue
 /// TODO: support SET OF instead of using a sequence
-pub type RelativeDistinguishedNameCombinator = Mapped<ASN1<ImplicitTag<SequenceOf<AttributeTypeAndValueCombinator>>>, RelativeDistinguishedNameMapper>;
+pub type RDN = Mapped<ASN1<ImplicitTag<SequenceOf<AttributeTypeAndValue>>>, RDNMapper>;
 
-pub fn x509_relative_distinguished_name() -> RelativeDistinguishedNameCombinator {
+pub fn rdn() -> RDN {
     Mapped {
         inner: ASN1(ImplicitTag(TagValue {
             class: TagClass::Universal,
             form: TagForm::Constructed,
             num: 0x11,
-        }, SequenceOf(x509_attribute_type_and_value()))),
-        mapper: RelativeDistinguishedNameMapper,
+        }, SequenceOf(attribute_type_and_value()))),
+        mapper: RDNMapper,
     }
 }
 
-type SpecRelativeDistinguishedNameInner = Seq<SpecAttributeTypeAndValue>;
-type RelativeDistinguishedNameInner<'a> = RepeatResult<AttributeTypeAndValue<'a>>;
-type RelativeDistinguishedNameInnerOwned = RepeatResultOwned<AttributeTypeAndValueOwned>;
+type SpecRDNInner = Seq<SpecAttributeTypeAndValueValue>;
+type RDNInner<'a> = RepeatResult<AttributeTypeAndValueValue<'a>>;
+type RDNInnerOwned = RepeatResultOwned<AttributeTypeAndValueOwned>;
 
-pub struct SpecRelativeDistinguishedName {
-    attrs: Seq<SpecAttributeTypeAndValue>,
+pub struct SpecRDNValue {
+    attrs: Seq<SpecAttributeTypeAndValueValue>,
 }
 
 #[derive(Debug)]
-pub struct RelativeDistinguishedName<'a> {
-    attrs: Vec<AttributeTypeAndValue<'a>>,
+pub struct RDNValue<'a> {
+    attrs: Vec<AttributeTypeAndValueValue<'a>>,
 }
 
-pub struct RelativeDistinguishedNameOwned {
+pub struct RDNOwned {
     attrs: Vec<AttributeTypeAndValueOwned>,
 }
 
-impl<'a> View for RelativeDistinguishedName<'a> {
-    type V = SpecRelativeDistinguishedName;
+impl<'a> View for RDNValue<'a> {
+    type V = SpecRDNValue;
 
     closed spec fn view(&self) -> Self::V {
-        SpecRelativeDistinguishedName {
+        SpecRDNValue {
             attrs: Seq::new(self.attrs.len() as nat, |i| self.attrs@[i]@),
         }
     }
 }
 
-impl View for RelativeDistinguishedNameOwned {
-    type V = SpecRelativeDistinguishedName;
+impl View for RDNOwned {
+    type V = SpecRDNValue;
 
     closed spec fn view(&self) -> Self::V {
-        SpecRelativeDistinguishedName {
+        SpecRDNValue {
             attrs: Seq::new(self.attrs.len() as nat, |i| self.attrs@[i]@),
         }
     }
 }
 
-impl<'a> PolyfillClone for RelativeDistinguishedName<'a> {
+impl<'a> PolyfillClone for RDNValue<'a> {
     fn clone(&self) -> Self {
-        RelativeDistinguishedName {
+        RDNValue {
             attrs: clone_vec_inner(&self.attrs),
         }
     }
 }
 
-impl SpecFrom<SpecRelativeDistinguishedName> for SpecRelativeDistinguishedNameInner {
-    closed spec fn spec_from(s: SpecRelativeDistinguishedName) -> Self {
+impl SpecFrom<SpecRDNValue> for SpecRDNInner {
+    closed spec fn spec_from(s: SpecRDNValue) -> Self {
         s.attrs
     }
 }
 
-impl SpecFrom<SpecRelativeDistinguishedNameInner> for SpecRelativeDistinguishedName {
-    closed spec fn spec_from(s: SpecRelativeDistinguishedNameInner) -> Self {
-        SpecRelativeDistinguishedName {
+impl SpecFrom<SpecRDNInner> for SpecRDNValue {
+    closed spec fn spec_from(s: SpecRDNInner) -> Self {
+        SpecRDNValue {
             attrs: s,
         }
     }
 }
 
-impl<'a> From<RelativeDistinguishedName<'a>> for RelativeDistinguishedNameInner<'a> {
-    fn ex_from(s: RelativeDistinguishedName<'a>) -> Self {
+impl<'a> From<RDNValue<'a>> for RDNInner<'a> {
+    fn ex_from(s: RDNValue<'a>) -> Self {
         RepeatResult(s.attrs)
     }
 }
 
-impl<'a> From<RelativeDistinguishedNameInner<'a>> for RelativeDistinguishedName<'a> {
-    fn ex_from(s: RelativeDistinguishedNameInner<'a>) -> Self {
-        RelativeDistinguishedName {
+impl<'a> From<RDNInner<'a>> for RDNValue<'a> {
+    fn ex_from(s: RDNInner<'a>) -> Self {
+        RDNValue {
             attrs: s.0,
         }
     }
 }
 
-impl From<RelativeDistinguishedNameOwned> for RelativeDistinguishedNameInnerOwned {
-    fn ex_from(s: RelativeDistinguishedNameOwned) -> Self {
+impl From<RDNOwned> for RDNInnerOwned {
+    fn ex_from(s: RDNOwned) -> Self {
         RepeatResultOwned(s.attrs)
     }
 }
 
-impl From<RelativeDistinguishedNameInnerOwned> for RelativeDistinguishedNameOwned {
-    fn ex_from(s: RelativeDistinguishedNameInnerOwned) -> Self {
-        RelativeDistinguishedNameOwned {
+impl From<RDNInnerOwned> for RDNOwned {
+    fn ex_from(s: RDNInnerOwned) -> Self {
+        RDNOwned {
             attrs: s.0,
         }
     }
 }
 
 #[derive(Debug)]
-pub struct RelativeDistinguishedNameMapper;
-impl_trivial_view!(RelativeDistinguishedNameMapper);
-impl_trivial_poly_clone!(RelativeDistinguishedNameMapper);
+pub struct RDNMapper;
+impl_trivial_view!(RDNMapper);
+impl_trivial_poly_clone!(RDNMapper);
 
-impl SpecIso for RelativeDistinguishedNameMapper {
-    type Src = SpecRelativeDistinguishedNameInner;
-    type Dst = SpecRelativeDistinguishedName;
+impl SpecIso for RDNMapper {
+    type Src = SpecRDNInner;
+    type Dst = SpecRDNValue;
 
     proof fn spec_iso(s: Self::Src) {}
     proof fn spec_iso_rev(s: Self::Dst) {}
 }
 
-impl Iso for RelativeDistinguishedNameMapper {
-    type Src<'a> = RelativeDistinguishedNameInner<'a>;
-    type Dst<'a> = RelativeDistinguishedName<'a>;
+impl Iso for RDNMapper {
+    type Src<'a> = RDNInner<'a>;
+    type Dst<'a> = RDNValue<'a>;
 
-    type SrcOwned = RelativeDistinguishedNameInnerOwned;
-    type DstOwned = RelativeDistinguishedNameOwned;
+    type SrcOwned = RDNInnerOwned;
+    type DstOwned = RDNOwned;
 }
 
 }

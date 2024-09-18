@@ -15,9 +15,9 @@ verus! {
 /// }
 ///
 /// TODO: only supporting PrintableString and UTF8String for now
-pub type DirectoryStringCombinator = Mapped<OrdChoice<ASN1<PrintableString>, ASN1<UTF8String>>, DirectoryStringMapper>;
+pub type DirectoryString = Mapped<OrdChoice<ASN1<PrintableString>, ASN1<UTF8String>>, DirectoryStringMapper>;
 
-pub fn x509_directory_string() -> DirectoryStringCombinator {
+pub fn directory_string() -> DirectoryString {
     Mapped {
         inner: OrdChoice::new(
             ASN1(PrintableString),
@@ -27,13 +27,13 @@ pub fn x509_directory_string() -> DirectoryStringCombinator {
     }
 }
 
-pub enum SpecDirectoryString {
+pub enum SpecDirectoryStringValue {
     PrintableString(SpecPrintableStringValue),
     UTF8String(SpecUTF8StringValue),
 }
 
 #[derive(Debug)]
-pub enum DirectoryString<'a> {
+pub enum DirectoryStringValue<'a> {
     PrintableString(PrintableStringValue<'a>),
     UTF8String(UTF8StringValue<'a>),
 }
@@ -47,69 +47,69 @@ type SpecDirectoryStringInner = Either<SpecPrintableStringValue, SpecUTF8StringV
 type DirectoryStringInner<'a> = Either<PrintableStringValue<'a>, UTF8StringValue<'a>>;
 type DirectoryStringInnerOwned = Either<PrintableStringValueOwned, UTF8StringValueOwned>;
 
-impl<'a> PolyfillClone for DirectoryString<'a> {
+impl<'a> PolyfillClone for DirectoryStringValue<'a> {
     fn clone(&self) -> Self {
         match self {
-            DirectoryString::PrintableString(s) => DirectoryString::PrintableString(PolyfillClone::clone(s)),
-            DirectoryString::UTF8String(s) => DirectoryString::UTF8String(PolyfillClone::clone(s)),
+            DirectoryStringValue::PrintableString(s) => DirectoryStringValue::PrintableString(PolyfillClone::clone(s)),
+            DirectoryStringValue::UTF8String(s) => DirectoryStringValue::UTF8String(PolyfillClone::clone(s)),
         }
     }
 }
 
-impl<'a> View for DirectoryString<'a> {
-    type V = SpecDirectoryString;
+impl<'a> View for DirectoryStringValue<'a> {
+    type V = SpecDirectoryStringValue;
 
     closed spec fn view(&self) -> Self::V {
         match self {
-            DirectoryString::PrintableString(s) => SpecDirectoryString::PrintableString(s@),
-            DirectoryString::UTF8String(s) => SpecDirectoryString::UTF8String(s@),
+            DirectoryStringValue::PrintableString(s) => SpecDirectoryStringValue::PrintableString(s@),
+            DirectoryStringValue::UTF8String(s) => SpecDirectoryStringValue::UTF8String(s@),
         }
     }
 }
 
 impl View for DirectoryStringOwned {
-    type V = SpecDirectoryString;
+    type V = SpecDirectoryStringValue;
 
     closed spec fn view(&self) -> Self::V {
         match self {
-            DirectoryStringOwned::PrintableString(s) => SpecDirectoryString::PrintableString(s@),
-            DirectoryStringOwned::UTF8String(s) => SpecDirectoryString::UTF8String(s@),
+            DirectoryStringOwned::PrintableString(s) => SpecDirectoryStringValue::PrintableString(s@),
+            DirectoryStringOwned::UTF8String(s) => SpecDirectoryStringValue::UTF8String(s@),
         }
     }
 }
 
-impl SpecFrom<SpecDirectoryStringInner> for SpecDirectoryString {
+impl SpecFrom<SpecDirectoryStringInner> for SpecDirectoryStringValue {
     open spec fn spec_from(inner: SpecDirectoryStringInner) -> Self {
         match inner {
-            Either::Left(s) => SpecDirectoryString::PrintableString(s),
-            Either::Right(s) => SpecDirectoryString::UTF8String(s),
+            Either::Left(s) => SpecDirectoryStringValue::PrintableString(s),
+            Either::Right(s) => SpecDirectoryStringValue::UTF8String(s),
         }
     }
 }
 
-impl SpecFrom<SpecDirectoryString> for SpecDirectoryStringInner {
-    open spec fn spec_from(inner: SpecDirectoryString) -> Self {
+impl SpecFrom<SpecDirectoryStringValue> for SpecDirectoryStringInner {
+    open spec fn spec_from(inner: SpecDirectoryStringValue) -> Self {
         match inner {
-            SpecDirectoryString::PrintableString(s) => Either::Left(s),
-            SpecDirectoryString::UTF8String(s) => Either::Right(s),
+            SpecDirectoryStringValue::PrintableString(s) => Either::Left(s),
+            SpecDirectoryStringValue::UTF8String(s) => Either::Right(s),
         }
     }
 }
 
-impl<'a> From<DirectoryStringInner<'a>> for DirectoryString<'a> {
+impl<'a> From<DirectoryStringInner<'a>> for DirectoryStringValue<'a> {
     fn ex_from(inner: DirectoryStringInner<'a>) -> Self {
         match inner {
-            Either::Left(s) => DirectoryString::PrintableString(s),
-            Either::Right(s) => DirectoryString::UTF8String(s),
+            Either::Left(s) => DirectoryStringValue::PrintableString(s),
+            Either::Right(s) => DirectoryStringValue::UTF8String(s),
         }
     }
 }
 
-impl<'a> From<DirectoryString<'a>> for DirectoryStringInner<'a> {
-    fn ex_from(inner: DirectoryString<'a>) -> Self {
+impl<'a> From<DirectoryStringValue<'a>> for DirectoryStringInner<'a> {
+    fn ex_from(inner: DirectoryStringValue<'a>) -> Self {
         match inner {
-            DirectoryString::PrintableString(s) => Either::Left(s),
-            DirectoryString::UTF8String(s) => Either::Right(s),
+            DirectoryStringValue::PrintableString(s) => Either::Left(s),
+            DirectoryStringValue::UTF8String(s) => Either::Right(s),
         }
     }
 }
@@ -139,7 +139,7 @@ impl_trivial_poly_clone!(DirectoryStringMapper);
 
 impl SpecIso for DirectoryStringMapper {
     type Src = SpecDirectoryStringInner;
-    type Dst = SpecDirectoryString;
+    type Dst = SpecDirectoryStringValue;
 
     proof fn spec_iso(s: Self::Src) {}
     proof fn spec_iso_rev(s: Self::Dst) {}
@@ -147,7 +147,7 @@ impl SpecIso for DirectoryStringMapper {
 
 impl Iso for DirectoryStringMapper {
     type Src<'a> = DirectoryStringInner<'a>;
-    type Dst<'a> = DirectoryString<'a>;
+    type Dst<'a> = DirectoryStringValue<'a>;
 
     type SrcOwned = DirectoryStringInnerOwned;
     type DstOwned = DirectoryStringOwned;

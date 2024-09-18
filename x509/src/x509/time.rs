@@ -16,7 +16,7 @@ verus! {
 /// so we use UTF8String as their placeholder for now
 pub type TimeCombinator = Mapped<OrdChoice<ASN1<ImplicitTag<UTF8String>>, ASN1<ImplicitTag<UTF8String>>>, TimeMapper>;
 
-pub fn x509_time() -> TimeCombinator {
+pub fn time() -> TimeCombinator {
     Mapped {
         inner: OrdChoice::new(
             // UTCTime, tag 0x17

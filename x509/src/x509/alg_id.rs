@@ -13,9 +13,9 @@ verus! {
 /// }
 ///
 /// TODO: right now parameters are parsed as a byte sequence
-pub type AlgorithmIdentifierCombinator = Mapped<ASN1<ExplicitTag<(ASN1<ObjectIdentifier>, Tail)>>, AlgorithmIdentifierMapper>;
+pub type AlgorithmIdentifier = Mapped<ASN1<ExplicitTag<(ASN1<ObjectIdentifier>, Tail)>>, AlgorithmIdentifierMapper>;
 
-pub fn x509_algorithm_identifier() -> AlgorithmIdentifierCombinator {
+pub fn algorithm_identifier() -> AlgorithmIdentifier {
     Mapped {
         inner: ASN1(ExplicitTag(TagValue {
             class: TagClass::Universal,
@@ -26,13 +26,13 @@ pub fn x509_algorithm_identifier() -> AlgorithmIdentifierCombinator {
     }
 }
 
-pub struct SpecAlgorithmIdentifier {
+pub struct SpecAlgorithmIdentifierValue {
     pub alg: SpecObjectIdentifierValue,
     pub params: Seq<u8>,
 }
 
 #[derive(Debug)]
-pub struct AlgorithmIdentifier<'a> {
+pub struct AlgorithmIdentifierValue<'a> {
     pub alg: ObjectIdentifierValue,
     pub params: &'a [u8],
 }
@@ -46,20 +46,20 @@ type SpecAlgorithmIdentifierInner = (SpecObjectIdentifierValue, Seq<u8>);
 type AlgorithmIdentifierInner<'a> = (ObjectIdentifierValue, &'a [u8]);
 type AlgorithmIdentifierInnerOwned = (ObjectIdentifierValueOwned, Vec<u8>);
 
-impl<'a> PolyfillClone for AlgorithmIdentifier<'a> {
+impl<'a> PolyfillClone for AlgorithmIdentifierValue<'a> {
     fn clone(&self) -> Self {
-        AlgorithmIdentifier {
+        AlgorithmIdentifierValue {
             alg: PolyfillClone::clone(&self.alg),
             params: PolyfillClone::clone(&self.params),
         }
     }
 }
 
-impl<'a> View for AlgorithmIdentifier<'a> {
-    type V = SpecAlgorithmIdentifier;
+impl<'a> View for AlgorithmIdentifierValue<'a> {
+    type V = SpecAlgorithmIdentifierValue;
 
     closed spec fn view(&self) -> Self::V {
-        SpecAlgorithmIdentifier {
+        SpecAlgorithmIdentifierValue {
             alg: self.alg@,
             params: self.params@,
         }
@@ -67,40 +67,40 @@ impl<'a> View for AlgorithmIdentifier<'a> {
 }
 
 impl View for AlgorithmIdentifierOwned {
-    type V = SpecAlgorithmIdentifier;
+    type V = SpecAlgorithmIdentifierValue;
 
     closed spec fn view(&self) -> Self::V {
-        SpecAlgorithmIdentifier {
+        SpecAlgorithmIdentifierValue {
             alg: self.alg@,
             params: self.params@,
         }
     }
 }
 
-impl SpecFrom<SpecAlgorithmIdentifier> for SpecAlgorithmIdentifierInner {
-    closed spec fn spec_from(s: SpecAlgorithmIdentifier) -> Self {
+impl SpecFrom<SpecAlgorithmIdentifierValue> for SpecAlgorithmIdentifierInner {
+    closed spec fn spec_from(s: SpecAlgorithmIdentifierValue) -> Self {
         (s.alg, s.params)
     }
 }
 
-impl SpecFrom<SpecAlgorithmIdentifierInner> for SpecAlgorithmIdentifier {
+impl SpecFrom<SpecAlgorithmIdentifierInner> for SpecAlgorithmIdentifierValue {
     closed spec fn spec_from(s: SpecAlgorithmIdentifierInner) -> Self {
-        SpecAlgorithmIdentifier {
+        SpecAlgorithmIdentifierValue {
             alg: s.0,
             params: s.1,
         }
     }
 }
 
-impl<'a> From<AlgorithmIdentifier<'a>> for AlgorithmIdentifierInner<'a> {
-    fn ex_from(s: AlgorithmIdentifier<'a>) -> Self {
+impl<'a> From<AlgorithmIdentifierValue<'a>> for AlgorithmIdentifierInner<'a> {
+    fn ex_from(s: AlgorithmIdentifierValue<'a>) -> Self {
         (s.alg, s.params)
     }
 }
 
-impl<'a> From<AlgorithmIdentifierInner<'a>> for AlgorithmIdentifier<'a> {
+impl<'a> From<AlgorithmIdentifierInner<'a>> for AlgorithmIdentifierValue<'a> {
     fn ex_from(s: AlgorithmIdentifierInner<'a>) -> Self {
-        AlgorithmIdentifier {
+        AlgorithmIdentifierValue {
             alg: s.0,
             params: s.1,
         }
@@ -129,7 +129,7 @@ impl_trivial_poly_clone!(AlgorithmIdentifierMapper);
 
 impl SpecIso for AlgorithmIdentifierMapper {
     type Src = SpecAlgorithmIdentifierInner;
-    type Dst = SpecAlgorithmIdentifier;
+    type Dst = SpecAlgorithmIdentifierValue;
 
     proof fn spec_iso(s: Self::Src) {}
     proof fn spec_iso_rev(s: Self::Dst) {}
@@ -137,7 +137,7 @@ impl SpecIso for AlgorithmIdentifierMapper {
 
 impl Iso for AlgorithmIdentifierMapper {
     type Src<'a> = AlgorithmIdentifierInner<'a>;
-    type Dst<'a> = AlgorithmIdentifier<'a>;
+    type Dst<'a> = AlgorithmIdentifierValue<'a>;
 
     type SrcOwned = AlgorithmIdentifierInnerOwned;
     type DstOwned = AlgorithmIdentifierOwned;

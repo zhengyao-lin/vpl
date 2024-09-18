@@ -13,26 +13,26 @@ verus! {
 ///     notBefore      Time,
 ///     notAfter       Time,
 /// }
-pub type ValidityCombinator = Mapped<ASN1<ExplicitTag<(TimeCombinator, TimeCombinator)>>, ValidityMapper>;
+pub type Validity = Mapped<ASN1<ExplicitTag<(TimeCombinator, TimeCombinator)>>, ValidityMapper>;
 
-pub fn x509_validity() -> ValidityCombinator {
+pub fn validity() -> Validity {
     Mapped {
         inner: ASN1(ExplicitTag(TagValue {
             class: TagClass::Universal,
             form: TagForm::Constructed,
             num: 0x10,
-        }, (x509_time(), x509_time()))),
+        }, (time(), time()))),
         mapper: ValidityMapper,
     }
 }
 
-pub struct SpecValidity {
+pub struct SpecValidityValue {
     pub not_before: SpecTime,
     pub not_after: SpecTime,
 }
 
 #[derive(Debug)]
-pub struct Validity<'a> {
+pub struct ValidityValue<'a> {
     pub not_before: Time<'a>,
     pub not_after: Time<'a>,
 }
@@ -46,20 +46,20 @@ type SpecValidityInner = (SpecTime, SpecTime);
 type ValidityInner<'a> = (Time<'a>, Time<'a>);
 type ValidityInnerOwned = (TimeOwned, TimeOwned);
 
-impl<'a> PolyfillClone for Validity<'a> {
+impl<'a> PolyfillClone for ValidityValue<'a> {
     fn clone(&self) -> Self {
-        Validity {
+        ValidityValue {
             not_before: PolyfillClone::clone(&self.not_before),
             not_after: PolyfillClone::clone(&self.not_after),
         }
     }
 }
 
-impl<'a> View for Validity<'a> {
-    type V = SpecValidity;
+impl<'a> View for ValidityValue<'a> {
+    type V = SpecValidityValue;
 
     closed spec fn view(&self) -> Self::V {
-        SpecValidity {
+        SpecValidityValue {
             not_before: self.not_before@,
             not_after: self.not_after@,
         }
@@ -67,40 +67,40 @@ impl<'a> View for Validity<'a> {
 }
 
 impl View for ValidityOwned {
-    type V = SpecValidity;
+    type V = SpecValidityValue;
 
     closed spec fn view(&self) -> Self::V {
-        SpecValidity {
+        SpecValidityValue {
             not_before: self.not_before@,
             not_after: self.not_after@,
         }
     }
 }
 
-impl SpecFrom<SpecValidity> for SpecValidityInner {
-    closed spec fn spec_from(s: SpecValidity) -> Self {
+impl SpecFrom<SpecValidityValue> for SpecValidityInner {
+    closed spec fn spec_from(s: SpecValidityValue) -> Self {
         (s.not_before, s.not_after)
     }
 }
 
-impl SpecFrom<SpecValidityInner> for SpecValidity {
+impl SpecFrom<SpecValidityInner> for SpecValidityValue {
     closed spec fn spec_from(s: SpecValidityInner) -> Self {
-        SpecValidity {
+        SpecValidityValue {
             not_before: s.0,
             not_after: s.1,
         }
     }
 }
 
-impl<'a> From<Validity<'a>> for ValidityInner<'a> {
-    fn ex_from(s: Validity<'a>) -> Self {
+impl<'a> From<ValidityValue<'a>> for ValidityInner<'a> {
+    fn ex_from(s: ValidityValue<'a>) -> Self {
         (s.not_before, s.not_after)
     }
 }
 
-impl<'a> From<ValidityInner<'a>> for Validity<'a> {
+impl<'a> From<ValidityInner<'a>> for ValidityValue<'a> {
     fn ex_from(s: ValidityInner<'a>) -> Self {
-        Validity {
+        ValidityValue {
             not_before: s.0,
             not_after: s.1,
         }
@@ -129,7 +129,7 @@ impl_trivial_poly_clone!(ValidityMapper);
 
 impl SpecIso for ValidityMapper {
     type Src = SpecValidityInner;
-    type Dst = SpecValidity;
+    type Dst = SpecValidityValue;
 
     proof fn spec_iso(s: Self::Src) {}
     proof fn spec_iso_rev(s: Self::Dst) {}
@@ -137,7 +137,7 @@ impl SpecIso for ValidityMapper {
 
 impl Iso for ValidityMapper {
     type Src<'a> = ValidityInner<'a>;
-    type Dst<'a> = Validity<'a>;
+    type Dst<'a> = ValidityValue<'a>;
 
     type SrcOwned = ValidityInnerOwned;
     type DstOwned = ValidityOwned;
