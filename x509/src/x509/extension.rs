@@ -1,9 +1,9 @@
 use vstd::prelude::*;
 
 use crate::asn1::*;
-use crate::asn1::vest::*;
 use crate::asn1::Boolean;
 
+use crate::common::*;
 use crate::utils::*;
 
 verus! {

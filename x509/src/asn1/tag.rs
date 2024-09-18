@@ -1,10 +1,8 @@
 use vstd::prelude::*;
-
-use polyfill::*;
+use vstd::slice::slice_subrange;
 
 use crate::utils::*;
-
-use super::vest::*;
+use crate::common::*;
 
 verus! {
 
@@ -312,6 +310,16 @@ impl<T: ASN1Tagged + ViewWithASN1Tagged> ViewWithASN1Tagged for ASN1<T> where
     }
 }
 
+impl<T: PolyfillCloneCombinator> PolyfillCloneCombinator for ASN1<T> where
+    <T as View>::V: SecureSpecCombinator<SpecResult = <T::Owned as View>::V>,
+    <T as View>::V: ASN1Tagged,
+    T: ViewWithASN1Tagged,
+{
+    fn clone(&self) -> Self {
+        ASN1(self.0.clone())
+    }
+}
+
 impl<T: ASN1Tagged + SpecCombinator> SpecCombinator for ASN1<T> {
     type SpecResult = <T as SpecCombinator>::SpecResult;
 
@@ -391,7 +399,7 @@ impl<T: ASN1Tagged + Combinator> Combinator for ASN1<T> where
         }
 
         let (n1, tag) = ASN1Tag.parse(s)?;
-        let (n2, v) = self.0.parse(slice_skip(s, n1))?;
+        let (n2, v) = self.0.parse(slice_subrange(s, n1, s.len()))?;
 
         if tag.eq(self.0.tag()) && n1 <= usize::MAX - n2 {
             Ok((n1 + n2, v))

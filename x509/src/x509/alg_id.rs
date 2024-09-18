@@ -1,8 +1,7 @@
 use vstd::prelude::*;
 
 use crate::asn1::*;
-use crate::asn1::vest::*;
-
+use crate::common::*;
 use crate::utils::*;
 
 verus! {

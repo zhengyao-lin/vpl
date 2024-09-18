@@ -1,10 +1,9 @@
 use vstd::prelude::*;
 
-use super::vest::*;
+use crate::common::*;
+
 use super::tag::*;
-use super::depend::*;
 use super::len::*;
-use super::clone::*;
 
 verus! {
 
@@ -32,6 +31,15 @@ impl<T: View> View for ExplicitTag<T> {
 
     open spec fn view(&self) -> Self::V {
         ExplicitTag(self.0, self.1@)
+    }
+}
+
+impl<T: PolyfillCloneCombinator> PolyfillCloneCombinator for ExplicitTag<T> where
+    <T as View>::V: SecureSpecCombinator<SpecResult = <T::Owned as View>::V>,
+    for<'a> <T as Combinator>::Result<'a>: PolyfillClone,
+{
+    fn clone(&self) -> Self {
+        ExplicitTag(self.0.clone(), self.1.clone())
     }
 }
 

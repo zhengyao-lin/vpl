@@ -2,6 +2,7 @@ use vstd::prelude::*;
 use vstd::slice::slice_subrange;
 
 use super::vest::*;
+use super::clone::*;
 
 verus! {
 
@@ -44,6 +45,23 @@ impl<T: View> View for RepeatResultOwned<T>
 
     open spec fn view(&self) -> Self::V {
         Seq::new(self.0.len() as nat, |i: int| self.0@[i]@)
+    }
+}
+
+/// Clone RepeatResult (a wrapper around Vec) by cloning each element
+impl<T: PolyfillClone> PolyfillClone for RepeatResult<T> where
+{
+    /// Same as clone of Vec, but this is a "deep" copy
+    fn clone(&self) -> Self {
+        RepeatResult(clone_vec_inner(&self.0))
+    }
+}
+
+impl<C: PolyfillCloneCombinator> PolyfillCloneCombinator for Repeat<C> where
+    <C as View>::V: SecureSpecCombinator<SpecResult = <C::Owned as View>::V>,
+{
+    fn clone(&self) -> Self {
+        Repeat(self.0.clone())
     }
 }
 

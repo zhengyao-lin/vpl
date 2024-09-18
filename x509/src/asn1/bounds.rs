@@ -3,13 +3,14 @@
 /// NOTE: many macro definitions here are actually part of the spec
 
 use vstd::prelude::*;
-use crate::asn1::*;
+
+use crate::common::*;
 
 verus! {
 
 /// Signed/unsigned integer types used to represent values in ASN.1
 /// All definitions below are relative to these two types
-/// 
+///
 /// NOTE: proofs in this module should be independent of the choice of UInt/Int.
 /// To change their definitions (to u128/i128, for example), we only need to
 /// change the macro uint_size!
@@ -270,7 +271,7 @@ pub fn min_num_bytes_unsigned_exec(v: UInt) -> (res: UInt)
     }
 
     assert(fits_n_bytes_unsigned!(v, 0) ==> v == 0) by (bit_vector);
-    
+
     return 1;
 }
 
@@ -295,8 +296,20 @@ pub fn min_num_bytes_signed_exec(v: Int) -> (res: UInt)
     }
 
     assert(fits_n_bytes_signed!(v, 0) ==> v == 0) by (bit_vector);
-    
+
     return 1;
+}
+
+impl PolyfillClone for UInt {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl PolyfillClone for Int {
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 }

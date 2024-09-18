@@ -1,13 +1,10 @@
-use polyfill::slice_skip;
 use vstd::prelude::*;
 
 use crate::utils::*;
+use crate::common::*;
 
 use super::bounds::*;
-use super::vest::*;
-use super::repeat::*;
 use super::base128::*;
-use super::depend::*;
 use super::len::*;
 use super::tag::*;
 
@@ -17,6 +14,7 @@ verus! {
 #[derive(Debug)]
 pub struct ObjectIdentifier;
 impl_trivial_view!(ObjectIdentifier);
+impl_trivial_poly_clone_combinator!(ObjectIdentifier);
 
 pub type SpecObjectIdentifierValue = Seq<UInt>;
 pub type ObjectIdentifierValue = Vec<UInt>;
@@ -211,7 +209,7 @@ impl Combinator for ObjectIdentifier {
 
         // Need to figure out the content length first
         // TODO: this seems inefficient
-        let rest_arcs_cloned = RepeatResult(rest_arcs_inner.clone());
+        let rest_arcs_cloned = RepeatResult(PolyfillClone::clone(&rest_arcs_inner));
         let rest_arcs = RepeatResult(rest_arcs_inner);
 
         if let Ok(len) = (U8, Repeat(Base128UInt)).serialize((first_byte, rest_arcs_cloned), data, pos) {

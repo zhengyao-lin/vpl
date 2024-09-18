@@ -1,11 +1,12 @@
 use vstd::prelude::*;
+use vstd::vstd::slice::slice_subrange;
 
 use polyfill::*;
 
 use crate::utils::*;
+use crate::common::*;
 
 use super::len::*;
-use super::vest::*;
 use super::tag::*;
 
 verus! {
@@ -14,6 +15,7 @@ verus! {
 #[derive(Debug)]
 pub struct UTF8String;
 impl_trivial_view!(UTF8String);
+impl_trivial_poly_clone_combinator!(UTF8String);
 
 pub type SpecUTF8StringValue = Seq<char>;
 pub type UTF8StringValue<'a> = &'a str;
@@ -139,7 +141,7 @@ impl Combinator for UTF8String {
             Ok((n, l)) => {
                 if let Some(total_len) = n.checked_add(l as usize) {
                     if total_len <= s.len() {
-                        match utf8_to_str(slice_take(slice_skip(s, n), l as usize)) {
+                        match utf8_to_str(slice_take(slice_subrange(s, n, s.len()), l as usize)) {
                             Some(parsed) => {
                                 return Ok((total_len, parsed));
                             },

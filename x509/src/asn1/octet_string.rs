@@ -1,10 +1,9 @@
 use vstd::prelude::*;
 
 use crate::utils::*;
+use crate::common::*;
 
 use super::len::*;
-use super::vest::*;
-use super::depend::*;
 use super::tag::*;
 
 verus! {
@@ -13,6 +12,7 @@ verus! {
 #[derive(Debug)]
 pub struct OctetString;
 impl_trivial_view!(OctetString);
+impl_trivial_poly_clone_combinator!(OctetString);
 
 impl ASN1Tagged for OctetString {
     open spec fn spec_tag(&self) -> TagValue {

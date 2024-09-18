@@ -5,11 +5,10 @@ use vstd::prelude::*;
 use polyfill::*;
 
 use crate::utils::*;
+use crate::common::*;
 
-use super::vest::*;
 use super::octet_string::*;
 use super::tag::*;
-use super::clone::*;
 
 verus! {
 
@@ -19,6 +18,7 @@ verus! {
 #[derive(Debug)]
 pub struct PrintableString;
 impl_trivial_view!(PrintableString);
+impl_trivial_poly_clone_combinator!(PrintableString);
 
 pub struct SpecPrintableStringValue(pub Seq<u8>);
 

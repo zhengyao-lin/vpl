@@ -1,9 +1,9 @@
 use vstd::prelude::*;
 
 use crate::utils::*;
+use crate::common::*;
 
 use super::bounds::*;
-use super::vest::*;
 
 verus! {
 

@@ -3,10 +3,9 @@ use vstd::prelude::*;
 use polyfill::*;
 
 use crate::utils::*;
+use crate::common::*;
 
-use super::vest::*;
 use super::tag::*;
-use super::clone::*;
 
 verus! {
 
@@ -16,6 +15,7 @@ verus! {
 #[derive(Debug)]
 pub struct Boolean;
 impl_trivial_view!(Boolean);
+impl_trivial_poly_clone_combinator!(Boolean);
 
 impl ASN1Tagged for Boolean {
     open spec fn spec_tag(&self) -> TagValue {

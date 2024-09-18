@@ -4,11 +4,10 @@ use vstd::std_specs::bits::u8_trailing_zeros;
 use polyfill::*;
 
 use crate::utils::*;
+use crate::common::*;
 
-use super::vest::*;
 use super::octet_string::*;
 use super::tag::*;
-use super::clone::*;
 
 verus! {
 
@@ -24,6 +23,7 @@ pub struct BitStringValueOwned(Vec<u8>);
 #[derive(Debug)]
 pub struct BitString;
 impl_trivial_view!(BitString);
+impl_trivial_poly_clone_combinator!(BitString);
 
 impl<'a> View for BitStringValue<'a> {
     type V = SpecBitStringValue;

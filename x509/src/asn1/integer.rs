@@ -3,12 +3,11 @@ use vstd::prelude::*;
 use polyfill::*;
 
 use crate::utils::*;
+use crate::common::*;
 
-use super::vest::*;
 use super::var_int::*;
 use super::len::*;
 use super::bounds::*;
-use super::depend::*;
 use super::tag::*;
 
 verus! {
@@ -21,6 +20,7 @@ pub type IntegerValue = VarIntResult;
 #[derive(Debug)]
 pub struct Integer;
 impl_trivial_view!(Integer);
+impl_trivial_poly_clone_combinator!(Integer);
 
 impl ASN1Tagged for Integer {
     open spec fn spec_tag(&self) -> TagValue {

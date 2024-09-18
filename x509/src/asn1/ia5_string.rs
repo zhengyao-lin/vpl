@@ -5,11 +5,10 @@ use vstd::prelude::*;
 use polyfill::*;
 
 use crate::utils::*;
+use crate::common::*;
 
-use super::vest::*;
 use super::octet_string::*;
 use super::tag::*;
-use super::clone::*;
 
 verus! {
 
@@ -19,6 +18,7 @@ verus! {
 #[derive(Debug)]
 pub struct IA5String;
 impl_trivial_view!(IA5String);
+impl_trivial_poly_clone_combinator!(IA5String);
 
 pub struct SpecIA5StringValue(pub Seq<u8>);
 pub struct IA5StringValue<'a>(&'a [u8]);
