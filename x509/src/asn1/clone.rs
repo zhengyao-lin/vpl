@@ -190,26 +190,34 @@ impl<T: PolyfillCloneCombinator> PolyfillCloneCombinator for ASN1<T> where
     }
 }
 
+pub open spec fn vec_deep_view<T: View>(v: &Vec<T>) -> Seq<T::V>
+{
+    Seq::new(v.len() as nat, |i: int| v@[i]@)
+}
+
+/// Clone each element of Vec
+pub fn clone_vec_inner<T: PolyfillClone>(v: &Vec<T>) -> (res: Vec<T>)
+    ensures vec_deep_view(&res) =~= vec_deep_view(v)
+{
+    let mut cloned: Vec<T> = Vec::new();
+
+    for i in 0..v.len()
+        invariant
+            cloned.len() == i,
+            forall |j| 0 <= j < i ==> cloned[j]@ == #[trigger] v[j]@,
+    {
+        cloned.push(v[i].clone());
+    }
+
+    cloned
+}
+
 /// Clone RepeatResult (a wrapper around Vec) by cloning each element
-impl<'a, C: Combinator> PolyfillClone for RepeatResult<'a, C> where
-    <C as View>::V: SecureSpecCombinator<SpecResult = <C::Owned as View>::V>,
-    for<'b> <C as Combinator>::Result<'b>: PolyfillClone,
+impl<T: PolyfillClone> PolyfillClone for RepeatResult<T> where
 {
     /// Same as clone of Vec, but this is a "deep" copy
     fn clone(&self) -> Self {
-        let mut cloned: Vec<<C as Combinator>::Result<'a>> = Vec::new();
-
-        for i in 0..self.0.len()
-            invariant
-                cloned.len() == i,
-                forall |j| 0 <= j < i ==> cloned[j]@ == #[trigger] self.0[j]@,
-        {
-            cloned.push(self.0[i].clone());
-        }
-
-        assert(RepeatResult::<C>(cloned)@ =~= self@);
-
-        RepeatResult(cloned)
+        RepeatResult(clone_vec_inner(&self.0))
     }
 }
 

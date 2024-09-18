@@ -15,8 +15,8 @@ verus! {
 #[derive(Debug)]
 pub struct SequenceOf<C>(pub C);
 
-pub type SequenceOfValue<'a, C> = RepeatResult<'a, C>;
-pub type SequenceOfValueOwned<C> = RepeatResultOwned<C>;
+pub type SequenceOfValue<T> = RepeatResult<T>;
+pub type SequenceOfValueOwned<T> = RepeatResultOwned<T>;
 
 impl<C: View> View for SequenceOf<C>
 {
@@ -95,8 +95,8 @@ impl<C: PolyfillCloneCombinator + Combinator> Combinator for SequenceOf<C> where
     <C as View>::V: SecureSpecCombinator<SpecResult = <C::Owned as View>::V>,
     for<'a> C::Result<'a>: PolyfillClone,
 {
-    type Result<'a> = SequenceOfValue<'a, C>;
-    type Owned = SequenceOfValueOwned<C>;
+    type Result<'a> = SequenceOfValue<C::Result<'a>>;
+    type Owned = SequenceOfValueOwned<C::Owned>;
 
     open spec fn spec_length(&self) -> Option<usize> {
         None

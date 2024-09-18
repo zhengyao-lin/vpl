@@ -9,31 +9,6 @@ verus! {
 
 pub type DirectoryStringCombinator = Mapped<OrdChoice<ASN1<PrintableString>, ASN1<UTF8String>>, DirectoryStringMapper>;
 
-pub enum SpecDirectoryString {
-    PrintableString(SpecPrintableStringValue),
-    UTF8String(Seq<char>),
-}
-
-#[derive(Debug)]
-pub enum DirectoryString<'a> {
-    PrintableString(PrintableStringValue<'a>),
-    UTF8String(&'a str),
-}
-
-pub enum DirectoryStringOwned {
-    PrintableString(PrintableStringValueOwned),
-    UTF8String(String),
-}
-
-impl<'a> PolyfillClone for DirectoryString<'a> {
-    fn clone(&self) -> Self {
-        match self {
-            DirectoryString::PrintableString(s) => DirectoryString::PrintableString(PolyfillClone::clone(s)),
-            DirectoryString::UTF8String(s) => DirectoryString::UTF8String(PolyfillClone::clone(s)),
-        }
-    }
-}
-
 pub fn x509_directory_string() -> DirectoryStringCombinator {
     Mapped {
         inner: OrdChoice::new(
@@ -44,9 +19,34 @@ pub fn x509_directory_string() -> DirectoryStringCombinator {
     }
 }
 
-pub type SpecDirectoryStringInner = Either<SpecPrintableStringValue, Seq<char>>;
-pub type DirectoryStringInner<'a> = Either<PrintableStringValue<'a>, &'a str>;
-pub type DirectoryStringInnerOwned = Either<PrintableStringValueOwned, String>;
+pub enum SpecDirectoryString {
+    PrintableString(SpecPrintableStringValue),
+    UTF8String(SpecUTF8StringValue),
+}
+
+#[derive(Debug)]
+pub enum DirectoryString<'a> {
+    PrintableString(PrintableStringValue<'a>),
+    UTF8String(UTF8StringValue<'a>),
+}
+
+pub enum DirectoryStringOwned {
+    PrintableString(PrintableStringValueOwned),
+    UTF8String(UTF8StringValueOwned),
+}
+
+type SpecDirectoryStringInner = Either<SpecPrintableStringValue, SpecUTF8StringValue>;
+type DirectoryStringInner<'a> = Either<PrintableStringValue<'a>, UTF8StringValue<'a>>;
+type DirectoryStringInnerOwned = Either<PrintableStringValueOwned, UTF8StringValueOwned>;
+
+impl<'a> PolyfillClone for DirectoryString<'a> {
+    fn clone(&self) -> Self {
+        match self {
+            DirectoryString::PrintableString(s) => DirectoryString::PrintableString(PolyfillClone::clone(s)),
+            DirectoryString::UTF8String(s) => DirectoryString::UTF8String(PolyfillClone::clone(s)),
+        }
+    }
+}
 
 impl<'a> View for DirectoryString<'a> {
     type V = SpecDirectoryString;

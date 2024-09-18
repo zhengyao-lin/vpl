@@ -15,6 +15,10 @@ verus! {
 pub struct UTF8String;
 impl_trivial_view!(UTF8String);
 
+pub type SpecUTF8StringValue = Seq<char>;
+pub type UTF8StringValue<'a> = &'a str;
+pub type UTF8StringValueOwned = String;
+
 impl ASN1Tagged for UTF8String {
     open spec fn spec_tag(&self) -> TagValue {
         TagValue {
@@ -38,7 +42,7 @@ impl ViewWithASN1Tagged for UTF8String {
 }
 
 impl SpecCombinator for UTF8String {
-    type SpecResult = Seq<char>;
+    type SpecResult = SpecUTF8StringValue;
 
     open spec fn spec_parse(&self, s: Seq<u8>) -> Result<(usize, Self::SpecResult), ()> {
         match Length.spec_parse(s) {
@@ -115,8 +119,8 @@ impl SecureSpecCombinator for UTF8String {
 }
 
 impl Combinator for UTF8String {
-    type Result<'a> = &'a str;
-    type Owned = String;
+    type Result<'a> = UTF8StringValue<'a>;
+    type Owned = UTF8StringValueOwned;
 
     open spec fn spec_length(&self) -> Option<usize> {
         None

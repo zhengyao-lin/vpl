@@ -41,14 +41,14 @@ target/%/$(TARGET): \
 		popd; \
     done
 
-# Each dependency <dep> in CARGO_DEPS is mapped to verus argument --extern <dep>=target/<release/debug>/deps/lib<dep>-*.rlib
+# Each dependency <dep> in CARGO_DEPS is mapped to verus argument --extern <dep>=target/<release/debug>/deps/lib<dep>-*.<rlib|dylib>
 # Each dependency <dep> in VERUS_DEPS is mapped to verus argument
 #     --extern <dep>=../<dep>/target/<release/debug>/lib<dep>.rlib
 #     --import <dep>=../<dep>/target/<release/debug>/lib<dep>.rlib.verusdata
 	verus $(MAIN) \
 		$(LIB_FLAGS) \
 		-L dependency=target/$*/deps \
-		$(foreach dep,$(CARGO_DEPS),--extern $(dep)=$(firstword $(wildcard target/$*/deps/lib$(dep)-*.rlib))) \
+		$(foreach dep,$(CARGO_DEPS),--extern $(dep)=$(firstword $(wildcard target/$*/deps/lib$(dep)-*.rlib) $(wildcard target/$*/deps/lib$(dep)-*.dylib))) \
 		$(foreach dep,$(VERUS_DEPS),--extern $(dep)=../$(dep)/target/$*/lib$(dep).rlib --import $(dep)=../$(dep)/target/$*/lib$(dep).rlib.verusdata) \
 		--compile \
 		$(if $(filter release,$*),-C opt-level=3) \

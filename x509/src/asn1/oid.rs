@@ -18,7 +18,9 @@ verus! {
 pub struct ObjectIdentifier;
 impl_trivial_view!(ObjectIdentifier);
 
+pub type SpecObjectIdentifierValue = Seq<UInt>;
 pub type ObjectIdentifierValue = Vec<UInt>;
+pub type ObjectIdentifierValueOwned = Vec<UInt>;
 
 impl ASN1Tagged for ObjectIdentifier {
     open spec fn spec_tag(&self) -> TagValue {
@@ -77,7 +79,7 @@ impl ObjectIdentifier {
 }
 
 impl SpecCombinator for ObjectIdentifier {
-    type SpecResult = Seq<UInt>;
+    type SpecResult = SpecObjectIdentifierValue;
 
     open spec fn spec_parse(&self, s: Seq<u8>) -> Result<(usize, Self::SpecResult), ()> {
         match new_spec_object_identifier_inner().spec_parse(s) {
@@ -157,8 +159,8 @@ impl SecureSpecCombinator for ObjectIdentifier {
 }
 
 impl Combinator for ObjectIdentifier {
-    type Result<'a> = Vec<UInt>;
-    type Owned = Vec<UInt>;
+    type Result<'a> = ObjectIdentifierValue;
+    type Owned = ObjectIdentifierValueOwned;
 
     open spec fn spec_length(&self) -> Option<usize> {
         None
