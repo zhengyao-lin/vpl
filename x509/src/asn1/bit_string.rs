@@ -8,10 +8,12 @@ use crate::utils::*;
 use super::vest::*;
 use super::octet_string::*;
 use super::tag::*;
+use super::clone::*;
 
 verus! {
 
 pub struct SpecBitStringValue(pub Seq<u8>);
+#[derive(Debug)]
 pub struct BitStringValue<'a>(&'a [u8]);
 pub struct BitStringValueOwned(Vec<u8>);
 
@@ -36,6 +38,12 @@ impl View for BitStringValueOwned {
 
     closed spec fn view(&self) -> Self::V {
         SpecBitStringValue(self.0@)
+    }
+}
+
+impl<'a> PolyfillClone for BitStringValue<'a> {
+    fn clone(&self) -> Self {
+        BitStringValue(self.0)
     }
 }
 
