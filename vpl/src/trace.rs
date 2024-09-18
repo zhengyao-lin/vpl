@@ -1,16 +1,16 @@
 use vstd::prelude::*;
-use std::collections::HashMap;
 use polyfill::*;
 
 use crate::proof::*;
 use crate::checker::*;
+use crate::containers::HashMapWithView;
 
 // Checks the proofs as traces from an on-the-shelf Prolog solver
 // Traces = Hilbert-style proofs with less details
 
 verus! {
 
-broadcast use TermX::axiom_view, SpecTerm::axiom_subst, vstd::std_specs::hash::group_hash_axioms;
+broadcast use TermX::axiom_view, SpecTerm::axiom_subst, crate::containers::group_hash_map_axioms;
 
 pub type EventId = usize;
 
@@ -44,19 +44,19 @@ pub enum Tactic {
 /**
  * TraceValidator dynamically reads in events and construct a Theorem for each event
  * and also stores the theorem for future rule applications
- * 
+ *
  * TODO: all proofs should have unique parents, so we can probably remove theorems
  * once they are used
  */
 pub struct TraceValidator {
-    pub thms: HashMap<EventId, Theorem>,
+    pub thms: HashMapWithView<EventId, Theorem>,
 }
 
 impl TraceValidator {
     pub fn new(program: &Program) -> (res: Self)
         ensures res.wf(program@) && res.thms@.len() == 0
     {
-        Self { thms: HashMap::new() }
+        Self { thms: HashMapWithView::new() }
     }
 
     pub open spec fn wf(self, program: SpecProgram) -> bool {
@@ -66,7 +66,10 @@ impl TraceValidator {
     // pub closed spec fn match_terms_trigger(subst: &Subst, term1: SpecTerm, term2: SpecTerm);
 
     pub fn add_theorem(&mut self, program: &Program, event_id: EventId, thm: Theorem) -> (res: &Theorem)
-        requires old(self).wf(program@) && thm.wf(program@)
+        requires
+            old(self).wf(program@),
+            thm.wf(program@),
+
         ensures
             self.wf(program@),
             self.thms@.contains_key(event_id),
@@ -92,7 +95,7 @@ impl TraceValidator {
         requires old(self).wf(program@)
         ensures
             self.wf(program@),
-            
+
             // Does not change other theorems
             forall |id| id != event_id && old(self).thms@.contains_key(id) ==>
                 self.thms@.contains_key(id) &&
@@ -131,7 +134,7 @@ impl TraceValidator {
             res matches Ok(thm) ==> {
                 &&& self.wf(program@)
                 &&& thm.wf(program@)
-                
+
                 &&& self.thms@.contains_key(event.id)
                 &&& self.thms@[event.id] == thm
 
@@ -162,7 +165,7 @@ impl TraceValidator {
 
                 // Match rule head against goal first
                 TermX::match_terms(&mut subst, &rule.head, &event.term)?;
-            
+
                 // Match each rule body against existing subproof
                 for i in 0..subproof_ids.len()
                     invariant
@@ -174,7 +177,7 @@ impl TraceValidator {
                         forall |j| 0 <= j < i ==> (#[trigger] subproofs[j]).wf(program@),
                 {
                     subproofs.push(self.get_theorem(program, subproof_ids[i])?);
-                    
+
                     if debug {
                         eprint("[debug]   subproof: "); eprintln(&subproofs[i].stmt);
                     }
