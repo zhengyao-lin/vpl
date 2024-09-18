@@ -6,6 +6,7 @@ use vstd::prelude::*;
 use super::vest::*;
 use super::bounds::*;
 use super::repeat::*;
+use super::boolean::Boolean;
 use super::integer::Integer;
 use super::*;
 
@@ -123,6 +124,7 @@ macro_rules! impl_trivial_poly_clone {
 pub(crate) use impl_trivial_poly_clone;
 
 impl_trivial_poly_clone_combinator!(Tail);
+impl_trivial_poly_clone_combinator!(Boolean);
 impl_trivial_poly_clone_combinator!(Integer);
 impl_trivial_poly_clone_combinator!(BitString);
 impl_trivial_poly_clone_combinator!(IA5String);
