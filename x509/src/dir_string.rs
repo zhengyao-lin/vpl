@@ -7,6 +7,15 @@ use crate::utils::*;
 
 verus! {
 
+/// DirectoryString ::= CHOICE {
+///     teletexString           TeletexString (SIZE (1..MAX)),
+///     printableString         PrintableString (SIZE (1..MAX)),
+///     universalString         UniversalString (SIZE (1..MAX)),
+///     utf8String              UTF8String (SIZE (1.. MAX)), // More common
+///     bmpString               BMPString (SIZE (1..MAX))
+/// }
+///
+/// TODO: only supporting PrintableString and UTF8String for now
 pub type DirectoryStringCombinator = Mapped<OrdChoice<ASN1<PrintableString>, ASN1<UTF8String>>, DirectoryStringMapper>;
 
 pub fn x509_directory_string() -> DirectoryStringCombinator {
