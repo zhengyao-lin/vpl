@@ -65,26 +65,4 @@ impl<T1: PolyfillClone, T2: PolyfillClone> PolyfillClone for Either<T1, T2> {
     }
 }
 
-pub open spec fn vec_deep_view<T: View>(v: &Vec<T>) -> Seq<T::V>
-{
-    Seq::new(v.len() as nat, |i: int| v@[i]@)
-}
-
-/// Clone each element of Vec
-pub fn clone_vec_inner<T: PolyfillClone>(v: &Vec<T>) -> (res: Vec<T>)
-    ensures vec_deep_view(&res) =~= vec_deep_view(v)
-{
-    let mut cloned: Vec<T> = Vec::new();
-
-    for i in 0..v.len()
-        invariant
-            cloned.len() == i,
-            forall |j| 0 <= j < i ==> cloned[j]@ == #[trigger] v[j]@,
-    {
-        cloned.push(v[i].clone());
-    }
-
-    cloned
-}
-
 }

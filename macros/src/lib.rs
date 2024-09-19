@@ -120,7 +120,14 @@ pub fn derive_view(input: TokenStream) -> TokenStream {
                             }
                         }
                     },
-                    _ => panic!("derive(View) only supports unnamed enum variants"),
+                    Fields::Unit => {
+                        quote! {
+                            #name::#variant_ident => {
+                                #name::#variant_ident
+                            }
+                        }
+                    },
+                    _ => panic!("derive(View) only supports unnamed and unit enum variants"),
                 }
             });
 
@@ -242,7 +249,14 @@ pub fn derive_polyfill_clone(input: TokenStream) -> TokenStream {
                             }
                         }
                     },
-                    _ => panic!("derive(PolyfillClone) only supports unnamed enum variants"),
+                    Fields::Unit => {
+                        quote! {
+                            #name::#variant_ident => {
+                                #name::#variant_ident
+                            }
+                        }
+                    },
+                    _ => panic!("derive(PolyfillClone) only supports unnamed and unit enum variants"),
                 }
             });
 

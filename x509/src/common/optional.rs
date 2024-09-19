@@ -1,7 +1,6 @@
+use macros::PolyfillClone;
 use vstd::prelude::*;
-
-use super::clone::*;
-use super::vest::*;
+use super::*;
 
 verus! {
 
@@ -9,10 +8,10 @@ verus! {
 /// but the result is mapped through
 ///   Left((A, B)) <-> (Some(A), B)
 ///   Right(B) <-> (None, B)
+#[derive(Debug, View)]
 pub struct Optional<C1, C2>(pub C1, pub C2);
 
-#[derive(Debug)]
-pub struct OptionalValue<T1, T2>(pub Option<T1>, pub T2);
+pub type OptionalValue<T1, T2> = (OptionDeep<T1>, T2);
 
 impl<C1: Combinator, C2: Combinator> Optional<C1, C2> where
     C1::V: SecureSpecCombinator<SpecResult = <C1::Owned as View>::V>,
@@ -23,45 +22,17 @@ impl<C1: Combinator, C2: Combinator> Optional<C1, C2> where
     }
 }
 
-impl<C1: View, C2: View> View for Optional<C1, C2> {
-    type V = Optional<C1::V, C2::V>;
-
-    open spec fn view(&self) -> Self::V {
-        Optional(self.0@, self.1@)
-    }
-}
-
-impl<T1: View, T2: View> View for OptionalValue<T1, T2> {
-    type V = (Option<T1::V>, T2::V);
-
-    open spec fn view(&self) -> Self::V {
-        (match self.0 {
-            Some(v) => Some(v@),
-            None => None,
-        }, self.1@)
-    }
-}
-
-impl<T1: PolyfillClone, T2: PolyfillClone> PolyfillClone for OptionalValue<T1, T2> {
-    fn clone(&self) -> Self {
-        OptionalValue(match &self.0 {
-            Some(v) => Some(v.clone()),
-            None => None,
-        }, self.1.clone())
-    }
-}
-
 impl<C1, C2> SpecCombinator for Optional<C1, C2> where
     C1: SecureSpecCombinator,
     C2: SecureSpecCombinator + SpecDisjointFrom<C1>,
 {
-    type SpecResult = (Option<C1::SpecResult>, C2::SpecResult);
+    type SpecResult = (OptionDeep<C1::SpecResult>, C2::SpecResult);
 
     open spec fn spec_parse(&self, s: Seq<u8>) -> Result<(usize, Self::SpecResult), ()>
     {
         match new_spec_optional_inner(self.0, self.1).spec_parse(s) {
-            Ok((n, Either::Left((v1, v2)))) => Ok((n, (Some(v1), v2))),
-            Ok((n, Either::Right((v, _)))) => Ok((n, (None, v))),
+            Ok((n, Either::Left((v1, v2)))) => Ok((n, (OptionDeep::Some(v1), v2))),
+            Ok((n, Either::Right((v, _)))) => Ok((n, (OptionDeep::None, v))),
             Err(()) => Err(()),
         }
     }
@@ -73,8 +44,8 @@ impl<C1, C2> SpecCombinator for Optional<C1, C2> where
     open spec fn spec_serialize(&self, v: Self::SpecResult) -> Result<Seq<u8>, ()>
     {
         match v {
-            (Some(v1), v2) => new_spec_optional_inner(self.0, self.1).spec_serialize(Either::Left((v1, v2))),
-            (None, v2) => new_spec_optional_inner(self.0, self.1).spec_serialize(Either::Right((v2, seq![]))),
+            (OptionDeep::Some(v1), v2) => new_spec_optional_inner(self.0, self.1).spec_serialize(Either::Left((v1, v2))),
+            (OptionDeep::None, v2) => new_spec_optional_inner(self.0, self.1).spec_serialize(Either::Right((v2, seq![]))),
         }
     }
 }
@@ -89,8 +60,8 @@ impl<C1, C2> SecureSpecCombinator for Optional<C1, C2> where
 
     proof fn theorem_serialize_parse_roundtrip(&self, v: Self::SpecResult) {
         let mapped = match v {
-            (Some(v1), v2) => Either::Left((v1, v2)),
-            (None, v2) => Either::Right((v2, seq![])),
+            (OptionDeep::Some(v1), v2) => Either::Left((v1, v2)),
+            (OptionDeep::None, v2) => Either::Right((v2, seq![])),
         };
 
         new_spec_optional_inner(self.0, self.1).theorem_serialize_parse_roundtrip(mapped);
@@ -107,8 +78,6 @@ impl<C1, C2> SecureSpecCombinator for Optional<C1, C2> where
         }
     }
 }
-
-// <<C1 as vstd::string::View>::V as vest::properties::SpecCombinator>::SpecResult == <<C1 as vest::properties::Combinator>::Owned as vstd::string::View>::V
 
 impl<C1, C2> Combinator for Optional<C1, C2> where
     C1: Combinator,
@@ -142,10 +111,18 @@ impl<C1, C2> Combinator for Optional<C1, C2> where
     }
 
     fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ()>) {
-        match OrdChoice((&self.0, &self.1), (&self.1, BytesN::<0>)).parse(s)? {
-            (n, Either::Left((v1, v2))) => Ok((n, OptionalValue(Some(v1), v2))),
-            (n, Either::Right((v, _))) => Ok((n, OptionalValue(None, v))),
-        }
+        let res = match OrdChoice((&self.0, &self.1), (&self.1, BytesN::<0>)).parse(s)? {
+            (n, Either::Left((v1, v2))) => Ok((n, (OptionDeep::Some(v1), v2))),
+            (n, Either::Right((v, _))) => Ok((n, (OptionDeep::None, v))),
+        };
+
+        // TODO: why do we need this?
+        assert(res matches Ok((n, v)) ==> {
+            &&& self@.spec_parse(s@) is Ok
+            &&& self@.spec_parse(s@) matches Ok((m, w)) ==> n == m && v@ == w && n <= s@.len()
+        });
+
+        res
     }
 
     open spec fn serialize_requires(&self) -> bool {
@@ -156,8 +133,8 @@ impl<C1, C2> Combinator for Optional<C1, C2> where
     fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, ()>) {
         let c = OrdChoice((&self.0, &self.1), (&self.1, BytesN::<0>));
         let len = match v {
-            OptionalValue(Some(v1), v2) => c.serialize(Either::Left((v1, v2)), data, pos),
-            OptionalValue(None, v2) => c.serialize(Either::Right((v2, &[])), data, pos),
+            (OptionDeep::Some(v1), v2) => c.serialize(Either::Left((v1, v2)), data, pos),
+            (OptionDeep::None, v2) => c.serialize(Either::Right((v2, &[])), data, pos),
         }?;
 
         assert(data@ =~= seq_splice(old(data)@, pos, self@.spec_serialize(v@).unwrap()));

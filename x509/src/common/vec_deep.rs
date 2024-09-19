@@ -14,7 +14,7 @@ impl<T: View> View for VecDeep<T> {
     type V = Seq<T::V>;
 
     open spec fn view(&self) -> Self::V {
-        vec_deep_view(&self.0)
+        Seq::new(self.0.len() as nat, |i: int| self.0@[i]@)
     }
 }
 
@@ -23,7 +23,19 @@ impl<T: PolyfillClone> PolyfillClone for VecDeep<T> where
 {
     /// Same as clone of Vec, but this is a "deep" copy
     fn clone(&self) -> Self {
-        VecDeep(clone_vec_inner(&self.0))
+        let mut cloned: Vec<T> = Vec::new();
+
+        for i in 0..self.0.len()
+            invariant
+                cloned.len() == i,
+                forall |j| 0 <= j < i ==> cloned[j]@ == #[trigger] self.0[j]@,
+        {
+            cloned.push(self.0[i].clone());
+        }
+
+        assert(VecDeep(cloned)@ =~= self@);
+
+        VecDeep(cloned)
     }
 }
 
@@ -88,14 +100,14 @@ impl<T: View> VecDeep<T> {
 
     pub fn from_vec(v: Vec<T>) -> (res: Self)
         ensures
-            res@ =~= vec_deep_view(&v),
+            res@ =~= VecDeep(v)@,
     {
         VecDeep(v)
     }
 
     pub fn to_vec(self) -> (res: Vec<T>)
         ensures
-            self@ =~= vec_deep_view(&res),
+            self@ =~= VecDeep(res)@,
     {
         self.0
     }

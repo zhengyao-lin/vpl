@@ -14,10 +14,7 @@ verus! {
 /// }
 pub type Extension = Mapped<ASN1<ExplicitTag<(
     ASN1<ObjectIdentifier>,
-    OrdChoice<
-        (ASN1<Boolean>, ASN1<OctetString>),
-        ASN1<OctetString>,
-    >,
+    Optional<ASN1<Boolean>, ASN1<OctetString>>,
 )>>, ExtensionMapper>;
 
 pub fn extension() -> Extension {
@@ -28,8 +25,8 @@ pub fn extension() -> Extension {
             num: 0x10,
         }, (
             ASN1(ObjectIdentifier),
-            OrdChoice::new(
-                (ASN1(Boolean), ASN1(OctetString)),
+            Optional::new(
+                ASN1(Boolean),
                 ASN1(OctetString),
             ),
         ))),
@@ -37,10 +34,10 @@ pub fn extension() -> Extension {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, View, PolyfillClone)]
 pub struct ExtensionPoly<Id, Value> {
     pub id: Id,
-    pub critical: Option<bool>,
+    pub critical: OptionDeep<bool>,
     pub value: Value,
 }
 
@@ -48,81 +45,36 @@ pub type SpecExtensionValue = ExtensionPoly<SpecObjectIdentifierValue, Seq<u8>>;
 pub type ExtensionValue<'a> = ExtensionPoly<ObjectIdentifierValue, &'a [u8]>;
 pub type ExtensionOwned = ExtensionPoly<ObjectIdentifierValueOwned, Vec<u8>>;
 
-type ExtensionFrom<Id, Value> = (Id, Either<(bool, Value), Value>);
-
-impl<Id: View, Value: View> View for ExtensionPoly<Id, Value> {
-    type V = ExtensionPoly<Id::V, Value::V>;
-
-    closed spec fn view(&self) -> Self::V {
-        ExtensionPoly {
-            id: self.id@,
-            critical: self.critical,
-            value: self.value@,
-        }
-    }
-}
-
-impl<Id: PolyfillClone, Value: PolyfillClone> PolyfillClone for ExtensionPoly<Id, Value> {
-    fn clone(&self) -> Self {
-        ExtensionPoly {
-            id: PolyfillClone::clone(&self.id),
-            critical: match self.critical {
-                Some(critical) => Some(critical),
-                None => None,
-            },
-            value: PolyfillClone::clone(&self.value),
-        }
-    }
-}
+type ExtensionFrom<Id, Value> = (Id, (OptionDeep<bool>, Value));
 
 impl<Id, Value> SpecFrom<ExtensionPoly<Id, Value>> for ExtensionFrom<Id, Value> {
     closed spec fn spec_from(s: ExtensionPoly<Id, Value>) -> Self {
-        (s.id, match s.critical {
-            Some(critical) => Either::Left((critical, s.value)),
-            None => Either::Right(s.value),
-        })
+        (s.id, (s.critical, s.value))
     }
 }
 
 impl<Id, Value> SpecFrom<ExtensionFrom<Id, Value>> for ExtensionPoly<Id, Value> {
     closed spec fn spec_from(s: ExtensionFrom<Id, Value>) -> Self {
-        match s.1 {
-            Either::Left((critical, value)) => ExtensionPoly {
-                id: s.0,
-                critical: Some(critical),
-                value: value,
-            },
-            Either::Right(value) => ExtensionPoly {
-                id: s.0,
-                critical: None,
-                value: value,
-            },
+        ExtensionPoly {
+            id: s.0,
+            critical: s.1.0,
+            value: s.1.1,
         }
     }
 }
 
 impl<Id: View, Value: View> From<ExtensionPoly<Id, Value>> for ExtensionFrom<Id, Value> {
     fn ex_from(s: ExtensionPoly<Id, Value>) -> Self {
-        (s.id, match s.critical {
-            Some(critical) => Either::Left((critical, s.value)),
-            None => Either::Right(s.value),
-        })
+        (s.id, (s.critical, s.value))
     }
 }
 
 impl<Id: View, Value: View> From<ExtensionFrom<Id, Value>> for ExtensionPoly<Id, Value> {
     fn ex_from(s: ExtensionFrom<Id, Value>) -> Self {
-        match s.1 {
-            Either::Left((critical, value)) => ExtensionPoly {
-                id: s.0,
-                critical: Some(critical),
-                value: value,
-            },
-            Either::Right(value) => ExtensionPoly {
-                id: s.0,
-                critical: None,
-                value: value,
-            },
+        ExtensionPoly {
+            id: s.0,
+            critical: s.1.0,
+            value: s.1.1,
         }
     }
 }
