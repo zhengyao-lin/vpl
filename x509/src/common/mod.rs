@@ -7,9 +7,11 @@ mod repeat;
 mod end;
 mod vest;
 mod clone;
+mod optional;
 
 pub use depend::*;
 pub use repeat::*;
 pub use end::*;
 pub use vest::*;
 pub use clone::*;
+pub use optional::*;
