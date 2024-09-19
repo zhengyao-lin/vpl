@@ -107,18 +107,87 @@ pub fn derive_view(input: TokenStream) -> TokenStream {
     TokenStream::from(view_body)
 }
 
-// #[proc_macro_derive(ASN1Tagged)]
-// pub fn derive_asn1_tagged(input: TokenStream) -> TokenStream {
-//     let name = parse_macro_input!(input as DeriveInput).ident;
+/// Similar to derive(View), but for PolyfillClone
+#[proc_macro_derive(PolyfillClone)]
+pub fn derive_polyfill_clone(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    let name = input.ident; // The name of the struct/enum
 
-//     TokenStream::from(quote! {
-//         ::builtin_macros::verus! {
-//             impl ViewWithASN1Tagged for #name {
-//                 proof fn lemma_view_preserves_tag(&self) {}
-//             }
-//         }
-//     })
-// }
+    // Get type parameters A1, A2, ..., An
+    // TODO: collect trait bounds here?
+    let generic_idents: Vec<_> = input.generics.params.iter().map(|g| match g {
+        syn::GenericParam::Type(ty) => &ty.ident,
+        _ => panic!("derive(PolyfillClone) only supports type parameters"),
+    }).collect();
+
+    // Map to A1: PolyfillClone, ... An: PolyfillClone
+    let view_generic_idents: Vec<_> = generic_idents.iter().map(|ident| {
+        quote! { #ident: PolyfillClone }
+    }).collect();
+
+    // Generate `impl PolyfillClone` body
+    let view_body = match input.data {
+        Data::Struct(ref data) => {
+            match &data.fields {
+                Fields::Unnamed(fields) => {
+                    // Generate self.0@, ..., self.n@
+                    let field_view = (0..fields.unnamed.len()).map(|i| {
+                        let i = syn::Index::from(i);
+                        quote! { PolyfillClone::clone(&self.#i) }
+                    });
+
+                    // Generate the implementation
+                    quote! {
+                        ::builtin_macros::verus! {
+                            impl<#(#view_generic_idents),*> PolyfillClone for #name<#(#generic_idents),*> {
+                                fn clone(&self) -> Self {
+                                    #name(#(#field_view),*)
+                                }
+                            }
+                        }
+                    }
+                },
+                Fields::Named(fields) => {
+                    // Handle named structs
+                    let field_view = fields.named.iter().map(|f| {
+                        let name = &f.ident;
+                        quote! { #name: PolyfillClone::clone(&self.#name) }
+                    });
+
+                    // Generate the implementation for named struct
+                    quote! {
+                        ::builtin_macros::verus! {
+                            impl<#(#view_generic_idents),*> PolyfillClone for #name<#(#generic_idents),*> {
+                                fn clone(&self) -> Self {
+                                    #name {
+                                        #(#field_view),*
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                Fields::Unit => {
+                    quote! {
+                        ::builtin_macros::verus! {
+                            impl<#(#view_generic_idents),*> PolyfillClone for #name<#(#generic_idents),*> {
+                                fn clone(&self) -> Self {
+                                    #name
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        _ => panic!("derive(View) only supports structs"),
+    };
+
+    // eprintln!("Generated code:\n{}", view_body.to_string());
+
+    // Convert the output into a TokenStream
+    TokenStream::from(view_body)
+}
 
 #[proc_macro_derive(ViewWithASN1Tagged)]
 pub fn derive_view_with_asn1_tagged(input: TokenStream) -> TokenStream {

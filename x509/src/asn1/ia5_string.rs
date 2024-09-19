@@ -17,25 +17,12 @@ verus! {
 #[derive(Debug, View, ViewWithASN1Tagged)]
 pub struct IA5String;
 
-pub struct SpecIA5StringValue(pub Seq<u8>);
-pub struct IA5StringValue<'a>(&'a [u8]);
-pub struct IA5StringValueOwned(Vec<u8>);
+#[derive(Debug, View, PolyfillClone)]
+pub struct IA5StringPoly<T>(pub T);
 
-impl View for IA5StringValue<'_> {
-    type V = SpecIA5StringValue;
-
-    closed spec fn view(&self) -> Self::V {
-        SpecIA5StringValue(self.0@)
-    }
-}
-
-impl View for IA5StringValueOwned {
-    type V = SpecIA5StringValue;
-
-    closed spec fn view(&self) -> Self::V {
-        SpecIA5StringValue(self.0@)
-    }
-}
+pub type SpecIA5StringValue = IA5StringPoly<Seq<u8>>;
+pub type IA5StringValue<'a> = IA5StringPoly<&'a [u8]>;
+pub type IA5StringValueOwned = IA5StringPoly<Vec<u8>>;
 
 impl ASN1Tagged for IA5String {
     open spec fn spec_tag(&self) -> TagValue {
@@ -55,12 +42,6 @@ impl ASN1Tagged for IA5String {
     }
 }
 
-impl<'a> PolyfillClone for IA5StringValue<'a> {
-    fn clone(&self) -> Self {
-        IA5StringValue(PolyfillClone::clone(&self.0))
-    }
-}
-
 impl SpecIA5StringValue {
     pub open spec fn wf(&self) -> bool {
         forall |i| 0 <= i < self.0.len() ==> self.0[i] <= 127
@@ -71,9 +52,9 @@ impl<'a> IA5StringValue<'a> {
     pub fn new(s: &'a [u8]) -> (res: Option<IA5StringValue<'a>>)
         ensures
             res matches Some(res) ==> res@.wf(),
-            res is None ==> !SpecIA5StringValue(s@).wf(),
+            res is None ==> !IA5StringPoly(s@).wf(),
     {
-        let res = IA5StringValue(s);
+        let res = IA5StringPoly(s);
 
         if res.wf() {
             Some(res)
@@ -109,8 +90,8 @@ impl SpecCombinator for IA5String {
     open spec fn spec_parse(&self, s: Seq<u8>) -> Result<(usize, Self::SpecResult), ()> {
         match OctetString.spec_parse(s) {
             Ok((len, v)) =>
-                if SpecIA5StringValue(v).wf() {
-                    Ok((len, SpecIA5StringValue(v)))
+                if IA5StringPoly(v).wf() {
+                    Ok((len, IA5StringPoly(v)))
                 } else {
                     Err(())
                 }
@@ -167,8 +148,8 @@ impl Combinator for IA5String {
     fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ()>) {
         let (len, v) = OctetString.parse(s)?;
 
-        if IA5StringValue(v).wf() {
-            Ok((len, IA5StringValue(v)))
+        if IA5StringPoly(v).wf() {
+            Ok((len, IA5StringPoly(v)))
         } else {
             Err(())
         }

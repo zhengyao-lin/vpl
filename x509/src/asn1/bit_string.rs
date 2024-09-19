@@ -17,18 +17,12 @@ verus! {
 #[derive(Debug, View, ViewWithASN1Tagged)]
 pub struct BitString;
 
-#[derive(Debug, View)]
+#[derive(Debug, View, PolyfillClone)]
 pub struct BitStringValuePoly<T>(pub T);
 
 pub type SpecBitStringValue = BitStringValuePoly<Seq<u8>>;
 pub type BitStringValue<'a> = BitStringValuePoly<&'a [u8]>;
 pub type BitStringValueOwned = BitStringValuePoly<Vec<u8>>;
-
-impl<'a> PolyfillClone for BitStringValue<'a> {
-    fn clone(&self) -> Self {
-        BitStringValuePoly(self.0)
-    }
-}
 
 impl ASN1Tagged for BitString {
     open spec fn spec_tag(&self) -> TagValue {

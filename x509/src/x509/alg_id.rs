@@ -25,7 +25,7 @@ pub fn algorithm_identifier() -> AlgorithmIdentifier {
     }
 }
 
-#[derive(Debug, View)]
+#[derive(Debug, View, PolyfillClone)]
 pub struct AlgorithmIdentifierTo<Alg, Params> {
     pub alg: Alg,
     pub params: Params,
@@ -36,15 +36,6 @@ type AlgorithmIdentifierFrom<Alg, Params> = (Alg, Params);
 pub type SpecAlgorithmIdentifierValue = AlgorithmIdentifierTo<SpecObjectIdentifierValue, Seq<u8>>;
 pub type AlgorithmIdentifierValue<'a> = AlgorithmIdentifierTo<ObjectIdentifierValue, &'a [u8]>;
 pub type AlgorithmIdentifierOwned = AlgorithmIdentifierTo<ObjectIdentifierValueOwned, Vec<u8>>;
-
-impl<Alg: PolyfillClone, Params: PolyfillClone> PolyfillClone for AlgorithmIdentifierTo<Alg, Params> {
-    fn clone(&self) -> Self {
-        AlgorithmIdentifierTo {
-            alg: PolyfillClone::clone(&self.alg),
-            params: PolyfillClone::clone(&self.params),
-        }
-    }
-}
 
 impl<Alg, Params> SpecFrom<AlgorithmIdentifierTo<Alg, Params>> for AlgorithmIdentifierFrom<Alg, Params> where
 {

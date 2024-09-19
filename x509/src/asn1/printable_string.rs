@@ -17,29 +17,12 @@ verus! {
 #[derive(Debug, View, ViewWithASN1Tagged)]
 pub struct PrintableString;
 
-pub struct SpecPrintableStringValue(pub Seq<u8>);
+#[derive(Debug, View, PolyfillClone)]
+pub struct PrintableStringPoly<T>(pub T);
 
-#[derive(Debug)]
-pub struct PrintableStringValue<'a>(pub &'a [u8]);
-
-#[derive(Debug)]
-pub struct PrintableStringValueOwned(pub Vec<u8>);
-
-impl View for PrintableStringValue<'_> {
-    type V = SpecPrintableStringValue;
-
-    closed spec fn view(&self) -> Self::V {
-        SpecPrintableStringValue(self.0@)
-    }
-}
-
-impl View for PrintableStringValueOwned {
-    type V = SpecPrintableStringValue;
-
-    closed spec fn view(&self) -> Self::V {
-        SpecPrintableStringValue(self.0@)
-    }
-}
+pub type SpecPrintableStringValue = PrintableStringPoly<Seq<u8>>;
+pub type PrintableStringValue<'a> = PrintableStringPoly<&'a [u8]>;
+pub type PrintableStringValueOwned = PrintableStringPoly<Vec<u8>>;
 
 impl ASN1Tagged for PrintableString {
     open spec fn spec_tag(&self) -> TagValue {
@@ -56,12 +39,6 @@ impl ASN1Tagged for PrintableString {
             form: TagForm::Primitive,
             num: 0x13,
         }
-    }
-}
-
-impl<'a> PolyfillClone for PrintableStringValue<'a> {
-    fn clone(&self) -> Self {
-        PrintableStringValue(PolyfillClone::clone(&self.0))
     }
 }
 
@@ -88,9 +65,9 @@ impl<'a> PrintableStringValue<'a> {
     pub fn new(s: &'a [u8]) -> (res: Option<PrintableStringValue<'a>>)
         ensures
             res matches Some(res) ==> res@.wf(),
-            res is None ==> !SpecPrintableStringValue(s@).wf(),
+            res is None ==> !PrintableStringPoly(s@).wf(),
     {
-        let res = PrintableStringValue(s);
+        let res = PrintableStringPoly(s);
 
         if res.wf() {
             Some(res)
@@ -141,8 +118,8 @@ impl SpecCombinator for PrintableString {
     open spec fn spec_parse(&self, s: Seq<u8>) -> Result<(usize, Self::SpecResult), ()> {
         match OctetString.spec_parse(s) {
             Ok((len, v)) =>
-                if SpecPrintableStringValue(v).wf() {
-                    Ok((len, SpecPrintableStringValue(v)))
+                if PrintableStringPoly(v).wf() {
+                    Ok((len, PrintableStringPoly(v)))
                 } else {
                     Err(())
                 }
@@ -199,8 +176,8 @@ impl Combinator for PrintableString {
     fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ()>) {
         let (len, v) = OctetString.parse(s)?;
 
-        if PrintableStringValue(v).wf() {
-            Ok((len, PrintableStringValue(v)))
+        if PrintableStringPoly(v).wf() {
+            Ok((len, PrintableStringPoly(v)))
         } else {
             Err(())
         }
