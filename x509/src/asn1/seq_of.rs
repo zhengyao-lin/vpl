@@ -89,7 +89,7 @@ impl<C: SecureSpecCombinator + SpecCombinator> SecureSpecCombinator for Sequence
     }
 }
 
-impl<C: PolyfillCloneCombinator + Combinator> Combinator for SequenceOf<C> where
+impl<C: Combinator> Combinator for SequenceOf<C> where
     <C as View>::V: SecureSpecCombinator<SpecResult = <C::Owned as View>::V>,
     for<'a> C::Result<'a>: PolyfillClone,
 {
@@ -114,7 +114,7 @@ impl<C: PolyfillCloneCombinator + Combinator> Combinator for SequenceOf<C> where
     }
 
     fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ()>) {
-        ExplicitTag(self.tag(), Repeat(self.0.clone())).parse(s)
+        ExplicitTag(self.tag(), Repeat(&self.0)).parse(s)
     }
 
     open spec fn serialize_requires(&self) -> bool {
@@ -123,7 +123,7 @@ impl<C: PolyfillCloneCombinator + Combinator> Combinator for SequenceOf<C> where
     }
 
     fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, ()>) {
-        ExplicitTag(self.tag(), Repeat(self.0.clone())).serialize(v, data, pos)
+        ExplicitTag(self.tag(), Repeat(&self.0)).serialize(v, data, pos)
     }
 }
 

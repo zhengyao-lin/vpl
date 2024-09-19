@@ -86,7 +86,7 @@ impl<T: SecureSpecCombinator> SecureSpecCombinator for ExplicitTag<T> {
     }
 }
 
-impl<T: PolyfillCloneCombinator + Combinator> Combinator for ExplicitTag<T> where
+impl<T: Combinator> Combinator for ExplicitTag<T> where
     <T as View>::V: SecureSpecCombinator<SpecResult = <<T as Combinator>::Owned as View>::V>,
     for<'a> T::Result<'a>: PolyfillClone,
 {
@@ -111,7 +111,7 @@ impl<T: PolyfillCloneCombinator + Combinator> Combinator for ExplicitTag<T> wher
     }
 
     fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ()>) {
-        let (len, (_, v)) = new_explicit_tag_inner(self.1.clone()).parse(s)?;
+        let (len, (_, v)) = new_explicit_tag_inner(&self.1).parse(s)?;
         Ok((len, v))
     }
 
@@ -122,7 +122,7 @@ impl<T: PolyfillCloneCombinator + Combinator> Combinator for ExplicitTag<T> wher
     fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, ()>) {
         // TODO: can we avoid serializing twice?
         let len = self.1.serialize(v.clone(), data, pos)?;
-        let final_len = new_explicit_tag_inner(self.1.clone()).serialize((len as LengthValue, v), data, pos)?;
+        let final_len = new_explicit_tag_inner(&self.1).serialize((len as LengthValue, v), data, pos)?;
 
         if pos < data.len() && final_len < data.len() - pos {
             assert(data@ =~= seq_splice(old(data)@, pos, self@.spec_serialize(v@).unwrap()));
@@ -134,16 +134,16 @@ impl<T: PolyfillCloneCombinator + Combinator> Combinator for ExplicitTag<T> wher
 }
 
 /// The function |i| AndThen<Bytes, T>
-pub struct ExplicitTagCont<T>(pub T);
+pub struct ExplicitTagCont<'a, T>(pub &'a T);
 
-impl<T: PolyfillCloneCombinator + Combinator> Continuation for ExplicitTagCont<T> where
+impl<'b, T: Combinator> Continuation for ExplicitTagCont<'b, T> where
     <T as View>::V: SecureSpecCombinator<SpecResult = <<T as Combinator>::Owned as View>::V>,
 {
     type Input<'a> = LengthValue;
-    type Output = AndThen<Bytes, T>;
+    type Output = AndThen<Bytes, &'b T>;
 
     fn apply<'a>(&self, i: Self::Input<'a>) -> (o: Self::Output) {
-        AndThen(Bytes(i as usize), self.0.clone())
+        AndThen(Bytes(i as usize), &self.0)
     }
 
     open spec fn requires<'a>(&self, i: Self::Input<'a>) -> bool {
@@ -158,7 +158,7 @@ impl<T: PolyfillCloneCombinator + Combinator> Continuation for ExplicitTagCont<T
 }
 
 type SpecExplicitTagInner<T> = SpecDepend<Length, AndThen<Bytes, T>>;
-type ExplicitTagInner<T> = Depend<Length, AndThen<Bytes, T>, ExplicitTagCont<T>>;
+type ExplicitTagInner<'a, T> = Depend<Length, AndThen<Bytes, &'a T>, ExplicitTagCont<'a, T>>;
 
 /// SpecDepend version of new_explicit_tag_inner
 pub open spec fn new_spec_explicit_tag_inner<T: SpecCombinator>(inner: T) -> SpecExplicitTagInner<T> {
@@ -171,7 +171,7 @@ pub open spec fn new_spec_explicit_tag_inner<T: SpecCombinator>(inner: T) -> Spe
 }
 
 /// Spec version of new_explicit_tag_inner
-closed spec fn new_explicit_tag_inner_spec<T: PolyfillCloneCombinator + Combinator>(inner: T) -> ExplicitTagInner<T> where
+closed spec fn new_explicit_tag_inner_spec<'a, T: Combinator>(inner: &'a T) -> ExplicitTagInner<'a, T> where
     <T as View>::V: SecureSpecCombinator<SpecResult = <<T as Combinator>::Owned as View>::V>,
 {
     Depend {
@@ -183,7 +183,7 @@ closed spec fn new_explicit_tag_inner_spec<T: PolyfillCloneCombinator + Combinat
     }
 }
 
-fn new_explicit_tag_inner<T: PolyfillCloneCombinator + Combinator>(inner: T) -> (res: ExplicitTagInner<T>) where
+fn new_explicit_tag_inner<'a, T: Combinator>(inner: &'a T) -> (res: ExplicitTagInner<'a, T>) where
     <T as View>::V: SecureSpecCombinator<SpecResult = <<T as Combinator>::Owned as View>::V>,
 
     ensures
