@@ -23,8 +23,8 @@ pub fn rdn() -> RDN {
 }
 
 type SpecRDNInner = Seq<SpecAttributeTypeAndValueValue>;
-type RDNInner<'a> = RepeatResult<AttributeTypeAndValueValue<'a>>;
-type RDNInnerOwned = RepeatResultOwned<AttributeTypeAndValueOwned>;
+type RDNInner<'a> = VecDeep<AttributeTypeAndValueValue<'a>>;
+type RDNInnerOwned = VecDeep<AttributeTypeAndValueOwned>;
 
 pub struct SpecRDNValue {
     attrs: Seq<SpecAttributeTypeAndValueValue>,
@@ -83,28 +83,28 @@ impl SpecFrom<SpecRDNInner> for SpecRDNValue {
 
 impl<'a> From<RDNValue<'a>> for RDNInner<'a> {
     fn ex_from(s: RDNValue<'a>) -> Self {
-        RepeatResult(s.attrs)
+        VecDeep::from_vec(s.attrs)
     }
 }
 
 impl<'a> From<RDNInner<'a>> for RDNValue<'a> {
     fn ex_from(s: RDNInner<'a>) -> Self {
         RDNValue {
-            attrs: s.0,
+            attrs: s.to_vec(),
         }
     }
 }
 
 impl From<RDNOwned> for RDNInnerOwned {
     fn ex_from(s: RDNOwned) -> Self {
-        RepeatResultOwned(s.attrs)
+        VecDeep::from_vec(s.attrs)
     }
 }
 
 impl From<RDNInnerOwned> for RDNOwned {
     fn ex_from(s: RDNInnerOwned) -> Self {
         RDNOwned {
-            attrs: s.0,
+            attrs: s.to_vec(),
         }
     }
 }

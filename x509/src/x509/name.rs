@@ -17,89 +17,62 @@ pub fn name() -> Name {
     }
 }
 
-type SpecNameInner = Seq<SpecRDNValue>;
-type NameInner<'a> = RepeatResult<RDNValue<'a>>;
-type NameInnerOwned = RepeatResultOwned<RDNOwned>;
-
-pub struct SpecNameValue {
-    rdns: Seq<SpecRDNValue>,
-}
-
 #[derive(Debug)]
-pub struct NameValue<'a> {
-    rdns: Vec<RDNValue<'a>>,
+pub struct NamePoly<RDNS> {
+    pub rdns: RDNS,
 }
 
-pub struct NameOwned {
-    rdns: Vec<RDNOwned>,
-}
+pub type SpecNameValue = NamePoly<Seq<SpecRDNValue>>;
+pub type NameValue<'a> = NamePoly<Vec<RDNValue<'a>>>;
+pub type NameOwned = NamePoly<Vec<RDNOwned>>;
 
-impl<'a> View for NameValue<'a> {
-    type V = SpecNameValue;
+// type SpecNameInner = Seq<SpecRDNValue>;
+// type NameInner<T> = RepeatValue<T>;
+
+type NameFrom<T> = T;
+
+impl<T: View> View for NamePoly<Vec<T>> {
+    type V = NamePoly<Seq<T::V>>;
 
     closed spec fn view(&self) -> Self::V {
-        SpecNameValue {
+        NamePoly {
             rdns: Seq::new(self.rdns.len() as nat, |i| self.rdns@[i]@),
         }
     }
 }
 
-impl View for NameOwned {
-    type V = SpecNameValue;
-
-    closed spec fn view(&self) -> Self::V {
-        SpecNameValue {
-            rdns: Seq::new(self.rdns.len() as nat, |i| self.rdns@[i]@),
-        }
-    }
-}
-
-impl<'a> PolyfillClone for NameValue<'a> {
+impl<T: PolyfillClone> PolyfillClone for NamePoly<Vec<T>> {
     fn clone(&self) -> Self {
-        NameValue {
+        NamePoly {
             rdns: clone_vec_inner(&self.rdns),
         }
     }
 }
 
-impl SpecFrom<SpecNameValue> for SpecNameInner {
-    closed spec fn spec_from(s: SpecNameValue) -> Self {
+impl<T> SpecFrom<NamePoly<Seq<T>>> for NameFrom<Seq<T>> {
+    closed spec fn spec_from(s: NamePoly<Seq<T>>) -> Self {
         s.rdns
     }
 }
 
-impl SpecFrom<SpecNameInner> for SpecNameValue {
-    closed spec fn spec_from(s: SpecNameInner) -> Self {
-        SpecNameValue {
+impl<T> SpecFrom<NameFrom<T>> for NamePoly<T> {
+    closed spec fn spec_from(s: NameFrom<T>) -> Self {
+        NamePoly {
             rdns: s,
         }
     }
 }
 
-impl<'a> From<NameValue<'a>> for NameInner<'a> {
-    fn ex_from(s: NameValue<'a>) -> Self {
-        RepeatResult(s.rdns)
+impl<T: View> From<NamePoly<Vec<T>>> for NameFrom<VecDeep<T>> {
+    fn ex_from(s: NamePoly<Vec<T>>) -> Self {
+        VecDeep::from_vec(s.rdns)
     }
 }
 
-impl<'a> From<NameInner<'a>> for NameValue<'a> {
-    fn ex_from(s: NameInner<'a>) -> Self {
-        NameValue {
-            rdns: s.0,
-        }
-    }
-}
-
-impl From<NameOwned> for NameInnerOwned {
-    fn ex_from(s: NameOwned) -> Self {
-        RepeatResultOwned(s.rdns)
-    }
-}
-
-impl From<NameInnerOwned> for NameOwned {
-    fn ex_from(s: NameInnerOwned) -> Self {
-        NameOwned {
-            rdns: s.0,
+impl<T: View> From<NameFrom<VecDeep<T>>> for NamePoly<Vec<T>> {
+    fn ex_from(s: NameFrom<VecDeep<T>>) -> Self {
+        NamePoly {
+            rdns: s.to_vec(),
         }
     }
 }
@@ -108,19 +81,19 @@ impl From<NameInnerOwned> for NameOwned {
 pub struct NameMapper;
 
 impl SpecIso for NameMapper {
-    type Src = SpecNameInner;
-    type Dst = SpecNameValue;
+    type Src = NameFrom<Seq<SpecRDNValue>>;
+    type Dst = NamePoly<Seq<SpecRDNValue>>;
 
     proof fn spec_iso(s: Self::Src) {}
     proof fn spec_iso_rev(s: Self::Dst) {}
 }
 
 impl Iso for NameMapper {
-    type Src<'a> = NameInner<'a>;
-    type Dst<'a> = NameValue<'a>;
+    type Src<'a> = NameFrom<VecDeep<RDNValue<'a>>>;
+    type Dst<'a> = NamePoly<Vec<RDNValue<'a>>>;
 
-    type SrcOwned = NameInnerOwned;
-    type DstOwned = NameOwned;
+    type SrcOwned = NameFrom<VecDeep<RDNOwned>>;
+    type DstOwned = NamePoly<Vec<RDNOwned>>;
 }
 
 }

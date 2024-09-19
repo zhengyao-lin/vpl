@@ -136,7 +136,7 @@ verus! {
 
         // println_join!("parsed: ", format_dbg(res));
 
-        let string_seq = RepeatResult(vec![ "hello", "world" ]);
+        let string_seq = VecDeep::from_vec(vec![ "hello", "world" ]);
         let mut buf = vec![ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ];
         let len = ASN1(SequenceOf(ASN1(UTF8String))).serialize(string_seq, &mut buf, 0)?;
         buf.truncate(len);
@@ -429,7 +429,7 @@ fn diff_test_base_128_uint_serialize() {
 fn serialize_oid(v: Vec<UInt>) -> Result<Vec<u8>, ()> {
     let mut data = vec![0; 1 + 4 + v.len() * 8];
     data[0] = 0x06;
-    let len = ObjectIdentifier.serialize(v, &mut data, 1)?;
+    let len = ObjectIdentifier.serialize(VecDeep::from_vec(v), &mut data, 1)?;
     data.truncate(len + 1);
     Ok(data)
 }

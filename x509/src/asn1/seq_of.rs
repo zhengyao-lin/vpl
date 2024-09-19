@@ -13,8 +13,7 @@ verus! {
 #[derive(Debug, View, ViewWithASN1Tagged)]
 pub struct SequenceOf<C>(pub C);
 
-pub type SequenceOfValue<T> = RepeatResult<T>;
-pub type SequenceOfValueOwned<T> = RepeatResultOwned<T>;
+pub type SequenceOfValue<T> = VecDeep<T>;
 
 impl<C> ASN1Tagged for SequenceOf<C> {
     open spec fn spec_tag(&self) -> TagValue {
@@ -71,7 +70,7 @@ impl<C: Combinator> Combinator for SequenceOf<C> where
     for<'a> C::Result<'a>: PolyfillClone,
 {
     type Result<'a> = SequenceOfValue<C::Result<'a>>;
-    type Owned = SequenceOfValueOwned<C::Owned>;
+    type Owned = SequenceOfValue<C::Owned>;
 
     open spec fn spec_length(&self) -> Option<usize> {
         None

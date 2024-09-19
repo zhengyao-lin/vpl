@@ -13,47 +13,12 @@ verus! {
 #[derive(Debug)]
 pub struct Repeat<C>(pub C);
 
-/// Wrappers around Vec so that their View's can be implemented as DeepView
-#[derive(Debug)]
-pub struct RepeatResult<T>(pub Vec<T>);
-
-/// Owned version of RepeatResult
-#[derive(Debug)]
-pub struct RepeatResultOwned<T>(pub Vec<T>);
-
 impl<C: View> View for Repeat<C>
 {
     type V = Repeat<<C as View>::V>;
 
     open spec fn view(&self) -> Self::V {
         Repeat(self.0@)
-    }
-}
-
-impl<T: View> View for RepeatResult<T>
-{
-    type V = Seq<T::V>;
-
-    open spec fn view(&self) -> Self::V {
-        Seq::new(self.0.len() as nat, |i: int| self.0@[i]@)
-    }
-}
-
-impl<T: View> View for RepeatResultOwned<T>
-{
-    type V = Seq<T::V>;
-
-    open spec fn view(&self) -> Self::V {
-        Seq::new(self.0.len() as nat, |i: int| self.0@[i]@)
-    }
-}
-
-/// Clone RepeatResult (a wrapper around Vec) by cloning each element
-impl<T: PolyfillClone> PolyfillClone for RepeatResult<T> where
-{
-    /// Same as clone of Vec, but this is a "deep" copy
-    fn clone(&self) -> Self {
-        RepeatResult(clone_vec_inner(&self.0))
     }
 }
 
@@ -182,7 +147,7 @@ impl<C: Combinator> Repeat<C> where
 
     /// Helper function for parse()
     /// TODO: Recursion is not ideal, but hopefully tail call opt will kick in
-    fn parse_helper<'a>(&self, s: &'a [u8], res: &mut Vec<C::Result<'a>>) -> (suc: bool)
+    fn parse_helper<'a>(&self, s: &'a [u8], res: &mut VecDeep<C::Result<'a>>) -> (suc: bool)
         requires
             self.0.parse_requires(),
             <C as View>::V::spec_is_prefix_secure(),
@@ -191,7 +156,7 @@ impl<C: Combinator> Repeat<C> where
             suc ==> {
                 &&& self@.spec_parse(s@) is Ok
                 &&& self@.spec_parse(s@) matches Ok((n, v)) ==>
-                    RepeatResult(*res)@ =~= RepeatResult(*old(res))@ + v
+                    res@ =~= old(res)@ + v
             },
             !suc ==> self@.spec_parse(s@) is Err
     {
@@ -209,7 +174,7 @@ impl<C: Combinator> Repeat<C> where
         return false;
     }
 
-    fn serialize_helper(&self, v: &mut RepeatResult<C::Result<'_>>, data: &mut Vec<u8>, pos: usize, len: usize) -> (res: Option<usize>)
+    fn serialize_helper(&self, v: &mut VecDeep<C::Result<'_>>, data: &mut Vec<u8>, pos: usize, len: usize) -> (res: Option<usize>)
         requires
             self.0.serialize_requires(),
             <C as View>::V::spec_is_prefix_secure(),
@@ -226,12 +191,12 @@ impl<C: Combinator> Repeat<C> where
             return None;
         }
 
-        if v.0.len() == 0 {
+        if v.len() == 0 {
             assert(data@ =~= seq_splice(old(data)@, pos, seq![]));
             return Some(len);
         }
 
-        if let Ok(n1) = self.0.serialize(v.0.remove(0), data, pos + len) {
+        if let Ok(n1) = self.0.serialize(v.remove(0), data, pos + len) {
             assert(v@ =~= old(v)@.drop_first());
 
             if n1 != 0 {
@@ -250,8 +215,8 @@ impl<C: Combinator> Repeat<C> where
 impl<C: Combinator> Combinator for Repeat<C> where
     <C as View>::V: SecureSpecCombinator<SpecResult = <C::Owned as View>::V>,
 {
-    type Result<'a> = RepeatResult<C::Result<'a>>;
-    type Owned = RepeatResultOwned<C::Owned>;
+    type Result<'a> = VecDeep<C::Result<'a>>;
+    type Owned = VecDeep<C::Owned>;
 
     open spec fn spec_length(&self) -> Option<usize> {
         None
@@ -271,10 +236,10 @@ impl<C: Combinator> Combinator for Repeat<C> where
     }
 
     fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ()>) {
-        let mut res = Vec::new();
+        let mut res = VecDeep::new();
 
         if self.parse_helper(s, &mut res) {
-            Ok((s.len(), RepeatResult(res)))
+            Ok((s.len(), res))
         } else {
             Err(())
         }

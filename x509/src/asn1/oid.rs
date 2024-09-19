@@ -14,8 +14,8 @@ verus! {
 pub struct ObjectIdentifier;
 
 pub type SpecObjectIdentifierValue = Seq<UInt>;
-pub type ObjectIdentifierValue = Vec<UInt>;
-pub type ObjectIdentifierValueOwned = Vec<UInt>;
+pub type ObjectIdentifierValue = VecDeep<UInt>;
+pub type ObjectIdentifierValueOwned = VecDeep<UInt>;
 
 impl ASN1Tagged for ObjectIdentifier {
     open spec fn spec_tag(&self) -> TagValue {
@@ -174,8 +174,8 @@ impl Combinator for ObjectIdentifier {
                 return Err(());
             }
 
-            let mut res = vec![ arc1 as UInt, arc2 as UInt ];
-            res.append(&mut rest_arcs.0);
+            let mut res = VecDeep::from_vec(vec![ arc1 as UInt, arc2 as UInt ]);
+            res.append(&mut rest_arcs);
 
             assert(res@ == self.spec_parse(s@).unwrap().1);
 
@@ -192,18 +192,18 @@ impl Combinator for ObjectIdentifier {
             return Err(());
         }
 
-        if v[0] > 2 || v[1] > 39 {
+        if *v.get(0) > 2 || *v.get(1) > 39 {
             return Err(());
         }
 
-        let first_byte = v[0] as u8 * 40 + v[1] as u8;
+        let first_byte = *v.get(0) as u8 * 40 + *v.get(1) as u8;
 
         let rest_arcs_inner = v.split_off(2);
 
         // Need to figure out the content length first
         // TODO: this seems inefficient
-        let rest_arcs_cloned = RepeatResult(PolyfillClone::clone(&rest_arcs_inner));
-        let rest_arcs = RepeatResult(rest_arcs_inner);
+        let rest_arcs_cloned = PolyfillClone::clone(&rest_arcs_inner);
+        let rest_arcs = rest_arcs_inner;
 
         if let Ok(len) = (U8, Repeat(Base128UInt)).serialize((first_byte, rest_arcs_cloned), data, pos) {
             let ghost data2 = data@;
