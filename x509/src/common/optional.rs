@@ -12,6 +12,7 @@ verus! {
 ///   Right(B) <-> (None, B)
 pub struct Optional<C1, C2>(pub C1, pub C2);
 
+#[derive(Debug)]
 pub struct OptionalValue<T1, T2>(pub Option<T1>, pub T2);
 
 impl<C1: Combinator, C2: Combinator> Optional<C1, C2> where

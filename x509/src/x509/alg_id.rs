@@ -26,96 +26,64 @@ pub fn algorithm_identifier() -> AlgorithmIdentifier {
     }
 }
 
-pub struct SpecAlgorithmIdentifierValue {
-    pub alg: SpecObjectIdentifierValue,
-    pub params: Seq<u8>,
-}
-
 #[derive(Debug)]
-pub struct AlgorithmIdentifierValue<'a> {
-    pub alg: ObjectIdentifierValue,
-    pub params: &'a [u8],
+pub struct AlgorithmIdentifierTo<Alg, Params> {
+    pub alg: Alg,
+    pub params: Params,
 }
 
-pub struct AlgorithmIdentifierOwned {
-    pub alg: ObjectIdentifierValueOwned,
-    pub params: Vec<u8>,
-}
+type AlgorithmIdentifierFrom<Alg, Params> = (Alg, Params);
 
-type SpecAlgorithmIdentifierInner = (SpecObjectIdentifierValue, Seq<u8>);
-type AlgorithmIdentifierInner<'a> = (ObjectIdentifierValue, &'a [u8]);
-type AlgorithmIdentifierInnerOwned = (ObjectIdentifierValueOwned, Vec<u8>);
+pub type SpecAlgorithmIdentifierValue = AlgorithmIdentifierTo<SpecObjectIdentifierValue, Seq<u8>>;
+pub type AlgorithmIdentifierValue<'a> = AlgorithmIdentifierTo<ObjectIdentifierValue, &'a [u8]>;
+pub type AlgorithmIdentifierOwned = AlgorithmIdentifierTo<ObjectIdentifierValueOwned, Vec<u8>>;
 
-impl<'a> PolyfillClone for AlgorithmIdentifierValue<'a> {
+impl<Alg: PolyfillClone, Params: PolyfillClone> PolyfillClone for AlgorithmIdentifierTo<Alg, Params> {
     fn clone(&self) -> Self {
-        AlgorithmIdentifierValue {
+        AlgorithmIdentifierTo {
             alg: PolyfillClone::clone(&self.alg),
             params: PolyfillClone::clone(&self.params),
         }
     }
 }
 
-impl<'a> View for AlgorithmIdentifierValue<'a> {
-    type V = SpecAlgorithmIdentifierValue;
+impl<Alg: View, Params: View> View for AlgorithmIdentifierTo<Alg, Params> {
+    type V = AlgorithmIdentifierTo<Alg::V, Params::V>;
 
     closed spec fn view(&self) -> Self::V {
-        SpecAlgorithmIdentifierValue {
+        AlgorithmIdentifierTo {
             alg: self.alg@,
             params: self.params@,
         }
     }
 }
 
-impl View for AlgorithmIdentifierOwned {
-    type V = SpecAlgorithmIdentifierValue;
-
-    closed spec fn view(&self) -> Self::V {
-        SpecAlgorithmIdentifierValue {
-            alg: self.alg@,
-            params: self.params@,
-        }
-    }
-}
-
-impl SpecFrom<SpecAlgorithmIdentifierValue> for SpecAlgorithmIdentifierInner {
-    closed spec fn spec_from(s: SpecAlgorithmIdentifierValue) -> Self {
+impl<Alg, Params> SpecFrom<AlgorithmIdentifierTo<Alg, Params>> for AlgorithmIdentifierFrom<Alg, Params> where
+{
+    closed spec fn spec_from(s: AlgorithmIdentifierTo<Alg, Params>) -> Self {
         (s.alg, s.params)
     }
 }
 
-impl SpecFrom<SpecAlgorithmIdentifierInner> for SpecAlgorithmIdentifierValue {
-    closed spec fn spec_from(s: SpecAlgorithmIdentifierInner) -> Self {
-        SpecAlgorithmIdentifierValue {
+impl<Alg, Params> SpecFrom<AlgorithmIdentifierFrom<Alg, Params>> for AlgorithmIdentifierTo<Alg, Params> {
+    closed spec fn spec_from(s: AlgorithmIdentifierFrom<Alg, Params>) -> Self {
+        AlgorithmIdentifierTo {
             alg: s.0,
             params: s.1,
         }
     }
 }
 
-impl<'a> From<AlgorithmIdentifierValue<'a>> for AlgorithmIdentifierInner<'a> {
-    fn ex_from(s: AlgorithmIdentifierValue<'a>) -> Self {
+impl<Alg: View, Params: View> From<AlgorithmIdentifierTo<Alg, Params>> for AlgorithmIdentifierFrom<Alg, Params> where
+{
+    fn ex_from(s: AlgorithmIdentifierTo<Alg, Params>) -> Self {
         (s.alg, s.params)
     }
 }
 
-impl<'a> From<AlgorithmIdentifierInner<'a>> for AlgorithmIdentifierValue<'a> {
-    fn ex_from(s: AlgorithmIdentifierInner<'a>) -> Self {
-        AlgorithmIdentifierValue {
-            alg: s.0,
-            params: s.1,
-        }
-    }
-}
-
-impl From<AlgorithmIdentifierOwned> for AlgorithmIdentifierInnerOwned {
-    fn ex_from(s: AlgorithmIdentifierOwned) -> Self {
-        (s.alg, s.params)
-    }
-}
-
-impl From<AlgorithmIdentifierInnerOwned> for AlgorithmIdentifierOwned {
-    fn ex_from(s: AlgorithmIdentifierInnerOwned) -> Self {
-        AlgorithmIdentifierOwned {
+impl<Alg: View, Params: View> From<AlgorithmIdentifierFrom<Alg, Params>> for AlgorithmIdentifierTo<Alg, Params> {
+    fn ex_from(s: AlgorithmIdentifierFrom<Alg, Params>) -> Self {
+        AlgorithmIdentifierTo {
             alg: s.0,
             params: s.1,
         }
@@ -127,19 +95,19 @@ pub struct AlgorithmIdentifierMapper;
 impl_trivial_view!(AlgorithmIdentifierMapper);
 
 impl SpecIso for AlgorithmIdentifierMapper {
-    type Src = SpecAlgorithmIdentifierInner;
-    type Dst = SpecAlgorithmIdentifierValue;
+    type Src = AlgorithmIdentifierFrom<SpecObjectIdentifierValue, Seq<u8>>;
+    type Dst = AlgorithmIdentifierTo<SpecObjectIdentifierValue, Seq<u8>>;
 
     proof fn spec_iso(s: Self::Src) {}
     proof fn spec_iso_rev(s: Self::Dst) {}
 }
 
 impl Iso for AlgorithmIdentifierMapper {
-    type Src<'a> = AlgorithmIdentifierInner<'a>;
-    type Dst<'a> = AlgorithmIdentifierValue<'a>;
+    type Src<'a> = AlgorithmIdentifierFrom<ObjectIdentifierValue, &'a [u8]>;
+    type Dst<'a> = AlgorithmIdentifierTo<ObjectIdentifierValue, &'a [u8]>;
 
-    type SrcOwned = AlgorithmIdentifierInnerOwned;
-    type DstOwned = AlgorithmIdentifierOwned;
+    type SrcOwned = AlgorithmIdentifierFrom<ObjectIdentifierValueOwned, Vec<u8>>;
+    type DstOwned = AlgorithmIdentifierTo<ObjectIdentifierValueOwned, Vec<u8>>;
 }
 
 }
