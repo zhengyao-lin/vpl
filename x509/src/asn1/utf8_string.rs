@@ -3,7 +3,6 @@ use vstd::vstd::slice::slice_subrange;
 
 use polyfill::*;
 
-use crate::utils::*;
 use crate::common::*;
 
 use super::len::*;
@@ -12,9 +11,8 @@ use super::tag::*;
 verus! {
 
 /// Combainator for UTF8String in ASN.1
-#[derive(Debug)]
+#[derive(Debug, View)]
 pub struct UTF8String;
-impl_trivial_view!(UTF8String);
 
 pub type SpecUTF8StringValue = Seq<char>;
 pub type UTF8StringValue<'a> = &'a str;

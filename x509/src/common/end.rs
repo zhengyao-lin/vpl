@@ -1,13 +1,12 @@
 use vstd::prelude::*;
-use crate::utils::*;
+use crate::common::*;
 use super::vest::*;
 
 verus! {
 
 /// A combinator that only matches the end of the buffer
-#[derive(Debug)]
+#[derive(Debug, View)]
 pub struct End;
-impl_trivial_view!(End);
 
 impl SpecCombinator for End {
     type SpecResult = ();

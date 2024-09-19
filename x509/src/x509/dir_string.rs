@@ -2,7 +2,6 @@ use vstd::prelude::*;
 
 use crate::asn1::*;
 use crate::common::*;
-use crate::utils::*;
 
 verus! {
 
@@ -132,9 +131,8 @@ impl From<DirectoryStringOwned> for DirectoryStringInnerOwned {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, View)]
 pub struct DirectoryStringMapper;
-impl_trivial_view!(DirectoryStringMapper);
 
 impl SpecIso for DirectoryStringMapper {
     type Src = SpecDirectoryStringInner;

@@ -1,6 +1,5 @@
 use vstd::prelude::*;
 
-use crate::utils::*;
 use crate::common::*;
 
 use super::bounds::*;
@@ -11,9 +10,8 @@ use super::tag::*;
 verus! {
 
 /// Combinator for ASN.1 Object Identifier
-#[derive(Debug)]
+#[derive(Debug, View)]
 pub struct ObjectIdentifier;
-impl_trivial_view!(ObjectIdentifier);
 
 pub type SpecObjectIdentifierValue = Seq<UInt>;
 pub type ObjectIdentifierValue = Vec<UInt>;

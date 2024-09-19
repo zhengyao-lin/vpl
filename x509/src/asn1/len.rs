@@ -2,7 +2,6 @@ use vstd::prelude::*;
 
 use polyfill::*;
 
-use crate::utils::*;
 use crate::common::*;
 
 use super::bounds::*;
@@ -11,9 +10,8 @@ use super::var_int::*;
 verus! {
 
 /// Combinator for the length field in a TLV tuple
-#[derive(Debug)]
+#[derive(Debug, View)]
 pub struct Length;
-impl_trivial_view!(Length);
 
 pub type LengthValue = VarUIntResult;
 

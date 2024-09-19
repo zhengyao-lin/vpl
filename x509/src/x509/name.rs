@@ -2,7 +2,6 @@ use vstd::prelude::*;
 
 use crate::asn1::*;
 use crate::common::*;
-use crate::utils::*;
 
 use super::rdn::*;
 
@@ -105,9 +104,8 @@ impl From<NameInnerOwned> for NameOwned {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, View)]
 pub struct NameMapper;
-impl_trivial_view!(NameMapper);
 
 impl SpecIso for NameMapper {
     type Src = SpecNameInner;

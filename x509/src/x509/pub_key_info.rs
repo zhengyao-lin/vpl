@@ -2,7 +2,6 @@ use vstd::prelude::*;
 
 use crate::asn1::*;
 use crate::common::*;
-use crate::utils::*;
 
 use super::alg_id::*;
 
@@ -121,9 +120,8 @@ impl From<PublicKeyInfoInnerOwned> for PublicKeyInfoOwned {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, View)]
 pub struct PublicKeyInfoMapper;
-impl_trivial_view!(PublicKeyInfoMapper);
 
 impl SpecIso for PublicKeyInfoMapper {
     type Src = SpecPublicKeyInfoInner;

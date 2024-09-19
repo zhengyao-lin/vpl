@@ -2,7 +2,6 @@ use vstd::prelude::*;
 
 use crate::asn1::*;
 use crate::common::*;
-use crate::utils::*;
 
 use super::time::*;
 
@@ -122,9 +121,8 @@ impl From<ValidityInnerOwned> for ValidityOwned {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, View)]
 pub struct ValidityMapper;
-impl_trivial_view!(ValidityMapper);
 
 impl SpecIso for ValidityMapper {
     type Src = SpecValidityInner;

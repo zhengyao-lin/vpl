@@ -4,7 +4,6 @@ use crate::asn1::*;
 use crate::asn1::Boolean;
 
 use crate::common::*;
-use crate::utils::*;
 
 verus! {
 
@@ -176,8 +175,8 @@ impl From<ExtensionInnerOwned> for ExtensionOwned {
     }
 }
 
+#[derive(Debug, View)]
 pub struct ExtensionMapper;
-impl_trivial_view!(ExtensionMapper);
 
 impl SpecIso for ExtensionMapper {
     type Src = SpecExtensionInner;

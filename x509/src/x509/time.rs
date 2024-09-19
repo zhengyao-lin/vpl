@@ -2,7 +2,6 @@ use vstd::prelude::*;
 
 use crate::asn1::*;
 use crate::common::*;
-use crate::utils::*;
 
 verus! {
 
@@ -142,9 +141,8 @@ impl From<TimeOwned> for TimeInnerOwned {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, View)]
 pub struct TimeMapper;
-impl_trivial_view!(TimeMapper);
 
 impl SpecIso for TimeMapper {
     type Src = SpecTimeInner;

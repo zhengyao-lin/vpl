@@ -1,8 +1,6 @@
 use vstd::prelude::*;
 
-use crate::utils::*;
 use crate::common::*;
-
 use super::bounds::*;
 
 verus! {
@@ -19,9 +17,8 @@ verus! {
 ///
 /// NOTE: the first and second arc of an OID are encoded differently
 /// than this combinator
-#[derive(Debug)]
+#[derive(Debug, View)]
 pub struct Base128UInt;
-impl_trivial_view!(Base128UInt);
 
 impl SpecCombinator for Base128UInt {
     type SpecResult = UInt;

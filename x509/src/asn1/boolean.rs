@@ -2,7 +2,6 @@ use vstd::prelude::*;
 
 use polyfill::*;
 
-use crate::utils::*;
 use crate::common::*;
 
 use super::tag::*;
@@ -12,9 +11,8 @@ verus! {
 /// Combainator for BOOLEAN in ASN.1
 /// TRUE = 0x01 0x01 0xff
 /// FALSE = 0x01 0x01 0x00
-#[derive(Debug)]
+#[derive(Debug, View)]
 pub struct Boolean;
-impl_trivial_view!(Boolean);
 
 impl ASN1Tagged for Boolean {
     open spec fn spec_tag(&self) -> TagValue {

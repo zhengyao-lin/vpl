@@ -2,7 +2,6 @@ use vstd::prelude::*;
 
 use crate::asn1::*;
 use crate::common::*;
-use crate::utils::*;
 
 use super::dir_string::*;
 
@@ -127,9 +126,8 @@ impl From<AttributeTypeAndValueInnerOwned> for AttributeTypeAndValueOwned {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, View)]
 pub struct AttributeTypeAndValueMapper;
-impl_trivial_view!(AttributeTypeAndValueMapper);
 
 impl SpecIso for AttributeTypeAndValueMapper {
     type Src = SpecAttributeTypeAndValueInner;

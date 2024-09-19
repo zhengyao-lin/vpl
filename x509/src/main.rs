@@ -2,8 +2,6 @@ mod common;
 mod asn1;
 mod x509;
 
-mod utils;
-
 use polyfill::*;
 use vstd::prelude::*;
 

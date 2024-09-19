@@ -4,7 +4,6 @@ use vstd::prelude::*;
 
 use polyfill::*;
 
-use crate::utils::*;
 use crate::common::*;
 
 use super::octet_string::*;
@@ -15,9 +14,8 @@ verus! {
 /// Combinator for PrintableString in ASN.1
 /// Essentially a wrapper around Octet
 /// that checks that each byte is <= 127
-#[derive(Debug)]
+#[derive(Debug, View)]
 pub struct PrintableString;
-impl_trivial_view!(PrintableString);
 
 pub struct SpecPrintableStringValue(pub Seq<u8>);
 

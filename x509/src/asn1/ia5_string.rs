@@ -4,7 +4,6 @@ use vstd::prelude::*;
 
 use polyfill::*;
 
-use crate::utils::*;
 use crate::common::*;
 
 use super::octet_string::*;
@@ -15,9 +14,8 @@ verus! {
 /// Combinator for IA5String in ASN.1
 /// Essentially a wrapper around Octet
 /// that checks that each byte is <= 127
-#[derive(Debug)]
+#[derive(Debug, View)]
 pub struct IA5String;
-impl_trivial_view!(IA5String);
 
 pub struct SpecIA5StringValue(pub Seq<u8>);
 pub struct IA5StringValue<'a>(&'a [u8]);

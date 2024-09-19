@@ -2,7 +2,6 @@ use vstd::prelude::*;
 
 use crate::asn1::*;
 use crate::common::*;
-use crate::utils::*;
 
 use super::attr_typ_val::*;
 
@@ -110,9 +109,8 @@ impl From<RDNInnerOwned> for RDNOwned {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, View)]
 pub struct RDNMapper;
-impl_trivial_view!(RDNMapper);
 
 impl SpecIso for RDNMapper {
     type Src = SpecRDNInner;

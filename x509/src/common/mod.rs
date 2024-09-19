@@ -15,3 +15,5 @@ pub use end::*;
 pub use vest::*;
 pub use clone::*;
 pub use optional::*;
+
+pub use macros::View;

@@ -3,7 +3,6 @@ use vstd::std_specs::bits::u8_trailing_zeros;
 
 use polyfill::*;
 
-use crate::utils::*;
 use crate::common::*;
 
 use super::octet_string::*;
@@ -20,9 +19,8 @@ pub struct BitStringValueOwned(Vec<u8>);
 /// Essentially a refined version of OctetString
 /// where we require that the first bit correctly
 /// specifies the trailing zeros
-#[derive(Debug)]
+#[derive(Debug, View)]
 pub struct BitString;
-impl_trivial_view!(BitString);
 
 impl<'a> View for BitStringValue<'a> {
     type V = SpecBitStringValue;

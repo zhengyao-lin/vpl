@@ -10,20 +10,11 @@ use super::explicit::*;
 verus! {
 
 /// SEQUENCE OF in ASN.1
-#[derive(Debug)]
+#[derive(Debug, View)]
 pub struct SequenceOf<C>(pub C);
 
 pub type SequenceOfValue<T> = RepeatResult<T>;
 pub type SequenceOfValueOwned<T> = RepeatResultOwned<T>;
-
-impl<C: View> View for SequenceOf<C>
-{
-    type V = SequenceOf<<C as View>::V>;
-
-    open spec fn view(&self) -> Self::V {
-        SequenceOf(self.0@)
-    }
-}
 
 impl<C> ASN1Tagged for SequenceOf<C> {
     open spec fn spec_tag(&self) -> TagValue {

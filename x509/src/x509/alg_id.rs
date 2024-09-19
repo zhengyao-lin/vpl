@@ -2,7 +2,6 @@ use vstd::prelude::*;
 
 use crate::asn1::*;
 use crate::common::*;
-use crate::utils::*;
 
 verus! {
 
@@ -26,7 +25,7 @@ pub fn algorithm_identifier() -> AlgorithmIdentifier {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, View)]
 pub struct AlgorithmIdentifierTo<Alg, Params> {
     pub alg: Alg,
     pub params: Params,
@@ -43,17 +42,6 @@ impl<Alg: PolyfillClone, Params: PolyfillClone> PolyfillClone for AlgorithmIdent
         AlgorithmIdentifierTo {
             alg: PolyfillClone::clone(&self.alg),
             params: PolyfillClone::clone(&self.params),
-        }
-    }
-}
-
-impl<Alg: View, Params: View> View for AlgorithmIdentifierTo<Alg, Params> {
-    type V = AlgorithmIdentifierTo<Alg::V, Params::V>;
-
-    closed spec fn view(&self) -> Self::V {
-        AlgorithmIdentifierTo {
-            alg: self.alg@,
-            params: self.params@,
         }
     }
 }
@@ -90,9 +78,8 @@ impl<Alg: View, Params: View> From<AlgorithmIdentifierFrom<Alg, Params>> for Alg
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, View)]
 pub struct AlgorithmIdentifierMapper;
-impl_trivial_view!(AlgorithmIdentifierMapper);
 
 impl SpecIso for AlgorithmIdentifierMapper {
     type Src = AlgorithmIdentifierFrom<SpecObjectIdentifierValue, Seq<u8>>;

@@ -1,6 +1,5 @@
 use vstd::prelude::*;
 
-use crate::utils::*;
 use crate::common::*;
 
 use super::bounds::*;
@@ -9,9 +8,8 @@ verus! {
 
 /// Combinator for variable-length integers in big-endian
 /// The length is assumed to be <= uint_size!()
-#[derive(Debug)]
+#[derive(Debug, View)]
 pub struct VarUInt(pub usize);
-impl_trivial_view!(VarUInt);
 
 pub type VarUIntResult = UInt;
 pub type VarIntResult = Int;

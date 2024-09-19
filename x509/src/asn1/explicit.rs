@@ -4,11 +4,13 @@ use crate::common::*;
 
 use super::tag::*;
 use super::len::*;
+use super::len_wrapped::*;
 
 verus! {
 
 /// Explicit tagging wrapps the inner combinator in a new TLV tuple
-#[derive(Debug)]
+/// Equivalent to ImplicitTag(tag, LengthWrapped(inner))
+#[derive(Debug, View)]
 pub struct ExplicitTag<T>(pub TagValue, pub T);
 
 impl<T> ASN1Tagged for ExplicitTag<T> {
@@ -26,34 +28,19 @@ impl<T: View> ViewWithASN1Tagged for ExplicitTag<T> where
     proof fn lemma_view_preserves_tag(&self) {}
 }
 
-impl<T: View> View for ExplicitTag<T> {
-    type V = ExplicitTag<T::V>;
-
-    open spec fn view(&self) -> Self::V {
-        ExplicitTag(self.0, self.1@)
-    }
-}
-
 impl<T: SpecCombinator> SpecCombinator for ExplicitTag<T> {
     type SpecResult = T::SpecResult;
 
     open spec fn spec_parse(&self, s: Seq<u8>) -> Result<(usize, Self::SpecResult), ()> {
-        match new_spec_explicit_tag_inner(self.1).spec_parse(s) {
-            Ok((len, (_, v))) => Ok((len, v)),
-            Err(..) => Err(()),
-        }
+        LengthWrapped(self.1).spec_parse(s)
     }
 
     proof fn spec_parse_wf(&self, s: Seq<u8>) {
-        new_spec_explicit_tag_inner(self.1).spec_parse_wf(s)
+        LengthWrapped(self.1).spec_parse_wf(s)
     }
 
     open spec fn spec_serialize(&self, v: Self::SpecResult) -> Result<Seq<u8>, ()> {
-        match self.1.spec_serialize(v) {
-            // Need to compute the inner serialized length first
-            Ok(buf) => new_spec_explicit_tag_inner(self.1).spec_serialize((buf.len() as LengthValue, v)),
-            Err(..) => Err(()),
-        }
+        LengthWrapped(self.1).spec_serialize(v)
     }
 }
 
@@ -63,17 +50,15 @@ impl<T: SecureSpecCombinator> SecureSpecCombinator for ExplicitTag<T> {
     }
 
     proof fn theorem_serialize_parse_roundtrip(&self, v: Self::SpecResult) {
-        if let Ok(buf) = self.1.spec_serialize(v) {
-            new_spec_explicit_tag_inner(self.1).theorem_serialize_parse_roundtrip((buf.len() as LengthValue, v))
-        }
+        LengthWrapped(self.1).theorem_serialize_parse_roundtrip(v)
     }
 
     proof fn theorem_parse_serialize_roundtrip(&self, buf: Seq<u8>) {
-        new_spec_explicit_tag_inner(self.1).theorem_parse_serialize_roundtrip(buf)
+        LengthWrapped(self.1).theorem_parse_serialize_roundtrip(buf)
     }
 
     proof fn lemma_prefix_secure(&self, s1: Seq<u8>, s2: Seq<u8>) {
-        new_spec_explicit_tag_inner(self.1).lemma_prefix_secure(s1, s2)
+        LengthWrapped(self.1).lemma_prefix_secure(s1, s2)
     }
 }
 
@@ -101,8 +86,7 @@ impl<T: Combinator> Combinator for ExplicitTag<T> where
     }
 
     fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ()>) {
-        let (len, (_, v)) = new_explicit_tag_inner(&self.1).parse(s)?;
-        Ok((len, v))
+        LengthWrapped(&self.1).parse(s)
     }
 
     open spec fn serialize_requires(&self) -> bool {
@@ -110,82 +94,7 @@ impl<T: Combinator> Combinator for ExplicitTag<T> where
     }
 
     fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, ()>) {
-        // TODO: can we avoid serializing twice?
-        let len = self.1.serialize(v.clone(), data, pos)?;
-        let final_len = new_explicit_tag_inner(&self.1).serialize((len as LengthValue, v), data, pos)?;
-
-        if pos < data.len() && final_len < data.len() - pos {
-            assert(data@ =~= seq_splice(old(data)@, pos, self@.spec_serialize(v@).unwrap()));
-            return Ok(final_len);
-        }
-
-        Err(())
-    }
-}
-
-/// The function |i| AndThen<Bytes, T>
-pub struct ExplicitTagCont<'a, T>(pub &'a T);
-
-impl<'b, T: Combinator> Continuation for ExplicitTagCont<'b, T> where
-    <T as View>::V: SecureSpecCombinator<SpecResult = <<T as Combinator>::Owned as View>::V>,
-{
-    type Input<'a> = LengthValue;
-    type Output = AndThen<Bytes, &'b T>;
-
-    fn apply<'a>(&self, i: Self::Input<'a>) -> (o: Self::Output) {
-        AndThen(Bytes(i as usize), &self.0)
-    }
-
-    open spec fn requires<'a>(&self, i: Self::Input<'a>) -> bool {
-        true
-    }
-
-    open spec fn ensures<'a>(&self, i: Self::Input<'a>, o: Self::Output) -> bool {
-        &&& self.0.parse_requires() ==> o.parse_requires()
-        &&& self.0.serialize_requires() ==> o.serialize_requires()
-        &&& o@ == AndThen(Bytes(i as usize), self.0@)
-    }
-}
-
-type SpecExplicitTagInner<T> = SpecDepend<Length, AndThen<Bytes, T>>;
-type ExplicitTagInner<'a, T> = Depend<Length, AndThen<Bytes, &'a T>, ExplicitTagCont<'a, T>>;
-
-/// SpecDepend version of new_explicit_tag_inner
-pub open spec fn new_spec_explicit_tag_inner<T: SpecCombinator>(inner: T) -> SpecExplicitTagInner<T> {
-    SpecDepend {
-        fst: Length,
-        snd: |l| {
-            AndThen(Bytes(l as usize), inner)
-        },
-    }
-}
-
-/// Spec version of new_explicit_tag_inner
-closed spec fn new_explicit_tag_inner_spec<'a, T: Combinator>(inner: &'a T) -> ExplicitTagInner<'a, T> where
-    <T as View>::V: SecureSpecCombinator<SpecResult = <<T as Combinator>::Owned as View>::V>,
-{
-    Depend {
-        fst: Length,
-        snd: ExplicitTagCont(inner),
-        spec_snd: Ghost(|l| {
-            AndThen(Bytes(l as usize), inner@)
-        }),
-    }
-}
-
-fn new_explicit_tag_inner<'a, T: Combinator>(inner: &'a T) -> (res: ExplicitTagInner<'a, T>) where
-    <T as View>::V: SecureSpecCombinator<SpecResult = <<T as Combinator>::Owned as View>::V>,
-
-    ensures
-        res == new_explicit_tag_inner_spec(inner),
-        res@ == new_spec_explicit_tag_inner(inner@),
-{
-    Depend {
-        fst: Length,
-        snd: ExplicitTagCont(inner),
-        spec_snd: Ghost(|l| {
-            AndThen(Bytes(l as usize), inner@)
-        }),
+        LengthWrapped(&self.1).serialize(v, data, pos)
     }
 }
 

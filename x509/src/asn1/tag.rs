@@ -1,15 +1,13 @@
 use vstd::prelude::*;
 use vstd::slice::slice_subrange;
 
-use crate::utils::*;
 use crate::common::*;
 
 verus! {
 
 /// Combinator for ASN.1 tags
-#[derive(Debug)]
+#[derive(Debug, View)]
 pub struct ASN1Tag;
-impl_trivial_view!(ASN1Tag);
 
 #[derive(Debug)]
 pub struct TagValue {
@@ -21,7 +19,13 @@ pub struct TagValue {
     pub num: u8,
 }
 
-impl_trivial_view!(TagValue);
+impl View for TagValue {
+    type V = TagValue;
+
+    open spec fn view(&self) -> Self::V {
+        *self
+    }
+}
 
 #[derive(Debug)]
 pub enum TagClass {

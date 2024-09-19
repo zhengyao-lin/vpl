@@ -17,6 +17,7 @@ mod explicit;
 mod big_int;
 mod seq_of;
 mod boolean;
+mod len_wrapped;
 
 pub use bounds::UInt;
 pub use var_int::*;
@@ -35,3 +36,4 @@ pub use explicit::*;
 pub use big_int::*;
 pub use seq_of::*;
 pub use boolean::*;
+pub use len_wrapped::*;

@@ -15,7 +15,7 @@ dependencies = [
  "prettyplease_verus",
  "proc-macro2",
  "quote",
- "syn",
+ "syn 1.0.109",
  "syn_verus",
  "synstructure",
 ]
@@ -34,6 +34,14 @@ checksum = "f55bf8e7b65898637379c1b74eb1551107c8294ed26d855ceb9fd1a09cfc9bc0"
 dependencies = [
  "const-oid",
  "zeroize",
+]
+
+[[package]]
+name = "macros"
+version = "0.1.0"
+dependencies = [
+ "quote",
+ "syn 2.0.77",
 ]
 
 [[package]]
@@ -84,6 +92,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "syn"
+version = "2.0.77"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9f35bcdf61fd8e7be6caf75f429fdca8beb3ed76584befb503b1569faee373ed"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "unicode-ident",
+]
+
+[[package]]
 name = "syn_verus"
 version = "1.0.95"
 source = "git+https://github.com/verus-lang/verus?branch=main#521f5e801c5321b1a9502f9955e0ef8c29606f65"
@@ -101,7 +120,7 @@ checksum = "f36bdaa60a83aca3921b5259d5400cbf5e90fc51931376a9bd4a0eb79aa7210f"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn",
+ "syn 1.0.109",
  "unicode-xid",
 ]
 
@@ -142,6 +161,7 @@ dependencies = [
  "builtin",
  "builtin_macros",
  "der",
+ "macros",
  "polyfill",
  "vest",
  "vstd",
