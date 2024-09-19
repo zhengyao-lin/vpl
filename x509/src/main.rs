@@ -118,23 +118,23 @@ verus! {
         //     ASN1(BigInt),
         // ).parse(content)?;
 
-        // let (len, res) = Optional::new(
-        //     // Version
-        //     ASN1(ExplicitTag(TagValue {
-        //         class: TagClass::ContextSpecific,
-        //         form: TagForm::Constructed,
-        //         num: 0,
-        //     }, ASN1(Integer))),
+        let (len, res) = Optional::new(
+            // Version
+            ASN1(ExplicitTag(TagValue {
+                class: TagClass::ContextSpecific,
+                form: TagForm::Constructed,
+                num: 0,
+            }, ASN1(Integer))),
 
-        //     // Serial number
-        //     // (
-        //     //     ASN1(BigInt),
-        //     //     x509::algorithm_identifier(),
-        //     // ),
-        //     x509::algorithm_identifier(),
-        // ).parse(content)?;
+            // Serial number
+            Pair(
+                ASN1(BigInt),
+                x509::algorithm_identifier(),
+            ),
+            // x509::algorithm_identifier(),
+        ).parse(content)?;
 
-        // println_join!("parsed: ", format_dbg(res));
+        println_join!("parsed: ", format_dbg(res));
 
         let string_seq = VecDeep::from_vec(vec![ "hello", "world" ]);
         let mut buf = vec![ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ];

@@ -10,6 +10,7 @@ mod clone;
 mod optional;
 mod vec_deep;
 mod option_deep;
+mod pair;
 
 pub use depend::*;
 pub use repeat::*;
@@ -19,6 +20,7 @@ pub use clone::*;
 pub use optional::*;
 pub use vec_deep::*;
 pub use option_deep::*;
+pub use pair::*;
 
 pub use macros::View;
 pub use macros::PolyfillClone;
