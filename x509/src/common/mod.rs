@@ -8,6 +8,7 @@ mod end;
 mod vest;
 mod clone;
 mod optional;
+mod vec_deep;
 
 pub use depend::*;
 pub use repeat::*;
@@ -15,6 +16,7 @@ pub use end::*;
 pub use vest::*;
 pub use clone::*;
 pub use optional::*;
+pub use vec_deep::*;
 
 pub use macros::View;
 pub use macros::PolyfillClone;

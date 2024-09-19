@@ -22,89 +22,41 @@ pub fn rdn() -> RDN {
     }
 }
 
-type SpecRDNInner = Seq<SpecAttributeTypeAndValueValue>;
-type RDNInner<'a> = VecDeep<AttributeTypeAndValueValue<'a>>;
-type RDNInnerOwned = VecDeep<AttributeTypeAndValueOwned>;
-
-pub struct SpecRDNValue {
-    attrs: Seq<SpecAttributeTypeAndValueValue>,
+#[derive(Debug, View, PolyfillClone)]
+pub struct RDNPoly<Attrs> {
+    pub attrs: Attrs,
 }
 
-#[derive(Debug)]
-pub struct RDNValue<'a> {
-    attrs: Vec<AttributeTypeAndValueValue<'a>>,
-}
+pub type SpecRDNValue = RDNPoly<Seq<SpecAttributeTypeAndValueValue>>;
+pub type RDNValue<'a> = RDNPoly<VecDeep<AttributeTypeAndValueValue<'a>>>;
+pub type RDNOwned = RDNPoly<VecDeep<AttributeTypeAndValueOwned>>;
 
-pub struct RDNOwned {
-    attrs: Vec<AttributeTypeAndValueOwned>,
-}
+type RDNFrom<T> = T;
 
-impl<'a> View for RDNValue<'a> {
-    type V = SpecRDNValue;
-
-    closed spec fn view(&self) -> Self::V {
-        SpecRDNValue {
-            attrs: Seq::new(self.attrs.len() as nat, |i| self.attrs@[i]@),
-        }
-    }
-}
-
-impl View for RDNOwned {
-    type V = SpecRDNValue;
-
-    closed spec fn view(&self) -> Self::V {
-        SpecRDNValue {
-            attrs: Seq::new(self.attrs.len() as nat, |i| self.attrs@[i]@),
-        }
-    }
-}
-
-impl<'a> PolyfillClone for RDNValue<'a> {
-    fn clone(&self) -> Self {
-        RDNValue {
-            attrs: clone_vec_inner(&self.attrs),
-        }
-    }
-}
-
-impl SpecFrom<SpecRDNValue> for SpecRDNInner {
-    closed spec fn spec_from(s: SpecRDNValue) -> Self {
+impl<T> SpecFrom<RDNPoly<Seq<T>>> for RDNFrom<Seq<T>> {
+    closed spec fn spec_from(s: RDNPoly<Seq<T>>) -> Self {
         s.attrs
     }
 }
 
-impl SpecFrom<SpecRDNInner> for SpecRDNValue {
-    closed spec fn spec_from(s: SpecRDNInner) -> Self {
-        SpecRDNValue {
+impl<T> SpecFrom<RDNFrom<T>> for RDNPoly<T> {
+    closed spec fn spec_from(s: RDNFrom<T>) -> Self {
+        RDNPoly {
             attrs: s,
         }
     }
 }
 
-impl<'a> From<RDNValue<'a>> for RDNInner<'a> {
-    fn ex_from(s: RDNValue<'a>) -> Self {
-        VecDeep::from_vec(s.attrs)
+impl<T: View> From<RDNPoly<VecDeep<T>>> for RDNFrom<VecDeep<T>> {
+    fn ex_from(s: RDNPoly<VecDeep<T>>) -> Self {
+        s.attrs
     }
 }
 
-impl<'a> From<RDNInner<'a>> for RDNValue<'a> {
-    fn ex_from(s: RDNInner<'a>) -> Self {
-        RDNValue {
-            attrs: s.to_vec(),
-        }
-    }
-}
-
-impl From<RDNOwned> for RDNInnerOwned {
-    fn ex_from(s: RDNOwned) -> Self {
-        VecDeep::from_vec(s.attrs)
-    }
-}
-
-impl From<RDNInnerOwned> for RDNOwned {
-    fn ex_from(s: RDNInnerOwned) -> Self {
-        RDNOwned {
-            attrs: s.to_vec(),
+impl<T: View> From<RDNFrom<T>> for RDNPoly<T> {
+    fn ex_from(s: RDNFrom<T>) -> Self {
+        RDNPoly {
+            attrs: s,
         }
     }
 }
@@ -113,19 +65,19 @@ impl From<RDNInnerOwned> for RDNOwned {
 pub struct RDNMapper;
 
 impl SpecIso for RDNMapper {
-    type Src = SpecRDNInner;
-    type Dst = SpecRDNValue;
+    type Src = RDNFrom<Seq<SpecAttributeTypeAndValueValue>>;
+    type Dst = RDNPoly<Seq<SpecAttributeTypeAndValueValue>>;
 
     proof fn spec_iso(s: Self::Src) {}
     proof fn spec_iso_rev(s: Self::Dst) {}
 }
 
 impl Iso for RDNMapper {
-    type Src<'a> = RDNInner<'a>;
-    type Dst<'a> = RDNValue<'a>;
+    type Src<'a> = RDNFrom<VecDeep<AttributeTypeAndValueValue<'a>>>;
+    type Dst<'a> = RDNPoly<VecDeep<AttributeTypeAndValueValue<'a>>>;
 
-    type SrcOwned = RDNInnerOwned;
-    type DstOwned = RDNOwned;
+    type SrcOwned = RDNFrom<VecDeep<AttributeTypeAndValueOwned>>;
+    type DstOwned = RDNPoly<VecDeep<AttributeTypeAndValueOwned>>;
 }
 
 }

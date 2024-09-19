@@ -17,37 +17,16 @@ pub fn name() -> Name {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, View, PolyfillClone)]
 pub struct NamePoly<RDNS> {
     pub rdns: RDNS,
 }
 
 pub type SpecNameValue = NamePoly<Seq<SpecRDNValue>>;
-pub type NameValue<'a> = NamePoly<Vec<RDNValue<'a>>>;
-pub type NameOwned = NamePoly<Vec<RDNOwned>>;
-
-// type SpecNameInner = Seq<SpecRDNValue>;
-// type NameInner<T> = RepeatValue<T>;
+pub type NameValue<'a> = NamePoly<VecDeep<RDNValue<'a>>>;
+pub type NameOwned = NamePoly<VecDeep<RDNOwned>>;
 
 type NameFrom<T> = T;
-
-impl<T: View> View for NamePoly<Vec<T>> {
-    type V = NamePoly<Seq<T::V>>;
-
-    closed spec fn view(&self) -> Self::V {
-        NamePoly {
-            rdns: Seq::new(self.rdns.len() as nat, |i| self.rdns@[i]@),
-        }
-    }
-}
-
-impl<T: PolyfillClone> PolyfillClone for NamePoly<Vec<T>> {
-    fn clone(&self) -> Self {
-        NamePoly {
-            rdns: clone_vec_inner(&self.rdns),
-        }
-    }
-}
 
 impl<T> SpecFrom<NamePoly<Seq<T>>> for NameFrom<Seq<T>> {
     closed spec fn spec_from(s: NamePoly<Seq<T>>) -> Self {
@@ -63,16 +42,16 @@ impl<T> SpecFrom<NameFrom<T>> for NamePoly<T> {
     }
 }
 
-impl<T: View> From<NamePoly<Vec<T>>> for NameFrom<VecDeep<T>> {
-    fn ex_from(s: NamePoly<Vec<T>>) -> Self {
-        VecDeep::from_vec(s.rdns)
+impl<T: View> From<NamePoly<VecDeep<T>>> for NameFrom<VecDeep<T>> {
+    fn ex_from(s: NamePoly<VecDeep<T>>) -> Self {
+        s.rdns
     }
 }
 
-impl<T: View> From<NameFrom<VecDeep<T>>> for NamePoly<Vec<T>> {
-    fn ex_from(s: NameFrom<VecDeep<T>>) -> Self {
+impl<T: View> From<NameFrom<T>> for NamePoly<T> {
+    fn ex_from(s: NameFrom<T>) -> Self {
         NamePoly {
-            rdns: s.to_vec(),
+            rdns: s,
         }
     }
 }
@@ -90,10 +69,10 @@ impl SpecIso for NameMapper {
 
 impl Iso for NameMapper {
     type Src<'a> = NameFrom<VecDeep<RDNValue<'a>>>;
-    type Dst<'a> = NamePoly<Vec<RDNValue<'a>>>;
+    type Dst<'a> = NamePoly<VecDeep<RDNValue<'a>>>;
 
     type SrcOwned = NameFrom<VecDeep<RDNOwned>>;
-    type DstOwned = NamePoly<Vec<RDNOwned>>;
+    type DstOwned = NamePoly<VecDeep<RDNOwned>>;
 }
 
 }

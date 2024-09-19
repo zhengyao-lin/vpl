@@ -3,6 +3,7 @@ use vstd::slice::slice_subrange;
 
 use super::vest::*;
 use super::clone::*;
+use super::vec_deep::*;
 
 verus! {
 
