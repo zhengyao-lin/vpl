@@ -37,32 +37,34 @@ pub fn extension() -> Extension {
     }
 }
 
-pub struct SpecExtensionValue {
-    pub id: SpecObjectIdentifierValue,
-    pub critical: Option<bool>,
-    pub value: Seq<u8>,
-}
-
 #[derive(Debug)]
-pub struct ExtensionValue<'a> {
-    pub id: ObjectIdentifierValue,
+pub struct ExtensionPoly<Id, Value> {
+    pub id: Id,
     pub critical: Option<bool>,
-    pub value: &'a [u8],
+    pub value: Value,
 }
 
-pub struct ExtensionOwned {
-    pub id: ObjectIdentifierValueOwned,
-    pub critical: Option<bool>,
-    pub value: Vec<u8>,
+pub type SpecExtensionValue = ExtensionPoly<SpecObjectIdentifierValue, Seq<u8>>;
+pub type ExtensionValue<'a> = ExtensionPoly<ObjectIdentifierValue, &'a [u8]>;
+pub type ExtensionOwned = ExtensionPoly<ObjectIdentifierValueOwned, Vec<u8>>;
+
+type ExtensionFrom<Id, Value> = (Id, Either<(bool, Value), Value>);
+
+impl<Id: View, Value: View> View for ExtensionPoly<Id, Value> {
+    type V = ExtensionPoly<Id::V, Value::V>;
+
+    closed spec fn view(&self) -> Self::V {
+        ExtensionPoly {
+            id: self.id@,
+            critical: self.critical,
+            value: self.value@,
+        }
+    }
 }
 
-type SpecExtensionInner = (SpecObjectIdentifierValue, Either<(bool, Seq<u8>), Seq<u8>>);
-type ExtensionInner<'a> = (ObjectIdentifierValue, Either<(bool, &'a [u8]), &'a [u8]>);
-type ExtensionInnerOwned = (ObjectIdentifierValueOwned, Either<(bool, Vec<u8>), Vec<u8>>);
-
-impl<'a> PolyfillClone for ExtensionValue<'a> {
+impl<Id: PolyfillClone, Value: PolyfillClone> PolyfillClone for ExtensionPoly<Id, Value> {
     fn clone(&self) -> Self {
-        ExtensionValue {
+        ExtensionPoly {
             id: PolyfillClone::clone(&self.id),
             critical: match self.critical {
                 Some(critical) => Some(critical),
@@ -73,32 +75,8 @@ impl<'a> PolyfillClone for ExtensionValue<'a> {
     }
 }
 
-impl<'a> View for ExtensionValue<'a> {
-    type V = SpecExtensionValue;
-
-    closed spec fn view(&self) -> Self::V {
-        SpecExtensionValue {
-            id: self.id@,
-            critical: self.critical,
-            value: self.value@,
-        }
-    }
-}
-
-impl View for ExtensionOwned {
-    type V = SpecExtensionValue;
-
-    closed spec fn view(&self) -> Self::V {
-        SpecExtensionValue {
-            id: self.id@,
-            critical: self.critical,
-            value: self.value@,
-        }
-    }
-}
-
-impl SpecFrom<SpecExtensionValue> for SpecExtensionInner {
-    closed spec fn spec_from(s: SpecExtensionValue) -> Self {
+impl<Id, Value> SpecFrom<ExtensionPoly<Id, Value>> for ExtensionFrom<Id, Value> {
+    closed spec fn spec_from(s: ExtensionPoly<Id, Value>) -> Self {
         (s.id, match s.critical {
             Some(critical) => Either::Left((critical, s.value)),
             None => Either::Right(s.value),
@@ -106,15 +84,15 @@ impl SpecFrom<SpecExtensionValue> for SpecExtensionInner {
     }
 }
 
-impl SpecFrom<SpecExtensionInner> for SpecExtensionValue {
-    closed spec fn spec_from(s: SpecExtensionInner) -> Self {
+impl<Id, Value> SpecFrom<ExtensionFrom<Id, Value>> for ExtensionPoly<Id, Value> {
+    closed spec fn spec_from(s: ExtensionFrom<Id, Value>) -> Self {
         match s.1 {
-            Either::Left((critical, value)) => SpecExtensionValue {
+            Either::Left((critical, value)) => ExtensionPoly {
                 id: s.0,
                 critical: Some(critical),
                 value: value,
             },
-            Either::Right(value) => SpecExtensionValue {
+            Either::Right(value) => ExtensionPoly {
                 id: s.0,
                 critical: None,
                 value: value,
@@ -123,8 +101,8 @@ impl SpecFrom<SpecExtensionInner> for SpecExtensionValue {
     }
 }
 
-impl<'a> From<ExtensionValue<'a>> for ExtensionInner<'a> {
-    fn ex_from(s: ExtensionValue<'a>) -> Self {
+impl<Id: View, Value: View> From<ExtensionPoly<Id, Value>> for ExtensionFrom<Id, Value> {
+    fn ex_from(s: ExtensionPoly<Id, Value>) -> Self {
         (s.id, match s.critical {
             Some(critical) => Either::Left((critical, s.value)),
             None => Either::Right(s.value),
@@ -132,41 +110,15 @@ impl<'a> From<ExtensionValue<'a>> for ExtensionInner<'a> {
     }
 }
 
-impl<'a> From<ExtensionInner<'a>> for ExtensionValue<'a> {
-    fn ex_from(s: ExtensionInner<'a>) -> Self {
+impl<Id: View, Value: View> From<ExtensionFrom<Id, Value>> for ExtensionPoly<Id, Value> {
+    fn ex_from(s: ExtensionFrom<Id, Value>) -> Self {
         match s.1 {
-            Either::Left((critical, value)) => ExtensionValue {
+            Either::Left((critical, value)) => ExtensionPoly {
                 id: s.0,
                 critical: Some(critical),
                 value: value,
             },
-            Either::Right(value) => ExtensionValue {
-                id: s.0,
-                critical: None,
-                value: value,
-            },
-        }
-    }
-}
-
-impl From<ExtensionOwned> for ExtensionInnerOwned {
-    fn ex_from(s: ExtensionOwned) -> Self {
-        (s.id, match s.critical {
-            Some(critical) => Either::Left((critical, s.value)),
-            None => Either::Right(s.value),
-        })
-    }
-}
-
-impl From<ExtensionInnerOwned> for ExtensionOwned {
-    fn ex_from(s: ExtensionInnerOwned) -> Self {
-        match s.1 {
-            Either::Left((critical, value)) => ExtensionOwned {
-                id: s.0,
-                critical: Some(critical),
-                value: value,
-            },
-            Either::Right(value) => ExtensionOwned {
+            Either::Right(value) => ExtensionPoly {
                 id: s.0,
                 critical: None,
                 value: value,
@@ -179,19 +131,19 @@ impl From<ExtensionInnerOwned> for ExtensionOwned {
 pub struct ExtensionMapper;
 
 impl SpecIso for ExtensionMapper {
-    type Src = SpecExtensionInner;
-    type Dst = SpecExtensionValue;
+    type Src = ExtensionFrom<SpecObjectIdentifierValue, Seq<u8>>;
+    type Dst = ExtensionPoly<SpecObjectIdentifierValue, Seq<u8>>;
 
     proof fn spec_iso(s: Self::Src) {}
     proof fn spec_iso_rev(s: Self::Dst) {}
 }
 
 impl Iso for ExtensionMapper {
-    type Src<'a> = ExtensionInner<'a>;
-    type Dst<'a> = ExtensionValue<'a>;
+    type Src<'a> = ExtensionFrom<ObjectIdentifierValue, &'a [u8]>;
+    type Dst<'a> = ExtensionPoly<ObjectIdentifierValue, &'a [u8]>;
 
-    type SrcOwned = ExtensionInnerOwned;
-    type DstOwned = ExtensionOwned;
+    type SrcOwned = ExtensionFrom<ObjectIdentifierValueOwned, Vec<u8>>;
+    type DstOwned = ExtensionPoly<ObjectIdentifierValueOwned, Vec<u8>>;
 }
 
 }
