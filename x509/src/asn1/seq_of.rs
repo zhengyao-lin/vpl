@@ -114,14 +114,7 @@ impl<C: PolyfillCloneCombinator + Combinator> Combinator for SequenceOf<C> where
     }
 
     fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ()>) {
-        let c = ExplicitTag(self.tag(), Repeat(self.0.clone()));
-        // reveal(ExplicitTag::spec_length);
-        // assert(c.1.parse_requires());
-        // assert(c.parse_requires() ==> ttttest());
-        assert(c.spec_length().is_none());
-        // assert(c.parse_requires() ==> c.1.parse_requires());
-        assume(false);
-        c.parse(s)
+        ExplicitTag(self.tag(), Repeat(self.0.clone())).parse(s)
     }
 
     open spec fn serialize_requires(&self) -> bool {
@@ -130,7 +123,6 @@ impl<C: PolyfillCloneCombinator + Combinator> Combinator for SequenceOf<C> where
     }
 
     fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, ()>) {
-        assume(false);
         ExplicitTag(self.tag(), Repeat(self.0.clone())).serialize(v, data, pos)
     }
 }

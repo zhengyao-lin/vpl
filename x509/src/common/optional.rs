@@ -42,27 +42,25 @@ impl<T1: View, T2: View> View for OptionalValue<T1, T2> {
     }
 }
 
-// impl<C1: PolyfillCloneCombinator, C2: PolyfillCloneCombinator> PolyfillCloneCombinator for Optional<C1, C2> where
-//     <C1 as View>::V: SecureSpecCombinator<SpecResult = <C1::Owned as View>::V>,
-//     <C2 as View>::V: SecureSpecCombinator<SpecResult = <C2::Owned as View>::V>,
-// {
-//     fn clone(&self) -> Self {
-//         Optional(self.0.clone(), self.1.clone())
-//     }
-// }
+impl<T1: PolyfillClone, T2: PolyfillClone> PolyfillClone for OptionalValue<T1, T2> {
+    fn clone(&self) -> Self {
+        OptionalValue(match &self.0 {
+            Some(v) => Some(v.clone()),
+            None => None,
+        }, self.1.clone())
+    }
+}
 
-// impl<C1, C2> SpecDisjointFrom<(C1, C2)> for C2 where
-//     C1: SpecCombinator,
-//     C2: SpecCombinator + SpecDisjointFrom<C1>,
-// {
-//     spec fn spec_disjoint_from(&self, other: &(C1, C2)) -> bool {
-//         self.spec_disjoint_from(&other.1)
-//     }
-
-//     proof fn spec_parse_disjoint_on(&self, other: &(C1, C2), buf: Seq<u8>) {
-//         assume(false);
-//     }
-// }
+impl<C1: PolyfillCloneCombinator, C2: PolyfillCloneCombinator> PolyfillCloneCombinator for Optional<C1, C2> where
+    <C1 as View>::V: SecureSpecCombinator<SpecResult = <C1::Owned as View>::V>,
+    <C2 as View>::V: SecureSpecCombinator<SpecResult = <C2::Owned as View>::V>,
+    <C2 as View>::V: SpecDisjointFrom<<C1 as View>::V>,
+    C2: DisjointFrom<C1>,
+{
+    fn clone(&self) -> Self {
+        Optional(self.0.clone(), self.1.clone())
+    }
+}
 
 impl<C1, C2> SpecCombinator for Optional<C1, C2> where
     C1: SecureSpecCombinator,
@@ -184,12 +182,5 @@ type OptionalInner<C1, C2> = OrdChoice<(C1, C2), (C2, BytesN<0>)>;
 pub open spec fn new_spec_optional_inner<C1, C2>(c1: C1, c2: C2) -> OptionalInner<C1, C2> {
     OrdChoice((c1, c2), (c2, BytesN::<0>))
 }
-
-// fn new_optional_inner<C1, C2: PolyfillCloneCombinator>(c1: C1, c2: C2) -> OptionalInner<C1, C2>
-//     where
-//         <C2 as View>::V: SecureSpecCombinator<SpecResult = <C2::Owned as View>::V>,
-// {
-//     OrdChoice::new((c1, c2.clone()), (c2, BytesN::<0>))
-// }
 
 }
