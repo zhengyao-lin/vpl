@@ -17,6 +17,8 @@ pub type Extension = Mapped<ASN1<ExplicitTag<(
     Optional<ASN1<Boolean>, ASN1<OctetString>>,
 )>>, ExtensionMapper>;
 
+pub type Extensions = ASN1<SequenceOf<Extension>>;
+
 pub fn extension() -> Extension {
     Mapped {
         inner: ASN1(ExplicitTag(TagValue {
@@ -32,6 +34,10 @@ pub fn extension() -> Extension {
         ))),
         mapper: ExtensionMapper,
     }
+}
+
+pub fn extensions() -> Extensions {
+    ASN1(SequenceOf(extension()))
 }
 
 #[derive(Debug, View, PolyfillClone)]

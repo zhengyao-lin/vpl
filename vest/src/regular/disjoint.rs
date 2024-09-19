@@ -1,3 +1,5 @@
+#![feature(specialization)]
+
 use super::bytes::Bytes;
 use super::bytes_n::BytesN;
 use super::choice::OrdChoice;
@@ -120,20 +122,49 @@ impl<U1, U2, V1, V2> SpecDisjointFrom<Preceded<U2, V2>> for Preceded<U1, V1> whe
 /// where `S2` is disjoint from `S1`
 ///
 /// this allows composition of the form `OrdChoice(OrdChoice(OrcChoice(...), ...), ...)`
-impl<U1, U2, U3> SpecDisjointFrom<OrdChoice<U1, U2>> for U3 where
+// impl<U1, U2, U3> SpecDisjointFrom<OrdChoice<U1, U2>> for U3 where
+//     U2: SpecDisjointFrom<U1>,
+//     U3: SpecDisjointFrom<U1> + SpecDisjointFrom<U2>,
+//     U1: SpecCombinator,
+//  {
+//     open spec fn spec_disjoint_from(&self, other: &OrdChoice<U1, U2>) -> bool {
+//         self.spec_disjoint_from(&other.0) && self.spec_disjoint_from(&other.1)
+//     }
+
+//     proof fn spec_parse_disjoint_on(&self, other: &OrdChoice<U1, U2>, buf: Seq<u8>) {
+//         self.spec_parse_disjoint_on(&other.0, buf);
+//         self.spec_parse_disjoint_on(&other.1, buf);
+//     }
+// }
+
+impl<U1, U2, U3> SpecDisjointFrom<U3> for OrdChoice<U1, U2> where
     U2: SpecDisjointFrom<U1>,
     U3: SpecDisjointFrom<U1> + SpecDisjointFrom<U2>,
     U1: SpecCombinator,
  {
-    open spec fn spec_disjoint_from(&self, other: &OrdChoice<U1, U2>) -> bool {
-        self.spec_disjoint_from(&other.0) && self.spec_disjoint_from(&other.1)
+    open spec fn spec_disjoint_from(&self, other: &U3) -> bool {
+        other.spec_disjoint_from(&self.0) && other.spec_disjoint_from(&self.1)
     }
 
-    proof fn spec_parse_disjoint_on(&self, other: &OrdChoice<U1, U2>, buf: Seq<u8>) {
-        self.spec_parse_disjoint_on(&other.0, buf);
-        self.spec_parse_disjoint_on(&other.1, buf);
+    proof fn spec_parse_disjoint_on(&self, other: &U3, buf: Seq<u8>) {
+        other.spec_parse_disjoint_on(&self.0, buf);
+        other.spec_parse_disjoint_on(&self.1, buf);
     }
 }
+
+// impl<U, V> SpecDisjointFrom<U> for V where
+//     U: SpecCombinator,
+//     V: SpecCombinator,
+//     U: SpecDisjointFrom<V>,
+// {
+//     open spec fn spec_disjoint_from(&self, other: &U) -> bool {
+//         other.spec_disjoint_from(self)
+//     }
+
+//     proof fn spec_parse_disjoint_on(&self, other: &U, buf: Seq<u8>) {
+//         other.spec_parse_disjoint_on(self, buf)
+//     }
+// }
 
 /*
     the following impl is very similar to the previous one, but it states things a bit differently:
@@ -278,7 +309,24 @@ impl<U1, U2, V1, V2> DisjointFrom<Preceded<U2, V2>> for Preceded<U1, V1> where
     }
 }
 
-impl<U1, U2, U3> DisjointFrom<OrdChoice<U1, U2>> for U3 where
+// impl<U1, U2, U3> DisjointFrom<OrdChoice<U1, U2>> for U3 where
+//     U2: DisjointFrom<U1>,
+//     U3: DisjointFrom<U1> + DisjointFrom<U2>,
+//     U2::V: SpecDisjointFrom<U1::V>,
+//     U3::V: SpecDisjointFrom<U1::V> + SpecDisjointFrom<U2::V>,
+//     U1: Combinator,
+//     U2: Combinator,
+//     U3: Combinator,
+//     U1::V: SecureSpecCombinator<SpecResult = <U1::Owned as View>::V>,
+//     U2::V: SecureSpecCombinator<SpecResult = <U2::Owned as View>::V>,
+//     U3::V: SecureSpecCombinator<SpecResult = <U3::Owned as View>::V>,
+//  {
+//     fn disjoint_from(&self, other: &OrdChoice<U1, U2>) -> bool {
+//         self.disjoint_from(&other.0) && self.disjoint_from(&other.1)
+//     }
+// }
+
+impl<U1, U2, U3> DisjointFrom<U3> for OrdChoice<U1, U2> where
     U2: DisjointFrom<U1>,
     U3: DisjointFrom<U1> + DisjointFrom<U2>,
     U2::V: SpecDisjointFrom<U1::V>,
@@ -290,8 +338,8 @@ impl<U1, U2, U3> DisjointFrom<OrdChoice<U1, U2>> for U3 where
     U2::V: SecureSpecCombinator<SpecResult = <U2::Owned as View>::V>,
     U3::V: SecureSpecCombinator<SpecResult = <U3::Owned as View>::V>,
  {
-    fn disjoint_from(&self, other: &OrdChoice<U1, U2>) -> bool {
-        self.disjoint_from(&other.0) && self.disjoint_from(&other.1)
+    fn disjoint_from(&self, other: &U3) -> bool {
+        other.disjoint_from(&self.0) && other.disjoint_from(&self.1)
     }
 }
 
