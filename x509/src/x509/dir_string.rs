@@ -26,107 +26,50 @@ pub fn directory_string() -> DirectoryString {
     }
 }
 
-pub enum SpecDirectoryStringValue {
-    PrintableString(SpecPrintableStringValue),
-    UTF8String(SpecUTF8StringValue),
+#[derive(Debug, View, PolyfillClone)]
+pub enum DirectoryStringPoly<PS, US> {
+    PrintableString(PS),
+    UTF8String(US),
 }
 
-#[derive(Debug)]
-pub enum DirectoryStringValue<'a> {
-    PrintableString(PrintableStringValue<'a>),
-    UTF8String(UTF8StringValue<'a>),
-}
+pub type SpecDirectoryStringValue = DirectoryStringPoly<SpecPrintableStringValue, SpecUTF8StringValue>;
+pub type DirectoryStringValue<'a> = DirectoryStringPoly<PrintableStringValue<'a>, UTF8StringValue<'a>>;
+pub type DirectoryStringOwned = DirectoryStringPoly<PrintableStringValueOwned, UTF8StringValueOwned>;
 
-pub enum DirectoryStringOwned {
-    PrintableString(PrintableStringValueOwned),
-    UTF8String(UTF8StringValueOwned),
-}
+type DirectoryStringFrom<PS, US> = Either<PS, US>;
 
-type SpecDirectoryStringInner = Either<SpecPrintableStringValue, SpecUTF8StringValue>;
-type DirectoryStringInner<'a> = Either<PrintableStringValue<'a>, UTF8StringValue<'a>>;
-type DirectoryStringInnerOwned = Either<PrintableStringValueOwned, UTF8StringValueOwned>;
-
-impl<'a> PolyfillClone for DirectoryStringValue<'a> {
-    fn clone(&self) -> Self {
-        match self {
-            DirectoryStringValue::PrintableString(s) => DirectoryStringValue::PrintableString(PolyfillClone::clone(s)),
-            DirectoryStringValue::UTF8String(s) => DirectoryStringValue::UTF8String(PolyfillClone::clone(s)),
-        }
-    }
-}
-
-impl<'a> View for DirectoryStringValue<'a> {
-    type V = SpecDirectoryStringValue;
-
-    closed spec fn view(&self) -> Self::V {
-        match self {
-            DirectoryStringValue::PrintableString(s) => SpecDirectoryStringValue::PrintableString(s@),
-            DirectoryStringValue::UTF8String(s) => SpecDirectoryStringValue::UTF8String(s@),
-        }
-    }
-}
-
-impl View for DirectoryStringOwned {
-    type V = SpecDirectoryStringValue;
-
-    closed spec fn view(&self) -> Self::V {
-        match self {
-            DirectoryStringOwned::PrintableString(s) => SpecDirectoryStringValue::PrintableString(s@),
-            DirectoryStringOwned::UTF8String(s) => SpecDirectoryStringValue::UTF8String(s@),
-        }
-    }
-}
-
-impl SpecFrom<SpecDirectoryStringInner> for SpecDirectoryStringValue {
-    open spec fn spec_from(inner: SpecDirectoryStringInner) -> Self {
+impl<PS, US> SpecFrom<DirectoryStringFrom<PS, US>> for DirectoryStringPoly<PS, US> {
+    open spec fn spec_from(inner: DirectoryStringFrom<PS, US>) -> Self {
         match inner {
-            Either::Left(s) => SpecDirectoryStringValue::PrintableString(s),
-            Either::Right(s) => SpecDirectoryStringValue::UTF8String(s),
+            Either::Left(s) => DirectoryStringPoly::PrintableString(s),
+            Either::Right(s) => DirectoryStringPoly::UTF8String(s),
         }
     }
 }
 
-impl SpecFrom<SpecDirectoryStringValue> for SpecDirectoryStringInner {
-    open spec fn spec_from(inner: SpecDirectoryStringValue) -> Self {
+impl<PS, US> SpecFrom<DirectoryStringPoly<PS, US>> for DirectoryStringFrom<PS, US> {
+    open spec fn spec_from(inner: DirectoryStringPoly<PS, US>) -> Self {
         match inner {
-            SpecDirectoryStringValue::PrintableString(s) => Either::Left(s),
-            SpecDirectoryStringValue::UTF8String(s) => Either::Right(s),
+            DirectoryStringPoly::PrintableString(s) => Either::Left(s),
+            DirectoryStringPoly::UTF8String(s) => Either::Right(s),
         }
     }
 }
 
-impl<'a> From<DirectoryStringInner<'a>> for DirectoryStringValue<'a> {
-    fn ex_from(inner: DirectoryStringInner<'a>) -> Self {
+impl<PS: View, US: View> From<DirectoryStringFrom<PS, US>> for DirectoryStringPoly<PS, US> {
+    fn ex_from(inner: DirectoryStringFrom<PS, US>) -> Self {
         match inner {
-            Either::Left(s) => DirectoryStringValue::PrintableString(s),
-            Either::Right(s) => DirectoryStringValue::UTF8String(s),
+            Either::Left(s) => DirectoryStringPoly::PrintableString(s),
+            Either::Right(s) => DirectoryStringPoly::UTF8String(s),
         }
     }
 }
 
-impl<'a> From<DirectoryStringValue<'a>> for DirectoryStringInner<'a> {
-    fn ex_from(inner: DirectoryStringValue<'a>) -> Self {
+impl<PS: View, US: View> From<DirectoryStringPoly<PS, US>> for DirectoryStringFrom<PS, US> {
+    fn ex_from(inner: DirectoryStringPoly<PS, US>) -> Self {
         match inner {
-            DirectoryStringValue::PrintableString(s) => Either::Left(s),
-            DirectoryStringValue::UTF8String(s) => Either::Right(s),
-        }
-    }
-}
-
-impl From<DirectoryStringInnerOwned> for DirectoryStringOwned {
-    fn ex_from(inner: DirectoryStringInnerOwned) -> Self {
-        match inner {
-            Either::Left(s) => DirectoryStringOwned::PrintableString(s),
-            Either::Right(s) => DirectoryStringOwned::UTF8String(s),
-        }
-    }
-}
-
-impl From<DirectoryStringOwned> for DirectoryStringInnerOwned {
-    fn ex_from(inner: DirectoryStringOwned) -> Self {
-        match inner {
-            DirectoryStringOwned::PrintableString(s) => Either::Left(s),
-            DirectoryStringOwned::UTF8String(s) => Either::Right(s),
+            DirectoryStringPoly::PrintableString(s) => Either::Left(s),
+            DirectoryStringPoly::UTF8String(s) => Either::Right(s),
         }
     }
 }
@@ -135,19 +78,19 @@ impl From<DirectoryStringOwned> for DirectoryStringInnerOwned {
 pub struct DirectoryStringMapper;
 
 impl SpecIso for DirectoryStringMapper {
-    type Src = SpecDirectoryStringInner;
-    type Dst = SpecDirectoryStringValue;
+    type Src = DirectoryStringFrom<SpecPrintableStringValue, SpecUTF8StringValue>;
+    type Dst = DirectoryStringPoly<SpecPrintableStringValue, SpecUTF8StringValue>;
 
     proof fn spec_iso(s: Self::Src) {}
     proof fn spec_iso_rev(s: Self::Dst) {}
 }
 
 impl Iso for DirectoryStringMapper {
-    type Src<'a> = DirectoryStringInner<'a>;
-    type Dst<'a> = DirectoryStringValue<'a>;
+    type Src<'a> = DirectoryStringFrom<PrintableStringValue<'a>, UTF8StringValue<'a>>;
+    type Dst<'a> = DirectoryStringPoly<PrintableStringValue<'a>, UTF8StringValue<'a>>;
 
-    type SrcOwned = DirectoryStringInnerOwned;
-    type DstOwned = DirectoryStringOwned;
+    type SrcOwned = DirectoryStringFrom<PrintableStringValueOwned, UTF8StringValueOwned>;
+    type DstOwned = DirectoryStringPoly<PrintableStringValueOwned, UTF8StringValueOwned>;
 }
 
 }

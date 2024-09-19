@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, DeriveInput, Data, Fields};
+use syn::{parse_macro_input, spanned::Spanned, Data, DeriveInput, Fields};
 
 /// Given a struct like struct NewType<A1, ..., An>(B1, ..., Bn)
 /// where each Bi either implements View, or is a type parameter,
@@ -39,7 +39,7 @@ pub fn derive_view(input: TokenStream) -> TokenStream {
 
     // Generate `impl View` body
     let view_body = match input.data {
-        Data::Struct(ref data) => {
+        Data::Struct(data) => {
             match &data.fields {
                 Fields::Unnamed(fields) => {
                     // Generate self.0@, ..., self.n@
@@ -98,7 +98,47 @@ pub fn derive_view(input: TokenStream) -> TokenStream {
                 }
             }
         },
-        _ => panic!("derive(View) only supports structs"),
+        Data::Enum(data) => {
+            // Generate match branches
+            let variant_matches = data.variants.iter().map(|variant| {
+                let variant_ident = &variant.ident;
+
+                match &variant.fields {
+                    Fields::Unnamed(fields) => {
+                        let field_bindings = (0..fields.unnamed.len()).map(|i| {
+                            let id = syn::Ident::new(&format!("f{}", i), fields.span());
+                            quote! { #id }
+                        });
+                        let field_view = (0..fields.unnamed.len()).map(|i| {
+                            let id = syn::Ident::new(&format!("f{}", i), fields.span());
+                            quote! { #id@ }
+                        });
+
+                        quote! {
+                            #name::#variant_ident(#(#field_bindings),*) => {
+                                #name::#variant_ident(#(#field_view),*)
+                            }
+                        }
+                    },
+                    _ => panic!("derive(View) only supports unnamed enum variants"),
+                }
+            });
+
+            quote! {
+                ::builtin_macros::verus! {
+                    impl<#(#view_generic_idents),*> View for #name<#(#generic_idents),*> {
+                        type V = #name<#(#generic_view_types),*>;
+
+                        open spec fn view(&self) -> Self::V {
+                            match self {
+                                #(#variant_matches),*
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        _ => panic!("derive(View) only supports structs and enums"),
     };
 
     // eprintln!("Generated code:\n{}", view_body.to_string());
@@ -127,7 +167,7 @@ pub fn derive_polyfill_clone(input: TokenStream) -> TokenStream {
 
     // Generate `impl PolyfillClone` body
     let view_body = match input.data {
-        Data::Struct(ref data) => {
+        Data::Struct(data) => {
             match &data.fields {
                 Fields::Unnamed(fields) => {
                     // Generate self.0@, ..., self.n@
@@ -180,7 +220,45 @@ pub fn derive_polyfill_clone(input: TokenStream) -> TokenStream {
                 }
             }
         },
-        _ => panic!("derive(View) only supports structs"),
+        Data::Enum(data) => {
+            // Generate match branches
+            let variant_matches = data.variants.iter().map(|variant| {
+                let variant_ident = &variant.ident;
+
+                match &variant.fields {
+                    Fields::Unnamed(fields) => {
+                        let field_bindings = (0..fields.unnamed.len()).map(|i| {
+                            let id = syn::Ident::new(&format!("f{}", i), fields.span());
+                            quote! { #id }
+                        });
+                        let field_view = (0..fields.unnamed.len()).map(|i| {
+                            let id = syn::Ident::new(&format!("f{}", i), fields.span());
+                            quote! { PolyfillClone::clone(&#id) }
+                        });
+
+                        quote! {
+                            #name::#variant_ident(#(#field_bindings),*) => {
+                                #name::#variant_ident(#(#field_view),*)
+                            }
+                        }
+                    },
+                    _ => panic!("derive(PolyfillClone) only supports unnamed enum variants"),
+                }
+            });
+
+            quote! {
+                ::builtin_macros::verus! {
+                    impl<#(#view_generic_idents),*> PolyfillClone for #name<#(#generic_idents),*> {
+                        fn clone(&self) -> Self {
+                            match &self {
+                                #(#variant_matches),*
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        _ => panic!("derive(PolyfillClone) only supports structs"),
     };
 
     // eprintln!("Generated code:\n{}", view_body.to_string());

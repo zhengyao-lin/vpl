@@ -25,96 +25,42 @@ pub fn validity() -> Validity {
     }
 }
 
-pub struct SpecValidityValue {
-    pub not_before: SpecTime,
-    pub not_after: SpecTime,
+#[derive(Debug, View, PolyfillClone)]
+pub struct ValidityPoly<NB, NA> {
+    pub not_before: NB,
+    pub not_after: NA,
 }
 
-#[derive(Debug)]
-pub struct ValidityValue<'a> {
-    pub not_before: Time<'a>,
-    pub not_after: Time<'a>,
-}
+pub type SpecValidityValue = ValidityPoly<SpecTime, SpecTime>;
+pub type ValidityValue<'a> = ValidityPoly<Time<'a>, Time<'a>>;
+pub type ValidityOwned = ValidityPoly<TimeOwned, TimeOwned>;
 
-pub struct ValidityOwned {
-    pub not_before: TimeOwned,
-    pub not_after: TimeOwned,
-}
+type ValidityFrom<NB, NA> = (NB, NA);
 
-type SpecValidityInner = (SpecTime, SpecTime);
-type ValidityInner<'a> = (Time<'a>, Time<'a>);
-type ValidityInnerOwned = (TimeOwned, TimeOwned);
-
-impl<'a> PolyfillClone for ValidityValue<'a> {
-    fn clone(&self) -> Self {
-        ValidityValue {
-            not_before: PolyfillClone::clone(&self.not_before),
-            not_after: PolyfillClone::clone(&self.not_after),
-        }
-    }
-}
-
-impl<'a> View for ValidityValue<'a> {
-    type V = SpecValidityValue;
-
-    closed spec fn view(&self) -> Self::V {
-        SpecValidityValue {
-            not_before: self.not_before@,
-            not_after: self.not_after@,
-        }
-    }
-}
-
-impl View for ValidityOwned {
-    type V = SpecValidityValue;
-
-    closed spec fn view(&self) -> Self::V {
-        SpecValidityValue {
-            not_before: self.not_before@,
-            not_after: self.not_after@,
-        }
-    }
-}
-
-impl SpecFrom<SpecValidityValue> for SpecValidityInner {
-    closed spec fn spec_from(s: SpecValidityValue) -> Self {
+impl<NB, NA> SpecFrom<ValidityPoly<NB, NA>> for ValidityFrom<NB, NA> {
+    closed spec fn spec_from(s: ValidityPoly<NB, NA>) -> Self {
         (s.not_before, s.not_after)
     }
 }
 
-impl SpecFrom<SpecValidityInner> for SpecValidityValue {
-    closed spec fn spec_from(s: SpecValidityInner) -> Self {
-        SpecValidityValue {
+impl<NB, NA> SpecFrom<ValidityFrom<NB, NA>> for ValidityPoly<NB, NA> {
+    closed spec fn spec_from(s: ValidityFrom<NB, NA>) -> Self {
+        ValidityPoly {
             not_before: s.0,
             not_after: s.1,
         }
     }
 }
 
-impl<'a> From<ValidityValue<'a>> for ValidityInner<'a> {
-    fn ex_from(s: ValidityValue<'a>) -> Self {
+impl<NB: View, NA: View> From<ValidityPoly<NB, NA>> for ValidityFrom<NB, NA> {
+    fn ex_from(s: ValidityPoly<NB, NA>) -> Self {
         (s.not_before, s.not_after)
     }
 }
 
-impl<'a> From<ValidityInner<'a>> for ValidityValue<'a> {
-    fn ex_from(s: ValidityInner<'a>) -> Self {
-        ValidityValue {
-            not_before: s.0,
-            not_after: s.1,
-        }
-    }
-}
-
-impl From<ValidityOwned> for ValidityInnerOwned {
-    fn ex_from(s: ValidityOwned) -> Self {
-        (s.not_before, s.not_after)
-    }
-}
-
-impl From<ValidityInnerOwned> for ValidityOwned {
-    fn ex_from(s: ValidityInnerOwned) -> Self {
-        ValidityOwned {
+impl<NB: View, NA: View> From<ValidityFrom<NB, NA>> for ValidityPoly<NB, NA> {
+    fn ex_from(s: ValidityFrom<NB, NA>) -> Self {
+        ValidityPoly {
             not_before: s.0,
             not_after: s.1,
         }
@@ -125,19 +71,19 @@ impl From<ValidityInnerOwned> for ValidityOwned {
 pub struct ValidityMapper;
 
 impl SpecIso for ValidityMapper {
-    type Src = SpecValidityInner;
-    type Dst = SpecValidityValue;
+    type Src = ValidityFrom<SpecTime, SpecTime>;
+    type Dst = ValidityPoly<SpecTime, SpecTime>;
 
     proof fn spec_iso(s: Self::Src) {}
     proof fn spec_iso_rev(s: Self::Dst) {}
 }
 
 impl Iso for ValidityMapper {
-    type Src<'a> = ValidityInner<'a>;
-    type Dst<'a> = ValidityValue<'a>;
+    type Src<'a> = ValidityFrom<Time<'a>, Time<'a>>;
+    type Dst<'a> = ValidityPoly<Time<'a>, Time<'a>>;
 
-    type SrcOwned = ValidityInnerOwned;
-    type DstOwned = ValidityOwned;
+    type SrcOwned = ValidityFrom<TimeOwned, TimeOwned>;
+    type DstOwned = ValidityPoly<TimeOwned, TimeOwned>;
 }
 
 }

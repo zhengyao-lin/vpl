@@ -24,96 +24,42 @@ pub fn public_key_info() -> PublicKeyInfoCombinator {
     }
 }
 
-pub struct SpecPublicKeyInfo {
-    pub alg: SpecAlgorithmIdentifierValue,
-    pub pub_key: SpecBitStringValue,
+#[derive(Debug, View, PolyfillClone)]
+pub struct PublicKeyInfoPoly<Alg, PubKey> {
+    pub alg: Alg,
+    pub pub_key: PubKey,
 }
 
-#[derive(Debug)]
-pub struct PublicKeyInfo<'a> {
-    pub alg: AlgorithmIdentifierValue<'a>,
-    pub pub_key: BitStringValue<'a>,
-}
+pub type SpecPublicKeyInfoValue = PublicKeyInfoPoly<SpecAlgorithmIdentifierValue, SpecBitStringValue>;
+pub type PublicKeyInfoValue<'a> = PublicKeyInfoPoly<AlgorithmIdentifierValue<'a>, BitStringValue<'a>>;
+pub type PublicKeyInfoOwned = PublicKeyInfoPoly<AlgorithmIdentifierOwned, BitStringValueOwned>;
 
-pub struct PublicKeyInfoOwned {
-    pub alg: AlgorithmIdentifierOwned,
-    pub pub_key: BitStringValueOwned,
-}
+type PublicKeyInfoFrom<Alg, PubKey> = (Alg, PubKey);
 
-type SpecPublicKeyInfoInner = (SpecAlgorithmIdentifierValue, SpecBitStringValue);
-type PublicKeyInfoInner<'a> = (AlgorithmIdentifierValue<'a>, BitStringValue<'a>);
-type PublicKeyInfoInnerOwned = (AlgorithmIdentifierOwned, BitStringValueOwned);
-
-impl<'a> PolyfillClone for PublicKeyInfo<'a> {
-    fn clone(&self) -> Self {
-        PublicKeyInfo {
-            alg: PolyfillClone::clone(&self.alg),
-            pub_key: PolyfillClone::clone(&self.pub_key),
-        }
-    }
-}
-
-impl<'a> View for PublicKeyInfo<'a> {
-    type V = SpecPublicKeyInfo;
-
-    closed spec fn view(&self) -> Self::V {
-        SpecPublicKeyInfo {
-            alg: self.alg@,
-            pub_key: self.pub_key@,
-        }
-    }
-}
-
-impl View for PublicKeyInfoOwned {
-    type V = SpecPublicKeyInfo;
-
-    closed spec fn view(&self) -> Self::V {
-        SpecPublicKeyInfo {
-            alg: self.alg@,
-            pub_key: self.pub_key@,
-        }
-    }
-}
-
-impl SpecFrom<SpecPublicKeyInfo> for SpecPublicKeyInfoInner {
-    closed spec fn spec_from(s: SpecPublicKeyInfo) -> Self {
+impl<Alg, PubKey> SpecFrom<PublicKeyInfoPoly<Alg, PubKey>> for PublicKeyInfoFrom<Alg, PubKey> {
+    closed spec fn spec_from(s: PublicKeyInfoPoly<Alg, PubKey>) -> Self {
         (s.alg, s.pub_key)
     }
 }
 
-impl SpecFrom<SpecPublicKeyInfoInner> for SpecPublicKeyInfo {
-    closed spec fn spec_from(s: SpecPublicKeyInfoInner) -> Self {
-        SpecPublicKeyInfo {
+impl<Alg, PubKey> SpecFrom<PublicKeyInfoFrom<Alg, PubKey>> for PublicKeyInfoPoly<Alg, PubKey> {
+    closed spec fn spec_from(s: PublicKeyInfoFrom<Alg, PubKey>) -> Self {
+        PublicKeyInfoPoly {
             alg: s.0,
             pub_key: s.1,
         }
     }
 }
 
-impl<'a> From<PublicKeyInfo<'a>> for PublicKeyInfoInner<'a> {
-    fn ex_from(s: PublicKeyInfo<'a>) -> Self {
+impl<Alg: View, PubKey: View> From<PublicKeyInfoPoly<Alg, PubKey>> for PublicKeyInfoFrom<Alg, PubKey> {
+    fn ex_from(s: PublicKeyInfoPoly<Alg, PubKey>) -> Self {
         (s.alg, s.pub_key)
     }
 }
 
-impl<'a> From<PublicKeyInfoInner<'a>> for PublicKeyInfo<'a> {
-    fn ex_from(s: PublicKeyInfoInner<'a>) -> Self {
-        PublicKeyInfo {
-            alg: s.0,
-            pub_key: s.1,
-        }
-    }
-}
-
-impl From<PublicKeyInfoOwned> for PublicKeyInfoInnerOwned {
-    fn ex_from(s: PublicKeyInfoOwned) -> Self {
-        (s.alg, s.pub_key)
-    }
-}
-
-impl From<PublicKeyInfoInnerOwned> for PublicKeyInfoOwned {
-    fn ex_from(s: PublicKeyInfoInnerOwned) -> Self {
-        PublicKeyInfoOwned {
+impl<Alg: View, PubKey: View> From<PublicKeyInfoFrom<Alg, PubKey>> for PublicKeyInfoPoly<Alg, PubKey> {
+    fn ex_from(s: PublicKeyInfoFrom<Alg, PubKey>) -> Self {
+        PublicKeyInfoPoly {
             alg: s.0,
             pub_key: s.1,
         }
@@ -124,19 +70,19 @@ impl From<PublicKeyInfoInnerOwned> for PublicKeyInfoOwned {
 pub struct PublicKeyInfoMapper;
 
 impl SpecIso for PublicKeyInfoMapper {
-    type Src = SpecPublicKeyInfoInner;
-    type Dst = SpecPublicKeyInfo;
+    type Src = PublicKeyInfoFrom<SpecAlgorithmIdentifierValue, SpecBitStringValue>;
+    type Dst = PublicKeyInfoPoly<SpecAlgorithmIdentifierValue, SpecBitStringValue>;
 
     proof fn spec_iso(s: Self::Src) {}
     proof fn spec_iso_rev(s: Self::Dst) {}
 }
 
 impl Iso for PublicKeyInfoMapper {
-    type Src<'a> = PublicKeyInfoInner<'a>;
-    type Dst<'a> = PublicKeyInfo<'a>;
+    type Src<'a> = PublicKeyInfoFrom<AlgorithmIdentifierValue<'a>, BitStringValue<'a>>;
+    type Dst<'a> = PublicKeyInfoPoly<AlgorithmIdentifierValue<'a>, BitStringValue<'a>>;
 
-    type SrcOwned = PublicKeyInfoInnerOwned;
-    type DstOwned = PublicKeyInfoOwned;
+    type SrcOwned = PublicKeyInfoFrom<AlgorithmIdentifierOwned, BitStringValueOwned>;
+    type DstOwned = PublicKeyInfoPoly<AlgorithmIdentifierOwned, BitStringValueOwned>;
 }
 
 }
