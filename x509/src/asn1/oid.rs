@@ -14,7 +14,6 @@ verus! {
 #[derive(Debug)]
 pub struct ObjectIdentifier;
 impl_trivial_view!(ObjectIdentifier);
-impl_trivial_poly_clone_combinator!(ObjectIdentifier);
 
 pub type SpecObjectIdentifierValue = Seq<UInt>;
 pub type ObjectIdentifierValue = Vec<UInt>;

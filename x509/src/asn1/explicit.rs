@@ -34,15 +34,6 @@ impl<T: View> View for ExplicitTag<T> {
     }
 }
 
-impl<T: PolyfillCloneCombinator> PolyfillCloneCombinator for ExplicitTag<T> where
-    <T as View>::V: SecureSpecCombinator<SpecResult = <T::Owned as View>::V>,
-    for<'a> <T as Combinator>::Result<'a>: PolyfillClone,
-{
-    fn clone(&self) -> Self {
-        ExplicitTag(self.0.clone(), self.1.clone())
-    }
-}
-
 impl<T: SpecCombinator> SpecCombinator for ExplicitTag<T> {
     type SpecResult = T::SpecResult;
 
@@ -106,7 +97,6 @@ impl<T: Combinator> Combinator for ExplicitTag<T> where
     }
 
     open spec fn parse_requires(&self) -> bool {
-        // Due to a combination of ExplicitTagCont and PolyfillCloneCombinator
         self.1.parse_requires()
     }
 

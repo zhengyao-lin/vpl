@@ -310,16 +310,6 @@ impl<T: ASN1Tagged + ViewWithASN1Tagged> ViewWithASN1Tagged for ASN1<T> where
     }
 }
 
-impl<T: PolyfillCloneCombinator> PolyfillCloneCombinator for ASN1<T> where
-    <T as View>::V: SecureSpecCombinator<SpecResult = <T::Owned as View>::V>,
-    <T as View>::V: ASN1Tagged,
-    T: ViewWithASN1Tagged,
-{
-    fn clone(&self) -> Self {
-        ASN1(self.0.clone())
-    }
-}
-
 impl<T: ASN1Tagged + SpecCombinator> SpecCombinator for ASN1<T> {
     type SpecResult = <T as SpecCombinator>::SpecResult;
 

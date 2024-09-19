@@ -178,7 +178,6 @@ impl From<ExtensionInnerOwned> for ExtensionOwned {
 
 pub struct ExtensionMapper;
 impl_trivial_view!(ExtensionMapper);
-impl_trivial_poly_clone!(ExtensionMapper);
 
 impl SpecIso for ExtensionMapper {
     type Src = SpecExtensionInner;

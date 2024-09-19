@@ -125,7 +125,6 @@ impl From<AlgorithmIdentifierInnerOwned> for AlgorithmIdentifierOwned {
 #[derive(Debug)]
 pub struct AlgorithmIdentifierMapper;
 impl_trivial_view!(AlgorithmIdentifierMapper);
-impl_trivial_poly_clone!(AlgorithmIdentifierMapper);
 
 impl SpecIso for AlgorithmIdentifierMapper {
     type Src = SpecAlgorithmIdentifierInner;

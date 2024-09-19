@@ -15,7 +15,6 @@ verus! {
 #[derive(Debug)]
 pub struct Boolean;
 impl_trivial_view!(Boolean);
-impl_trivial_poly_clone_combinator!(Boolean);
 
 impl ASN1Tagged for Boolean {
     open spec fn spec_tag(&self) -> TagValue {

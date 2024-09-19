@@ -130,7 +130,6 @@ impl From<AttributeTypeAndValueInnerOwned> for AttributeTypeAndValueOwned {
 #[derive(Debug)]
 pub struct AttributeTypeAndValueMapper;
 impl_trivial_view!(AttributeTypeAndValueMapper);
-impl_trivial_poly_clone!(AttributeTypeAndValueMapper);
 
 impl SpecIso for AttributeTypeAndValueMapper {
     type Src = SpecAttributeTypeAndValueInner;

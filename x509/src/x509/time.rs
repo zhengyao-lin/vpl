@@ -145,7 +145,6 @@ impl From<TimeOwned> for TimeInnerOwned {
 #[derive(Debug)]
 pub struct TimeMapper;
 impl_trivial_view!(TimeMapper);
-impl_trivial_poly_clone!(TimeMapper);
 
 impl SpecIso for TimeMapper {
     type Src = SpecTimeInner;

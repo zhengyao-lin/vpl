@@ -125,7 +125,6 @@ impl From<ValidityInnerOwned> for ValidityOwned {
 #[derive(Debug)]
 pub struct ValidityMapper;
 impl_trivial_view!(ValidityMapper);
-impl_trivial_poly_clone!(ValidityMapper);
 
 impl SpecIso for ValidityMapper {
     type Src = SpecValidityInner;

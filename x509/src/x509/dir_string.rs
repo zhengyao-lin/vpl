@@ -135,7 +135,6 @@ impl From<DirectoryStringOwned> for DirectoryStringInnerOwned {
 #[derive(Debug)]
 pub struct DirectoryStringMapper;
 impl_trivial_view!(DirectoryStringMapper);
-impl_trivial_poly_clone!(DirectoryStringMapper);
 
 impl SpecIso for DirectoryStringMapper {
     type Src = SpecDirectoryStringInner;

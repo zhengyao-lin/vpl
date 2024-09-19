@@ -15,7 +15,6 @@ verus! {
 #[derive(Debug)]
 pub struct UTF8String;
 impl_trivial_view!(UTF8String);
-impl_trivial_poly_clone_combinator!(UTF8String);
 
 pub type SpecUTF8StringValue = Seq<char>;
 pub type UTF8StringValue<'a> = &'a str;

@@ -51,17 +51,6 @@ impl<T1: PolyfillClone, T2: PolyfillClone> PolyfillClone for OptionalValue<T1, T
     }
 }
 
-impl<C1: PolyfillCloneCombinator, C2: PolyfillCloneCombinator> PolyfillCloneCombinator for Optional<C1, C2> where
-    <C1 as View>::V: SecureSpecCombinator<SpecResult = <C1::Owned as View>::V>,
-    <C2 as View>::V: SecureSpecCombinator<SpecResult = <C2::Owned as View>::V>,
-    <C2 as View>::V: SpecDisjointFrom<<C1 as View>::V>,
-    C2: DisjointFrom<C1>,
-{
-    fn clone(&self) -> Self {
-        Optional(self.0.clone(), self.1.clone())
-    }
-}
-
 impl<C1, C2> SpecCombinator for Optional<C1, C2> where
     C1: SecureSpecCombinator,
     C2: SecureSpecCombinator + SpecDisjointFrom<C1>,

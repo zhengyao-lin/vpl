@@ -57,14 +57,6 @@ impl<T: PolyfillClone> PolyfillClone for RepeatResult<T> where
     }
 }
 
-impl<C: PolyfillCloneCombinator> PolyfillCloneCombinator for Repeat<C> where
-    <C as View>::V: SecureSpecCombinator<SpecResult = <C::Owned as View>::V>,
-{
-    fn clone(&self) -> Self {
-        Repeat(self.0.clone())
-    }
-}
-
 impl<C: SpecCombinator + SecureSpecCombinator> SpecCombinator for Repeat<C> {
     type SpecResult = Seq<C::SpecResult>;
 

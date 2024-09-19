@@ -47,16 +47,6 @@ impl<C: View> ViewWithASN1Tagged for SequenceOf<C> {
     proof fn lemma_view_preserves_tag(&self) {}
 }
 
-/// TODO: putting it here to avoid a Verus issue
-impl<T: PolyfillCloneCombinator> PolyfillCloneCombinator for SequenceOf<T> where
-    <T as View>::V: SecureSpecCombinator<SpecResult = <T::Owned as View>::V>,
-    for<'a> <T as Combinator>::Result<'a>: PolyfillClone,
-{
-    fn clone(&self) -> Self {
-        SequenceOf(self.0.clone())
-    }
-}
-
 impl<C: SecureSpecCombinator + SpecCombinator> SpecCombinator for SequenceOf<C> {
     type SpecResult = Seq<C::SpecResult>;
 

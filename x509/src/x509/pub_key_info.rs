@@ -124,7 +124,6 @@ impl From<PublicKeyInfoInnerOwned> for PublicKeyInfoOwned {
 #[derive(Debug)]
 pub struct PublicKeyInfoMapper;
 impl_trivial_view!(PublicKeyInfoMapper);
-impl_trivial_poly_clone!(PublicKeyInfoMapper);
 
 impl SpecIso for PublicKeyInfoMapper {
     type Src = SpecPublicKeyInfoInner;

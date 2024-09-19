@@ -108,7 +108,6 @@ impl From<NameInnerOwned> for NameOwned {
 #[derive(Debug)]
 pub struct NameMapper;
 impl_trivial_view!(NameMapper);
-impl_trivial_poly_clone!(NameMapper);
 
 impl SpecIso for NameMapper {
     type Src = SpecNameInner;

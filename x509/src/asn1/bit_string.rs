@@ -23,7 +23,6 @@ pub struct BitStringValueOwned(Vec<u8>);
 #[derive(Debug)]
 pub struct BitString;
 impl_trivial_view!(BitString);
-impl_trivial_poly_clone_combinator!(BitString);
 
 impl<'a> View for BitStringValue<'a> {
     type V = SpecBitStringValue;

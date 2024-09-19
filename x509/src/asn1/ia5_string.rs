@@ -18,7 +18,6 @@ verus! {
 #[derive(Debug)]
 pub struct IA5String;
 impl_trivial_view!(IA5String);
-impl_trivial_poly_clone_combinator!(IA5String);
 
 pub struct SpecIA5StringValue(pub Seq<u8>);
 pub struct IA5StringValue<'a>(&'a [u8]);

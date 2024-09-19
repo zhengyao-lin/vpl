@@ -33,16 +33,6 @@ impl<T: View> View for ImplicitTag<T> {
     }
 }
 
-impl<T: PolyfillCloneCombinator> PolyfillCloneCombinator for ImplicitTag<T> where
-    <T as View>::V: SecureSpecCombinator<SpecResult = <T::Owned as View>::V>,
-    <T as View>::V: ASN1Tagged,
-    T: ViewWithASN1Tagged,
-{
-    fn clone(&self) -> Self {
-        ImplicitTag(self.0.clone(), self.1.clone())
-    }
-}
-
 impl<T: SpecCombinator> SpecCombinator for ImplicitTag<T> {
     type SpecResult = T::SpecResult;
 

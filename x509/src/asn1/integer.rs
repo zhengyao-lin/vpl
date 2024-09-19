@@ -20,7 +20,6 @@ pub type IntegerValue = VarIntResult;
 #[derive(Debug)]
 pub struct Integer;
 impl_trivial_view!(Integer);
-impl_trivial_poly_clone_combinator!(Integer);
 
 impl ASN1Tagged for Integer {
     open spec fn spec_tag(&self) -> TagValue {

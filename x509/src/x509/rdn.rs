@@ -113,7 +113,6 @@ impl From<RDNInnerOwned> for RDNOwned {
 #[derive(Debug)]
 pub struct RDNMapper;
 impl_trivial_view!(RDNMapper);
-impl_trivial_poly_clone!(RDNMapper);
 
 impl SpecIso for RDNMapper {
     type Src = SpecRDNInner;

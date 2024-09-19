@@ -18,7 +18,6 @@ verus! {
 #[derive(Debug)]
 pub struct PrintableString;
 impl_trivial_view!(PrintableString);
-impl_trivial_poly_clone_combinator!(PrintableString);
 
 pub struct SpecPrintableStringValue(pub Seq<u8>);
 
