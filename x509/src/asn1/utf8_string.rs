@@ -11,7 +11,7 @@ use super::tag::*;
 verus! {
 
 /// Combainator for UTF8String in ASN.1
-#[derive(Debug, View)]
+#[derive(Debug, View, ViewWithASN1Tagged)]
 pub struct UTF8String;
 
 pub type SpecUTF8StringValue = Seq<char>;
@@ -34,10 +34,6 @@ impl ASN1Tagged for UTF8String {
             num: 0x0c,
         }
     }
-}
-
-impl ViewWithASN1Tagged for UTF8String {
-    proof fn lemma_view_preserves_tag(&self) {}
 }
 
 impl SpecCombinator for UTF8String {

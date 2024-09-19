@@ -10,37 +10,23 @@ use super::tag::*;
 
 verus! {
 
-pub struct SpecBitStringValue(pub Seq<u8>);
-#[derive(Debug)]
-pub struct BitStringValue<'a>(&'a [u8]);
-pub struct BitStringValueOwned(Vec<u8>);
-
 /// Combainator for BIT STRING in ASN.1
 /// Essentially a refined version of OctetString
 /// where we require that the first bit correctly
 /// specifies the trailing zeros
-#[derive(Debug, View)]
+#[derive(Debug, View, ViewWithASN1Tagged)]
 pub struct BitString;
 
-impl<'a> View for BitStringValue<'a> {
-    type V = SpecBitStringValue;
+#[derive(Debug, View)]
+pub struct BitStringValuePoly<T>(pub T);
 
-    closed spec fn view(&self) -> Self::V {
-        SpecBitStringValue(self.0@)
-    }
-}
-
-impl View for BitStringValueOwned {
-    type V = SpecBitStringValue;
-
-    closed spec fn view(&self) -> Self::V {
-        SpecBitStringValue(self.0@)
-    }
-}
+pub type SpecBitStringValue = BitStringValuePoly<Seq<u8>>;
+pub type BitStringValue<'a> = BitStringValuePoly<&'a [u8]>;
+pub type BitStringValueOwned = BitStringValuePoly<Vec<u8>>;
 
 impl<'a> PolyfillClone for BitStringValue<'a> {
     fn clone(&self) -> Self {
-        BitStringValue(self.0)
+        BitStringValuePoly(self.0)
     }
 }
 
@@ -60,10 +46,6 @@ impl ASN1Tagged for BitString {
             num: 0x03,
         }
     }
-}
-
-impl ViewWithASN1Tagged for BitString {
-    proof fn lemma_view_preserves_tag(&self) {}
 }
 
 impl SpecBitStringValue {
@@ -87,7 +69,7 @@ impl<'a> BitStringValue<'a> {
     pub fn new_raw(s: &'a [u8]) -> (res: Option<BitStringValue<'a>>)
         ensures res.is_some() ==> res.unwrap()@.wf()
     {
-        let res = BitStringValue(s);
+        let res = BitStringValuePoly(s);
 
         if res.wf() {
             Some(res)
@@ -124,8 +106,8 @@ impl SpecCombinator for BitString {
     open spec fn spec_parse(&self, s: Seq<u8>) -> Result<(usize, Self::SpecResult), ()> {
         match OctetString.spec_parse(s) {
             Ok((len, bytes)) =>
-                if SpecBitStringValue(bytes).wf() {
-                    Ok((len, SpecBitStringValue(bytes)))
+                if BitStringValuePoly(bytes).wf() {
+                    Ok((len, BitStringValuePoly(bytes)))
                 } else {
                     Err(())
                 }
@@ -182,8 +164,8 @@ impl Combinator for BitString {
     fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ()>) {
         let (len, v) = OctetString.parse(s)?;
 
-        if BitStringValue(v).wf() {
-            Ok((len, BitStringValue(v)))
+        if BitStringValuePoly(v).wf() {
+            Ok((len, BitStringValuePoly(v)))
         } else {
             Err(())
         }

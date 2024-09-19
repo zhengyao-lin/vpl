@@ -11,13 +11,13 @@ use super::tag::*;
 
 verus! {
 
-pub type IntegerValue = VarIntResult;
-
 /// Combinator for ASN.1 integers (without the preceding tag)
 /// This combinator uses IntegerInner with the additional constraint
 /// of is_min_num_bytes_signed
-#[derive(Debug, View)]
+#[derive(Debug, View, ViewWithASN1Tagged)]
 pub struct Integer;
+
+pub type IntegerValue = VarIntResult;
 
 impl ASN1Tagged for Integer {
     open spec fn spec_tag(&self) -> TagValue {
@@ -35,10 +35,6 @@ impl ASN1Tagged for Integer {
             num: 0x02,
         }
     }
-}
-
-impl ViewWithASN1Tagged for Integer {
-    proof fn lemma_view_preserves_tag(&self) {}
 }
 
 impl SpecCombinator for Integer {

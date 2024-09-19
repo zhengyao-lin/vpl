@@ -10,7 +10,7 @@ use super::explicit::*;
 verus! {
 
 /// SEQUENCE OF in ASN.1
-#[derive(Debug, View)]
+#[derive(Debug, View, ViewWithASN1Tagged)]
 pub struct SequenceOf<C>(pub C);
 
 pub type SequenceOfValue<T> = RepeatResult<T>;
@@ -32,10 +32,6 @@ impl<C> ASN1Tagged for SequenceOf<C> {
             num: 0x10,
         }
     }
-}
-
-impl<C: View> ViewWithASN1Tagged for SequenceOf<C> {
-    proof fn lemma_view_preserves_tag(&self) {}
 }
 
 impl<C: SecureSpecCombinator + SpecCombinator> SpecCombinator for SequenceOf<C> {

@@ -11,7 +11,7 @@ verus! {
 /// Combainator for BOOLEAN in ASN.1
 /// TRUE = 0x01 0x01 0xff
 /// FALSE = 0x01 0x01 0x00
-#[derive(Debug, View)]
+#[derive(Debug, View, ViewWithASN1Tagged)]
 pub struct Boolean;
 
 impl ASN1Tagged for Boolean {
@@ -30,10 +30,6 @@ impl ASN1Tagged for Boolean {
             num: 0x01,
         }
     }
-}
-
-impl ViewWithASN1Tagged for Boolean {
-    proof fn lemma_view_preserves_tag(&self) {}
 }
 
 impl SpecCombinator for Boolean {

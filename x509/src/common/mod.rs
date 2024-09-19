@@ -17,3 +17,4 @@ pub use clone::*;
 pub use optional::*;
 
 pub use macros::View;
+pub use macros::ViewWithASN1Tagged;

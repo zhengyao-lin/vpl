@@ -14,7 +14,7 @@ verus! {
 /// Combinator for PrintableString in ASN.1
 /// Essentially a wrapper around Octet
 /// that checks that each byte is <= 127
-#[derive(Debug, View)]
+#[derive(Debug, View, ViewWithASN1Tagged)]
 pub struct PrintableString;
 
 pub struct SpecPrintableStringValue(pub Seq<u8>);
@@ -57,10 +57,6 @@ impl ASN1Tagged for PrintableString {
             num: 0x13,
         }
     }
-}
-
-impl ViewWithASN1Tagged for PrintableString {
-    proof fn lemma_view_preserves_tag(&self) {}
 }
 
 impl<'a> PolyfillClone for PrintableStringValue<'a> {

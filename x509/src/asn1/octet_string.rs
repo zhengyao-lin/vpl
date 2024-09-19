@@ -8,7 +8,7 @@ use super::tag::*;
 verus! {
 
 /// Combainator for OCTET STRING in ASN.1
-#[derive(Debug, View)]
+#[derive(Debug, View, ViewWithASN1Tagged)]
 pub struct OctetString;
 
 impl ASN1Tagged for OctetString {
@@ -27,10 +27,6 @@ impl ASN1Tagged for OctetString {
             num: 0x04,
         }
     }
-}
-
-impl ViewWithASN1Tagged for OctetString {
-    proof fn lemma_view_preserves_tag(&self) {}
 }
 
 impl SpecCombinator for OctetString {

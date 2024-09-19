@@ -10,7 +10,7 @@ verus! {
 /// If it's expected that an INTEGER field is larger than the Int type,
 /// then use this combinator to read it as an octet string (with
 /// some minimality constraints).
-#[derive(Debug, View)]
+#[derive(Debug, View, ViewWithASN1Tagged)]
 pub struct BigInt;
 
 /// BigInt represents the integer with a sequence of bytes in big-endian order
@@ -75,10 +75,6 @@ impl ASN1Tagged for BigInt {
             num: 0x02,
         }
     }
-}
-
-impl ViewWithASN1Tagged for BigInt {
-    proof fn lemma_view_preserves_tag(&self) {}
 }
 
 impl SpecCombinator for BigInt {

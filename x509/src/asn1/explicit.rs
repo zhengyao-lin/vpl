@@ -10,7 +10,7 @@ verus! {
 
 /// Explicit tagging wrapps the inner combinator in a new TLV tuple
 /// Equivalent to ImplicitTag(tag, LengthWrapped(inner))
-#[derive(Debug, View)]
+#[derive(Debug, View, ViewWithASN1Tagged)]
 pub struct ExplicitTag<T>(pub TagValue, pub T);
 
 impl<T> ASN1Tagged for ExplicitTag<T> {
@@ -21,11 +21,6 @@ impl<T> ASN1Tagged for ExplicitTag<T> {
     fn tag(&self) -> TagValue {
         self.0.clone()
     }
-}
-
-impl<T: View> ViewWithASN1Tagged for ExplicitTag<T> where
-{
-    proof fn lemma_view_preserves_tag(&self) {}
 }
 
 impl<T: SpecCombinator> SpecCombinator for ExplicitTag<T> {

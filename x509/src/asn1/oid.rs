@@ -10,7 +10,7 @@ use super::tag::*;
 verus! {
 
 /// Combinator for ASN.1 Object Identifier
-#[derive(Debug, View)]
+#[derive(Debug, View, ViewWithASN1Tagged)]
 pub struct ObjectIdentifier;
 
 pub type SpecObjectIdentifierValue = Seq<UInt>;
@@ -33,10 +33,6 @@ impl ASN1Tagged for ObjectIdentifier {
             num: 0x06,
         }
     }
-}
-
-impl ViewWithASN1Tagged for ObjectIdentifier {
-    proof fn lemma_view_preserves_tag(&self) {}
 }
 
 impl ObjectIdentifier {

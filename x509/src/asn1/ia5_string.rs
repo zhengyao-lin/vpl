@@ -14,7 +14,7 @@ verus! {
 /// Combinator for IA5String in ASN.1
 /// Essentially a wrapper around Octet
 /// that checks that each byte is <= 127
-#[derive(Debug, View)]
+#[derive(Debug, View, ViewWithASN1Tagged)]
 pub struct IA5String;
 
 pub struct SpecIA5StringValue(pub Seq<u8>);
@@ -53,10 +53,6 @@ impl ASN1Tagged for IA5String {
             num: 0x16,
         }
     }
-}
-
-impl ViewWithASN1Tagged for IA5String {
-    proof fn lemma_view_preserves_tag(&self) {}
 }
 
 impl<'a> PolyfillClone for IA5StringValue<'a> {
