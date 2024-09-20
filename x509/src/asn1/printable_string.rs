@@ -14,8 +14,14 @@ verus! {
 /// Combinator for PrintableString in ASN.1
 /// Essentially a wrapper around Octet
 /// that checks that each byte is <= 127
-#[derive(Debug, View, ViewWithASN1Tagged)]
+#[derive(Debug, View)]
 pub struct PrintableString;
+
+asn1_tagged!(PrintableString, TagValue {
+    class: TagClass::Universal,
+    form: TagForm::Primitive,
+    num: 0x13,
+});
 
 #[derive(Debug, View, PolyfillClone)]
 pub struct PrintableStringPoly<T>(pub T);
@@ -23,24 +29,6 @@ pub struct PrintableStringPoly<T>(pub T);
 pub type SpecPrintableStringValue = PrintableStringPoly<Seq<u8>>;
 pub type PrintableStringValue<'a> = PrintableStringPoly<&'a [u8]>;
 pub type PrintableStringValueOwned = PrintableStringPoly<Vec<u8>>;
-
-impl ASN1Tagged for PrintableString {
-    open spec fn spec_tag(&self) -> TagValue {
-        TagValue {
-            class: TagClass::Universal,
-            form: TagForm::Primitive,
-            num: 0x13,
-        }
-    }
-
-    fn tag(&self) -> TagValue {
-        TagValue {
-            class: TagClass::Universal,
-            form: TagForm::Primitive,
-            num: 0x13,
-        }
-    }
-}
 
 impl SpecPrintableStringValue {
     pub open spec fn wf(&self) -> bool {

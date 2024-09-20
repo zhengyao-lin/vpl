@@ -8,14 +8,21 @@ use super::rdn::*;
 verus! {
 
 /// In X.509: Name ::= SEQUENCE OF RelativeDistinguishedName
-pub type Name = Mapped<ASN1<SequenceOf<RDN>>, NameMapper>;
+pub type NameInner = Mapped<SequenceOf<RDN>, NameMapper>;
 
-pub fn name() -> Name {
-    Mapped {
-        inner: ASN1(SequenceOf(rdn())),
-        mapper: NameMapper,
-    }
+wrap_combinator! {
+    struct Name: NameInner =
+        Mapped {
+            inner: SequenceOf(ASN1(RDN)),
+            mapper: NameMapper,
+        };
 }
+
+asn1_tagged!(Name, TagValue {
+    class: TagClass::Universal,
+    form: TagForm::Constructed,
+    num: 0x11,
+});
 
 #[derive(Debug, View, PolyfillClone)]
 pub struct NamePoly<RDNS> {

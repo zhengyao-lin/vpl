@@ -427,4 +427,27 @@ impl<T: ASN1Tagged + Combinator> Combinator for ASN1<T> where
     }
 }
 
+/// Macro to generate a ASN1Tagged and ViewWithASN1Tagged trait impl
+#[allow(unused_macros)]
+macro_rules! asn1_tagged {
+    ($ty:ident, $tag:expr) => {
+        ::builtin_macros::verus! {
+            impl ASN1Tagged for $ty {
+                open spec fn spec_tag(&self) -> TagValue {
+                    $tag
+                }
+
+                fn tag(&self) -> TagValue {
+                    $tag
+                }
+            }
+
+            impl ViewWithASN1Tagged for $ty {
+                proof fn lemma_view_preserves_tag(&self) {}
+            }
+        }
+    };
+}
+pub(crate) use asn1_tagged;
+
 }

@@ -14,8 +14,14 @@ verus! {
 /// Combinator for IA5String in ASN.1
 /// Essentially a wrapper around Octet
 /// that checks that each byte is <= 127
-#[derive(Debug, View, ViewWithASN1Tagged)]
+#[derive(Debug, View)]
 pub struct IA5String;
+
+asn1_tagged!(IA5String, TagValue {
+    class: TagClass::Universal,
+    form: TagForm::Primitive,
+    num: 0x16,
+});
 
 #[derive(Debug, View, PolyfillClone)]
 pub struct IA5StringPoly<T>(pub T);
@@ -23,24 +29,6 @@ pub struct IA5StringPoly<T>(pub T);
 pub type SpecIA5StringValue = IA5StringPoly<Seq<u8>>;
 pub type IA5StringValue<'a> = IA5StringPoly<&'a [u8]>;
 pub type IA5StringValueOwned = IA5StringPoly<Vec<u8>>;
-
-impl ASN1Tagged for IA5String {
-    open spec fn spec_tag(&self) -> TagValue {
-        TagValue {
-            class: TagClass::Universal,
-            form: TagForm::Primitive,
-            num: 0x16,
-        }
-    }
-
-    fn tag(&self) -> TagValue {
-        TagValue {
-            class: TagClass::Universal,
-            form: TagForm::Primitive,
-            num: 0x16,
-        }
-    }
-}
 
 impl SpecIA5StringValue {
     pub open spec fn wf(&self) -> bool {

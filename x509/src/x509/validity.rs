@@ -12,18 +12,21 @@ verus! {
 ///     notBefore      Time,
 ///     notAfter       Time,
 /// }
-pub type Validity = Mapped<ASN1<ExplicitTag<(TimeCombinator, TimeCombinator)>>, ValidityMapper>;
+pub type ValidityInner = Mapped<LengthWrapped<(Time, Time)>, ValidityMapper>;
 
-pub fn validity() -> Validity {
-    Mapped {
-        inner: ASN1(ExplicitTag(TagValue {
-            class: TagClass::Universal,
-            form: TagForm::Constructed,
-            num: 0x10,
-        }, (time(), time()))),
-        mapper: ValidityMapper,
-    }
+wrap_combinator! {
+    struct Validity: ValidityInner =
+        Mapped {
+            inner: LengthWrapped((Time, Time)),
+            mapper: ValidityMapper,
+        };
 }
+
+asn1_tagged!(Validity, TagValue {
+    class: TagClass::Universal,
+    form: TagForm::Constructed,
+    num: 0x10,
+});
 
 #[derive(Debug, View, PolyfillClone)]
 pub struct ValidityPoly<NB, NA> {
@@ -31,8 +34,8 @@ pub struct ValidityPoly<NB, NA> {
     pub not_after: NA,
 }
 
-pub type SpecValidityValue = ValidityPoly<SpecTime, SpecTime>;
-pub type ValidityValue<'a> = ValidityPoly<Time<'a>, Time<'a>>;
+pub type SpecValidityValue = ValidityPoly<SpecTimeValue, SpecTimeValue>;
+pub type ValidityValue<'a> = ValidityPoly<TimeValue<'a>, TimeValue<'a>>;
 pub type ValidityOwned = ValidityPoly<TimeOwned, TimeOwned>;
 
 type ValidityFrom<NB, NA> = (NB, NA);
@@ -71,16 +74,16 @@ impl<NB: View, NA: View> From<ValidityFrom<NB, NA>> for ValidityPoly<NB, NA> {
 pub struct ValidityMapper;
 
 impl SpecIso for ValidityMapper {
-    type Src = ValidityFrom<SpecTime, SpecTime>;
-    type Dst = ValidityPoly<SpecTime, SpecTime>;
+    type Src = ValidityFrom<SpecTimeValue, SpecTimeValue>;
+    type Dst = ValidityPoly<SpecTimeValue, SpecTimeValue>;
 
     proof fn spec_iso(s: Self::Src) {}
     proof fn spec_iso_rev(s: Self::Dst) {}
 }
 
 impl Iso for ValidityMapper {
-    type Src<'a> = ValidityFrom<Time<'a>, Time<'a>>;
-    type Dst<'a> = ValidityPoly<Time<'a>, Time<'a>>;
+    type Src<'a> = ValidityFrom<TimeValue<'a>, TimeValue<'a>>;
+    type Dst<'a> = ValidityPoly<TimeValue<'a>, TimeValue<'a>>;
 
     type SrcOwned = ValidityFrom<TimeOwned, TimeOwned>;
     type DstOwned = ValidityPoly<TimeOwned, TimeOwned>;

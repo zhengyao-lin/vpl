@@ -14,28 +14,16 @@ verus! {
 /// Combinator for ASN.1 integers (without the preceding tag)
 /// This combinator uses IntegerInner with the additional constraint
 /// of is_min_num_bytes_signed
-#[derive(Debug, View, ViewWithASN1Tagged)]
+#[derive(Debug, View)]
 pub struct Integer;
 
+asn1_tagged!(Integer, TagValue {
+    class: TagClass::Universal,
+    form: TagForm::Primitive,
+    num: 0x02,
+});
+
 pub type IntegerValue = VarIntResult;
-
-impl ASN1Tagged for Integer {
-    open spec fn spec_tag(&self) -> TagValue {
-        TagValue {
-            class: TagClass::Universal,
-            form: TagForm::Primitive,
-            num: 0x02,
-        }
-    }
-
-    fn tag(&self) -> TagValue {
-        TagValue {
-            class: TagClass::Universal,
-            form: TagForm::Primitive,
-            num: 0x02,
-        }
-    }
-}
 
 impl SpecCombinator for Integer {
     type SpecResult = IntegerValue;

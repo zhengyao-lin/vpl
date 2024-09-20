@@ -6,7 +6,7 @@ verus! {
 
 /// Implicit tagging replaces the tag value in the ASN1Tagged trait,
 /// but otherwise parses/serializes exactly the same way as the inner combinator
-#[derive(Debug, View, ViewWithASN1Tagged)]
+#[derive(Debug, View)]
 pub struct ImplicitTag<T>(pub TagValue, pub T);
 
 impl<T> ASN1Tagged for ImplicitTag<T> {
@@ -17,6 +17,10 @@ impl<T> ASN1Tagged for ImplicitTag<T> {
     fn tag(&self) -> TagValue {
         self.0.clone()
     }
+}
+
+impl<T: View> ViewWithASN1Tagged for ImplicitTag<T> {
+    proof fn lemma_view_preserves_tag(&self) {}
 }
 
 impl<T: SpecCombinator> SpecCombinator for ImplicitTag<T> {

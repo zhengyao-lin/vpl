@@ -10,30 +10,18 @@ use super::tag::*;
 verus! {
 
 /// Combinator for ASN.1 Object Identifier
-#[derive(Debug, View, ViewWithASN1Tagged)]
+#[derive(Debug, View)]
 pub struct ObjectIdentifier;
+
+asn1_tagged!(ObjectIdentifier, TagValue {
+    class: TagClass::Universal,
+    form: TagForm::Primitive,
+    num: 0x06,
+});
 
 pub type SpecObjectIdentifierValue = Seq<UInt>;
 pub type ObjectIdentifierValue = VecDeep<UInt>;
 pub type ObjectIdentifierValueOwned = VecDeep<UInt>;
-
-impl ASN1Tagged for ObjectIdentifier {
-    open spec fn spec_tag(&self) -> TagValue {
-        TagValue {
-            class: TagClass::Universal,
-            form: TagForm::Primitive,
-            num: 0x06,
-        }
-    }
-
-    fn tag(&self) -> TagValue {
-        TagValue {
-            class: TagClass::Universal,
-            form: TagForm::Primitive,
-            num: 0x06,
-        }
-    }
-}
 
 impl ObjectIdentifier {
     /// First byte of an OID is 40 * arc1 + arc2

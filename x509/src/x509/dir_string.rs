@@ -14,16 +14,17 @@ verus! {
 /// }
 ///
 /// TODO: only supporting PrintableString and UTF8String for now
-pub type DirectoryString = Mapped<OrdChoice<ASN1<PrintableString>, ASN1<UTF8String>>, DirectoryStringMapper>;
+pub type DirectoryStringInner = Mapped<OrdChoice<ASN1<PrintableString>, ASN1<UTF8String>>, DirectoryStringMapper>;
 
-pub fn directory_string() -> DirectoryString {
-    Mapped {
-        inner: OrdChoice::new(
-            ASN1(PrintableString),
-            ASN1(UTF8String),
-        ),
-        mapper: DirectoryStringMapper,
-    }
+wrap_combinator! {
+    struct DirectoryString: DirectoryStringInner =
+        Mapped {
+            inner: OrdChoice(
+                ASN1(PrintableString),
+                ASN1(UTF8String),
+            ),
+            mapper: DirectoryStringMapper,
+        };
 }
 
 #[derive(Debug, View, PolyfillClone)]

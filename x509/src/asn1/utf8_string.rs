@@ -11,30 +11,18 @@ use super::tag::*;
 verus! {
 
 /// Combainator for UTF8String in ASN.1
-#[derive(Debug, View, ViewWithASN1Tagged)]
+#[derive(Debug, View)]
 pub struct UTF8String;
+
+asn1_tagged!(UTF8String, TagValue {
+    class: TagClass::Universal,
+    form: TagForm::Primitive,
+    num: 0x0c,
+});
 
 pub type SpecUTF8StringValue = Seq<char>;
 pub type UTF8StringValue<'a> = &'a str;
 pub type UTF8StringValueOwned = String;
-
-impl ASN1Tagged for UTF8String {
-    open spec fn spec_tag(&self) -> TagValue {
-        TagValue {
-            class: TagClass::Universal,
-            form: TagForm::Primitive,
-            num: 0x0c,
-        }
-    }
-
-    fn tag(&self) -> TagValue {
-        TagValue {
-            class: TagClass::Universal,
-            form: TagForm::Primitive,
-            num: 0x0c,
-        }
-    }
-}
 
 impl SpecCombinator for UTF8String {
     type SpecResult = SpecUTF8StringValue;

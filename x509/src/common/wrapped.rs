@@ -58,4 +58,95 @@ impl<C: Combinator> Iso for IdentityMapper<C> where
     type DstOwned = C::Owned;
 }
 
+/// Wrap a non-parametric combinator in a new unit struct
+/// e.g.
+/// wrap_combinator! {
+///     struct AlgorithmIdentifier: AlgorithmIdentifierInner =
+///         Mapped {
+///             inner: ASN1(ExplicitTag(TagValue {
+///                 class: TagClass::Universal,
+///                 form: TagForm::Constructed,
+///                 num: 0x10,
+///             }, (ASN1(ObjectIdentifier), Tail))),
+///             mapper: AlgorithmIdentifierMapper,
+///         }
+/// }
+///
+/// TODO: Due to a Verus issue, everything here is unproved
+/// NOTE: $inner_expr is used both in exec and spec mode
+#[allow(unused_macros)]
+macro_rules! wrap_combinator {
+    (struct $name:ident: $inner_type:ty = $inner_expr:expr ;) => {
+        ::builtin_macros::verus! {
+            #[derive(Debug, View)]
+            pub struct $name;
+
+            impl SpecCombinator for $name {
+                type SpecResult = <<$inner_type as View>::V as SpecCombinator>::SpecResult;
+
+                closed spec fn spec_parse(&self, s: Seq<u8>) -> Result<(usize, Self::SpecResult), ()> {
+                    $inner_expr.view().spec_parse(s)
+                }
+
+                proof fn spec_parse_wf(&self, s: Seq<u8>) {
+                    $inner_expr.view().spec_parse_wf(s)
+                }
+
+                closed spec fn spec_serialize(&self, v: Self::SpecResult) -> Result<Seq<u8>, ()> {
+                    $inner_expr.view().spec_serialize(v)
+                }
+            }
+
+            impl SecureSpecCombinator for $name {
+                closed spec fn spec_is_prefix_secure() -> bool {
+                    $inner_type::spec_is_prefix_secure()
+                }
+
+                proof fn theorem_serialize_parse_roundtrip(&self, v: Self::SpecResult) {
+                    $inner_expr.view().theorem_serialize_parse_roundtrip(v)
+                }
+
+                proof fn theorem_parse_serialize_roundtrip(&self, buf: Seq<u8>) {
+                    $inner_expr.view().theorem_parse_serialize_roundtrip(buf)
+                }
+
+                proof fn lemma_prefix_secure(&self, s1: Seq<u8>, s2: Seq<u8>) {
+                    $inner_expr.view().lemma_prefix_secure(s1, s2)
+                }
+            }
+
+            impl Combinator for $name {
+                type Result<'a> = <$inner_type as Combinator>::Result<'a>;
+                type Owned =  <$inner_type as Combinator>::Owned;
+
+                closed spec fn spec_length(&self) -> Option<usize> {
+                    // TODO: using spec_algorithm_identifier() here
+                    // would cause irrelevant proofs to fail
+                    None
+                }
+
+                #[verifier::external_body]
+                fn length(&self) -> Option<usize> {
+                    $inner_expr.length()
+                }
+
+                fn exec_is_prefix_secure() -> bool {
+                    $inner_type::exec_is_prefix_secure()
+                }
+
+                #[verifier::external_body]
+                fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ()>) {
+                    $inner_expr.parse(s)
+                }
+
+                #[verifier::external_body]
+                fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, ()>) {
+                    $inner_expr.serialize(v, data, pos)
+                }
+            }
+        }
+    };
+}
+pub(crate) use wrap_combinator;
+
 }

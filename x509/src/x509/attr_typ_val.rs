@@ -17,18 +17,21 @@ verus! {
 /// AttributeValue ::= ANY DEFINED BY AttributeType
 ///
 /// where "in general AttributeValue will be a DirectoryString" (4.1.2.4, RFC 2459)
-pub type AttributeTypeAndValue = Mapped<ASN1<ExplicitTag<(ASN1<ObjectIdentifier>, DirectoryString)>>, AttributeTypeAndValueMapper>;
+pub type AttributeTypeAndValueInner = Mapped<LengthWrapped<(ASN1<ObjectIdentifier>, DirectoryString)>, AttributeTypeAndValueMapper>;
 
-pub fn attribute_type_and_value() -> AttributeTypeAndValue {
-    Mapped {
-        inner: ASN1(ExplicitTag(TagValue {
-            class: TagClass::Universal,
-            form: TagForm::Constructed,
-            num: 0x10,
-        }, (ASN1(ObjectIdentifier), directory_string()))),
-        mapper: AttributeTypeAndValueMapper,
-    }
+wrap_combinator! {
+    struct AttributeTypeAndValue: AttributeTypeAndValueInner =
+        Mapped {
+            inner: LengthWrapped((ASN1(ObjectIdentifier), DirectoryString)),
+            mapper: AttributeTypeAndValueMapper,
+        };
 }
+
+asn1_tagged!(AttributeTypeAndValue, TagValue {
+    class: TagClass::Universal,
+    form: TagForm::Constructed,
+    num: 0x10,
+});
 
 #[derive(Debug, View, PolyfillClone)]
 pub struct AttributeTypeAndValueTo<Typ, Value> {

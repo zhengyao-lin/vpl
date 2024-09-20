@@ -14,8 +14,14 @@ verus! {
 /// Essentially a refined version of OctetString
 /// where we require that the first bit correctly
 /// specifies the trailing zeros
-#[derive(Debug, View, ViewWithASN1Tagged)]
+#[derive(Debug, View)]
 pub struct BitString;
+
+asn1_tagged!(BitString, TagValue {
+    class: TagClass::Universal,
+    form: TagForm::Primitive,
+    num: 0x03,
+});
 
 #[derive(Debug, View, PolyfillClone)]
 pub struct BitStringValuePoly<T>(pub T);
@@ -23,24 +29,6 @@ pub struct BitStringValuePoly<T>(pub T);
 pub type SpecBitStringValue = BitStringValuePoly<Seq<u8>>;
 pub type BitStringValue<'a> = BitStringValuePoly<&'a [u8]>;
 pub type BitStringValueOwned = BitStringValuePoly<Vec<u8>>;
-
-impl ASN1Tagged for BitString {
-    open spec fn spec_tag(&self) -> TagValue {
-        TagValue {
-            class: TagClass::Universal,
-            form: TagForm::Primitive,
-            num: 0x03,
-        }
-    }
-
-    fn tag(&self) -> TagValue {
-        TagValue {
-            class: TagClass::Universal,
-            form: TagForm::Primitive,
-            num: 0x03,
-        }
-    }
-}
 
 impl SpecBitStringValue {
     pub open spec fn wf(&self) -> bool {

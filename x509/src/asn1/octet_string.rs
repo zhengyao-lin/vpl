@@ -8,26 +8,14 @@ use super::tag::*;
 verus! {
 
 /// Combainator for OCTET STRING in ASN.1
-#[derive(Debug, View, ViewWithASN1Tagged)]
+#[derive(Debug, View)]
 pub struct OctetString;
 
-impl ASN1Tagged for OctetString {
-    open spec fn spec_tag(&self) -> TagValue {
-        TagValue {
-            class: TagClass::Universal,
-            form: TagForm::Primitive,
-            num: 0x04,
-        }
-    }
-
-    fn tag(&self) -> TagValue {
-        TagValue {
-            class: TagClass::Universal,
-            form: TagForm::Primitive,
-            num: 0x04,
-        }
-    }
-}
+asn1_tagged!(OctetString, TagValue {
+    class: TagClass::Universal,
+    form: TagForm::Primitive,
+    num: 0x04,
+});
 
 impl SpecCombinator for OctetString {
     type SpecResult = Seq<u8>;

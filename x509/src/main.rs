@@ -9,7 +9,6 @@ use der::Encode;
 
 use asn1::*;
 use common::*;
-use x509::extensions;
 
 verus! {
     #[verifier::external_body]
@@ -121,26 +120,6 @@ verus! {
 
         // Each field either has a fixed tag or is a OrdChoice among multiple tagged balues
 
-        let rest = Optional::new(
-            new_wrapped(ASN1(ImplicitTag(TagValue {
-                class: TagClass::ContextSpecific,
-                form: TagForm::Primitive,
-                num: 1,
-            }, BitString))), // Issuer UID
-            Optional::new(
-                new_wrapped(ASN1(ImplicitTag(TagValue {
-                    class: TagClass::ContextSpecific,
-                    form: TagForm::Primitive,
-                    num: 2,
-                }, BitString))), // Subject UID
-                new_wrapped(ASN1(ExplicitTag(TagValue {
-                    class: TagClass::ContextSpecific,
-                    form: TagForm::Constructed,
-                    num: 3,
-                }, extensions()))), // Extensions
-            ),
-        );
-
         let tbs_cert = Optional::new(
             // Version
             ASN1(ExplicitTag(TagValue {
@@ -149,25 +128,31 @@ verus! {
                 num: 0,
             }, ASN1(Integer))),
 
-            Pair(
-                ASN1(BigInt), // Serial number
-                Pair(
-                    x509::algorithm_identifier(), // Signature
-                    Pair(
-                        x509::name(), // Issuer
-                        Pair(
-                            x509::validity(), // Validity
-                            Pair(
-                                x509::name(), // Subject
-                                Pair(
-                                    x509::public_key_info(), // Subject Public Key Info
-                                    rest,
-                                ),
-                            ),
-                        ),
-                    ),
-                ),
-            ),
+            Pair(ASN1(BigInt), // Serial number
+            Pair(new_wrapped(ASN1(x509::AlgorithmIdentifier)), // Signature
+            Pair(new_wrapped(ASN1(x509::Name)), // Issuer
+            Pair(new_wrapped(ASN1(x509::Validity)), // Validity
+            Pair(new_wrapped(ASN1(x509::Name)), // Subject
+            Pair(new_wrapped(x509::PublicKeyInfo), // Subject Public Key Info
+
+            Optional::new(new_wrapped(ASN1(ImplicitTag(TagValue {
+                class: TagClass::ContextSpecific,
+                form: TagForm::Primitive,
+                num: 1,
+            }, BitString))), // Issuer UID
+
+            Optional::new(new_wrapped(ASN1(ImplicitTag(TagValue {
+                class: TagClass::ContextSpecific,
+                form: TagForm::Primitive,
+                num: 2,
+            }, BitString))), // Subject UID
+
+            new_wrapped(ASN1(ExplicitTag(TagValue {
+                class: TagClass::ContextSpecific,
+                form: TagForm::Constructed,
+                num: 3,
+            }, x509::extensions()))), // Extensions
+            )))))))),
         );
 
         // hexdump(content);

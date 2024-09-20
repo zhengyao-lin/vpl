@@ -11,18 +11,21 @@ verus! {
 ///     algorithm            AlgorithmIdentifier,
 ///     subjectPublicKey     BIT STRING
 /// }
-pub type PublicKeyInfoCombinator = Mapped<ASN1<ExplicitTag<(AlgorithmIdentifier, ASN1<BitString>)>>, PublicKeyInfoMapper>;
+pub type PublicKeyInfoInner = Mapped<LengthWrapped<(ASN1<AlgorithmIdentifier>, ASN1<BitString>)>, PublicKeyInfoMapper>;
 
-pub fn public_key_info() -> PublicKeyInfoCombinator {
-    Mapped {
-        inner: ASN1(ExplicitTag(TagValue {
-            class: TagClass::Universal,
-            form: TagForm::Constructed,
-            num: 0x10,
-        }, (algorithm_identifier(), ASN1(BitString)))),
-        mapper: PublicKeyInfoMapper,
-    }
+wrap_combinator! {
+    struct PublicKeyInfo: PublicKeyInfoInner =
+        Mapped {
+            inner: LengthWrapped((ASN1(AlgorithmIdentifier), ASN1(BitString))),
+            mapper: PublicKeyInfoMapper,
+        };
 }
+
+asn1_tagged!(PublicKeyInfo, TagValue {
+    class: TagClass::Universal,
+    form: TagForm::Constructed,
+    num: 0x10,
+});
 
 #[derive(Debug, View, PolyfillClone)]
 pub struct PublicKeyInfoPoly<Alg, PubKey> {

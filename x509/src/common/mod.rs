@@ -26,4 +26,3 @@ pub use wrapped::*;
 
 pub use macros::View;
 pub use macros::PolyfillClone;
-pub use macros::ViewWithASN1Tagged;

@@ -12,18 +12,21 @@ verus! {
 /// }
 ///
 /// TODO: right now parameters are parsed as a byte sequence
-pub type AlgorithmIdentifier = Mapped<ASN1<ExplicitTag<(ASN1<ObjectIdentifier>, Tail)>>, AlgorithmIdentifierMapper>;
+pub type AlgorithmIdentifierInner = Mapped<LengthWrapped<(ASN1<ObjectIdentifier>, Tail)>, AlgorithmIdentifierMapper>;
 
-pub fn algorithm_identifier() -> AlgorithmIdentifier {
-    Mapped {
-        inner: ASN1(ExplicitTag(TagValue {
-            class: TagClass::Universal,
-            form: TagForm::Constructed,
-            num: 0x10,
-        }, (ASN1(ObjectIdentifier), Tail))),
-        mapper: AlgorithmIdentifierMapper,
-    }
+wrap_combinator! {
+    struct AlgorithmIdentifier: AlgorithmIdentifierInner =
+        Mapped {
+            inner: LengthWrapped((ASN1(ObjectIdentifier), Tail)),
+            mapper: AlgorithmIdentifierMapper,
+        };
 }
+
+asn1_tagged!(AlgorithmIdentifier, TagValue {
+    class: TagClass::Universal,
+    form: TagForm::Constructed,
+    num: 0x10,
+});
 
 #[derive(Debug, View, PolyfillClone)]
 pub struct AlgorithmIdentifierTo<Alg, Params> {

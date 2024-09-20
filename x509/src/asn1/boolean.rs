@@ -11,26 +11,14 @@ verus! {
 /// Combainator for BOOLEAN in ASN.1
 /// TRUE = 0x01 0x01 0xff
 /// FALSE = 0x01 0x01 0x00
-#[derive(Debug, View, ViewWithASN1Tagged)]
+#[derive(Debug, View)]
 pub struct Boolean;
 
-impl ASN1Tagged for Boolean {
-    open spec fn spec_tag(&self) -> TagValue {
-        TagValue {
-            class: TagClass::Universal,
-            form: TagForm::Primitive,
-            num: 0x01,
-        }
-    }
-
-    fn tag(&self) -> TagValue {
-        TagValue {
-            class: TagClass::Universal,
-            form: TagForm::Primitive,
-            num: 0x01,
-        }
-    }
-}
+asn1_tagged!(Boolean, TagValue {
+    class: TagClass::Universal,
+    form: TagForm::Primitive,
+    num: 0x01,
+});
 
 impl SpecCombinator for Boolean {
     type SpecResult = bool;

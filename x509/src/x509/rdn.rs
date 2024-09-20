@@ -9,18 +9,22 @@ verus! {
 
 /// In X.509: RelativeDistinguishedName ::= SET OF AttributeTypeAndValue
 /// TODO: support SET OF instead of using a sequence
-pub type RDN = Mapped<ASN1<ImplicitTag<SequenceOf<AttributeTypeAndValue>>>, RDNMapper>;
+pub type RDNInner = Mapped<SequenceOf<ASN1<AttributeTypeAndValue>>, RDNMapper>;
 
-pub fn rdn() -> RDN {
-    Mapped {
-        inner: ASN1(ImplicitTag(TagValue {
-            class: TagClass::Universal,
-            form: TagForm::Constructed,
-            num: 0x11,
-        }, SequenceOf(attribute_type_and_value()))),
-        mapper: RDNMapper,
-    }
+wrap_combinator! {
+    struct RDN: RDNInner =
+        Mapped {
+            inner: SequenceOf(ASN1(AttributeTypeAndValue)),
+            mapper: RDNMapper,
+        };
 }
+
+// Override the tag to SET OF
+asn1_tagged!(RDN, TagValue {
+    class: TagClass::Universal,
+    form: TagForm::Constructed,
+    num: 0x11,
+});
 
 #[derive(Debug, View, PolyfillClone)]
 pub struct RDNPoly<Attrs> {

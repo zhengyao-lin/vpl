@@ -10,8 +10,14 @@ verus! {
 /// If it's expected that an INTEGER field is larger than the Int type,
 /// then use this combinator to read it as an octet string (with
 /// some minimality constraints).
-#[derive(Debug, View, ViewWithASN1Tagged)]
+#[derive(Debug, View)]
 pub struct BigInt;
+
+asn1_tagged!(BigInt, TagValue {
+    class: TagClass::Universal,
+    form: TagForm::Primitive,
+    num: 0x02,
+});
 
 /// BigInt represents the integer with a sequence of bytes in big-endian order
 /// (same as ASN.1) and the most significant bit of the first byte is the sign bit.
@@ -57,24 +63,6 @@ impl<'a> BigIntValue<'a> {
     }
 
     // TODO: add more methods to interpret BigIntValue as an integer
-}
-
-impl ASN1Tagged for BigInt {
-    open spec fn spec_tag(&self) -> TagValue {
-        TagValue {
-            class: TagClass::Universal,
-            form: TagForm::Primitive,
-            num: 0x02,
-        }
-    }
-
-    fn tag(&self) -> TagValue {
-        TagValue {
-            class: TagClass::Universal,
-            form: TagForm::Primitive,
-            num: 0x02,
-        }
-    }
 }
 
 impl SpecCombinator for BigInt {

@@ -280,28 +280,3 @@ pub fn derive_polyfill_clone(input: TokenStream) -> TokenStream {
     // Convert the output into a TokenStream
     TokenStream::from(view_body)
 }
-
-#[proc_macro_derive(ViewWithASN1Tagged)]
-pub fn derive_view_with_asn1_tagged(input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as DeriveInput);
-    let name = input.ident;
-
-    // Get type parameters A1, A2, ..., An
-    let generic_idents: Vec<_> = input.generics.params.iter().map(|g| match g {
-        syn::GenericParam::Type(ty) => &ty.ident,
-        _ => panic!("derive(View) only supports type parameters"),
-    }).collect();
-
-    // Map to A1: View, ... An: View
-    let view_generic_idents: Vec<_> = generic_idents.iter().map(|ident| {
-        quote! { #ident: View }
-    }).collect();
-
-    TokenStream::from(quote! {
-        ::builtin_macros::verus! {
-            impl<#(#view_generic_idents),*> ViewWithASN1Tagged for #name<#(#generic_idents),*> {
-                proof fn lemma_view_preserves_tag(&self) {}
-            }
-        }
-    })
-}
