@@ -14,7 +14,7 @@ verus! {
 #[derive(Debug, View)]
 pub struct Optional<C1, C2>(pub C1, pub C2);
 
-pub type OptionalValue<T1, T2> = (OptionDeep<T1>, T2);
+pub type OptionalValue<T1, T2> = PairValue<OptionDeep<T1>, T2>;
 
 impl<C1: Combinator, C2: Combinator> Optional<C1, C2> where
     C1::V: SecureSpecCombinator<SpecResult = <C1::Owned as View>::V>,
@@ -29,15 +29,15 @@ impl<C1, C2> SpecCombinator for Optional<C1, C2> where
     C1: SecureSpecCombinator,
     C2: SecureSpecCombinator + SpecDisjointFrom<C1>,
 {
-    type SpecResult = (OptionDeep<C1::SpecResult>, C2::SpecResult);
+    type SpecResult = PairValue<OptionDeep<C1::SpecResult>, C2::SpecResult>;
 
     open spec fn spec_parse(&self, s: Seq<u8>) -> Result<(usize, Self::SpecResult), ()>
     {
         if self.1.spec_disjoint_from(&self.0) {
             if let Ok((n, (v1, v2))) = (self.0, self.1).spec_parse(s) {
-                Ok((n, (OptionDeep::Some(v1), v2)))
+                Ok((n, PairValue(OptionDeep::Some(v1), v2)))
             } else if let Ok((n, v)) = self.1.spec_parse(s) {
-                Ok((n, (OptionDeep::None, v)))
+                Ok((n, PairValue(OptionDeep::None, v)))
             } else {
                 Err(())
             }
@@ -55,8 +55,8 @@ impl<C1, C2> SpecCombinator for Optional<C1, C2> where
     {
         if self.1.spec_disjoint_from(&self.0) {
             match v {
-                (OptionDeep::Some(v1), v2) => (self.0, self.1).spec_serialize((v1, v2)),
-                (OptionDeep::None, v2) => self.1.spec_serialize(v2),
+                PairValue(OptionDeep::Some(v1), v2) => (self.0, self.1).spec_serialize((v1, v2)),
+                PairValue(OptionDeep::None, v2) => self.1.spec_serialize(v2),
             }
         } else {
             Err(())
@@ -74,10 +74,10 @@ impl<C1, C2> SecureSpecCombinator for Optional<C1, C2> where
 
     proof fn theorem_serialize_parse_roundtrip(&self, v: Self::SpecResult) {
         match v {
-            (OptionDeep::Some(v1), v2) => {
+            PairValue(OptionDeep::Some(v1), v2) => {
                 (self.0, self.1).theorem_serialize_parse_roundtrip((v1, v2));
             },
-            (OptionDeep::None, v2) => {
+            PairValue(OptionDeep::None, v2) => {
                 if let Ok(buf) = self.1.spec_serialize(v2) {
                     if self.1.spec_disjoint_from(&self.0) {
                         self.1.spec_parse_disjoint_on(&self.0, buf);
@@ -136,9 +136,9 @@ impl<C1, C2> Combinator for Optional<C1, C2> where
         }
 
         let res = if let Ok((n, (v1, v2))) = (&self.0, &self.1).parse(s) {
-            Ok((n, (OptionDeep::Some(v1), v2)))
+            Ok((n, PairValue(OptionDeep::Some(v1), v2)))
         } else if let Ok((n, v2)) = self.1.parse(s) {
-            Ok((n, (OptionDeep::None, v2)))
+            Ok((n, PairValue(OptionDeep::None, v2)))
         } else {
             Err(())
         };
@@ -163,8 +163,8 @@ impl<C1, C2> Combinator for Optional<C1, C2> where
         }
 
         let len = match v {
-            (OptionDeep::Some(v1), v2) => (&self.0, &self.1).serialize((v1, v2), data, pos),
-            (OptionDeep::None, v2) => self.1.serialize(v2, data, pos),
+            PairValue(OptionDeep::Some(v1), v2) => (&self.0, &self.1).serialize((v1, v2), data, pos),
+            PairValue(OptionDeep::None, v2) => self.1.serialize(v2, data, pos),
         }?;
 
         assert(data@ =~= seq_splice(old(data)@, pos, self@.spec_serialize(v@).unwrap()));

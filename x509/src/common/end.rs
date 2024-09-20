@@ -8,12 +8,15 @@ verus! {
 #[derive(Debug, View)]
 pub struct End;
 
+#[derive(Debug, View, PolyfillClone)]
+pub struct EndValue;
+
 impl SpecCombinator for End {
-    type SpecResult = ();
+    type SpecResult = EndValue;
 
     open spec fn spec_parse(&self, s: Seq<u8>) -> Result<(usize, Self::SpecResult), ()> {
         if s.len() == 0 {
-            Ok((0, ()))
+            Ok((0, EndValue))
         } else {
             Err(())
         }
@@ -42,8 +45,8 @@ impl SecureSpecCombinator for End {
 }
 
 impl Combinator for End {
-    type Result<'a> = ();
-    type Owned = ();
+    type Result<'a> = EndValue;
+    type Owned = EndValue;
 
     open spec fn spec_length(&self) -> Option<usize> {
         Some(0)
@@ -59,7 +62,7 @@ impl Combinator for End {
 
     fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ()>) {
         if s.len() == 0 {
-            Ok((0, ()))
+            Ok((0, EndValue))
         } else {
             Err(())
         }

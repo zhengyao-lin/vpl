@@ -21,9 +21,10 @@ asn1_tagged!(BigInt, TagValue {
 
 /// BigInt represents the integer with a sequence of bytes in big-endian order
 /// (same as ASN.1) and the most significant bit of the first byte is the sign bit.
+pub type SpecBigIntValue = Seq<u8>;
 #[derive(Debug)]
 pub struct BigIntValue<'a>(&'a [u8]);
-pub struct BigIntValueOwned(Vec<u8>);
+pub struct BigIntOwned(Vec<u8>);
 
 impl<'a> View for BigIntValue<'a> {
     type V = Seq<u8>;
@@ -33,11 +34,17 @@ impl<'a> View for BigIntValue<'a> {
     }
 }
 
-impl View for BigIntValueOwned {
+impl View for BigIntOwned {
     type V = Seq<u8>;
 
     closed spec fn view(&self) -> Self::V {
         self.0@
+    }
+}
+
+impl<'a> PolyfillClone for BigIntValue<'a> {
+    fn clone(&self) -> Self {
+        BigIntValue(&self.0)
     }
 }
 
@@ -99,7 +106,7 @@ impl SecureSpecCombinator for BigInt {
 
 impl Combinator for BigInt {
     type Result<'a> = BigIntValue<'a>;
-    type Owned = BigIntValueOwned;
+    type Owned = BigIntOwned;
 
     open spec fn spec_length(&self) -> Option<usize> {
         None

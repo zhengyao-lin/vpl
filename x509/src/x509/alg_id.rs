@@ -40,8 +40,7 @@ pub type SpecAlgorithmIdentifierValue = AlgorithmIdentifierTo<SpecObjectIdentifi
 pub type AlgorithmIdentifierValue<'a> = AlgorithmIdentifierTo<ObjectIdentifierValue, &'a [u8]>;
 pub type AlgorithmIdentifierOwned = AlgorithmIdentifierTo<ObjectIdentifierValueOwned, Vec<u8>>;
 
-impl<Alg, Params> SpecFrom<AlgorithmIdentifierTo<Alg, Params>> for AlgorithmIdentifierFrom<Alg, Params> where
-{
+impl<Alg, Params> SpecFrom<AlgorithmIdentifierTo<Alg, Params>> for AlgorithmIdentifierFrom<Alg, Params> {
     closed spec fn spec_from(s: AlgorithmIdentifierTo<Alg, Params>) -> Self {
         (s.alg, s.params)
     }

@@ -12,17 +12,17 @@ verus! {
 ///     critical    BOOLEAN DEFAULT FALSE,
 ///     extnValue   OCTET STRING
 /// }
-pub type ExtensionInner = Mapped<LengthWrapped<(
+pub type ExtensionInner = Mapped<LengthWrapped<Pair<
     ASN1<ObjectIdentifier>,
     Optional<ASN1<Boolean>, ASN1<OctetString>>,
-)>, ExtensionMapper>;
+>>, ExtensionMapper>;
 
 pub type ExtensionsInner = SequenceOf<ASN1<Extension>>;
 
 wrap_combinator! {
     struct Extension: ExtensionInner =
         Mapped {
-            inner: LengthWrapped((
+            inner: LengthWrapped(Pair(
                 ASN1(ObjectIdentifier),
                 Optional(
                     ASN1(Boolean),
@@ -60,11 +60,11 @@ pub type SpecExtensionValue = ExtensionPoly<SpecObjectIdentifierValue, Seq<u8>>;
 pub type ExtensionValue<'a> = ExtensionPoly<ObjectIdentifierValue, &'a [u8]>;
 pub type ExtensionOwned = ExtensionPoly<ObjectIdentifierValueOwned, Vec<u8>>;
 
-type ExtensionFrom<Id, Value> = (Id, (OptionDeep<bool>, Value));
+type ExtensionFrom<Id, Value> = PairValue<Id, PairValue<OptionDeep<bool>, Value>>;
 
 impl<Id, Value> SpecFrom<ExtensionPoly<Id, Value>> for ExtensionFrom<Id, Value> {
     closed spec fn spec_from(s: ExtensionPoly<Id, Value>) -> Self {
-        (s.id, (s.critical, s.value))
+        PairValue(s.id, PairValue(s.critical, s.value))
     }
 }
 
@@ -80,7 +80,7 @@ impl<Id, Value> SpecFrom<ExtensionFrom<Id, Value>> for ExtensionPoly<Id, Value> 
 
 impl<Id: View, Value: View> From<ExtensionPoly<Id, Value>> for ExtensionFrom<Id, Value> {
     fn ex_from(s: ExtensionPoly<Id, Value>) -> Self {
-        (s.id, (s.critical, s.value))
+        PairValue(s.id, PairValue(s.critical, s.value))
     }
 }
 

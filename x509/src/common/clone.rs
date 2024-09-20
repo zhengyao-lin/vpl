@@ -31,6 +31,13 @@ impl<'a, T> PolyfillClone for &'a [T] {
     }
 }
 
+// Can't do this due to https://github.com/verus-lang/verus/issues/1108
+// impl PolyfillClone for () {
+//     fn clone(&self) -> Self {
+//         ()
+//     }
+// }
+
 impl<T: Copy> PolyfillClone for Vec<T>
 {
     fn clone(&self) -> Self {

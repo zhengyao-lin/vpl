@@ -9,6 +9,7 @@ mod time;
 mod validity;
 mod pub_key_info;
 mod extension;
+mod tbs_cert;
 
 pub use name::*;
 pub use rdn::*;
@@ -19,3 +20,4 @@ pub use time::*;
 pub use validity::*;
 pub use pub_key_info::*;
 pub use extension::*;
+pub use tbs_cert::*;
