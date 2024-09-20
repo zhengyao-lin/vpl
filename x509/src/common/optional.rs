@@ -8,6 +8,9 @@ verus! {
 /// but the result is mapped through
 ///   Left((A, B)) <-> (Some(A), B)
 ///   Right(B) <-> (None, B)
+///
+/// NOTE: we are not directly using OrdChoice since we don't want
+/// to enforce C2::spec_is_prefix_secure()
 #[derive(Debug, View)]
 pub struct Optional<C1, C2>(pub C1, pub C2);
 
@@ -30,22 +33,33 @@ impl<C1, C2> SpecCombinator for Optional<C1, C2> where
 
     open spec fn spec_parse(&self, s: Seq<u8>) -> Result<(usize, Self::SpecResult), ()>
     {
-        match new_spec_optional_inner(self.0, self.1).spec_parse(s) {
-            Ok((n, Either::Left((v1, v2)))) => Ok((n, (OptionDeep::Some(v1), v2))),
-            Ok((n, Either::Right((v, _)))) => Ok((n, (OptionDeep::None, v))),
-            Err(()) => Err(()),
+        if self.1.spec_disjoint_from(&self.0) {
+            if let Ok((n, (v1, v2))) = (self.0, self.1).spec_parse(s) {
+                Ok((n, (OptionDeep::Some(v1), v2)))
+            } else if let Ok((n, v)) = self.1.spec_parse(s) {
+                Ok((n, (OptionDeep::None, v)))
+            } else {
+                Err(())
+            }
+        } else {
+            Err(())
         }
     }
 
     proof fn spec_parse_wf(&self, s: Seq<u8>) {
-        new_spec_optional_inner(self.0, self.1).spec_parse_wf(s);
+        (self.0, self.1).spec_parse_wf(s);
+        self.1.spec_parse_wf(s);
     }
 
     open spec fn spec_serialize(&self, v: Self::SpecResult) -> Result<Seq<u8>, ()>
     {
-        match v {
-            (OptionDeep::Some(v1), v2) => new_spec_optional_inner(self.0, self.1).spec_serialize(Either::Left((v1, v2))),
-            (OptionDeep::None, v2) => new_spec_optional_inner(self.0, self.1).spec_serialize(Either::Right((v2, seq![]))),
+        if self.1.spec_disjoint_from(&self.0) {
+            match v {
+                (OptionDeep::Some(v1), v2) => (self.0, self.1).spec_serialize((v1, v2)),
+                (OptionDeep::None, v2) => self.1.spec_serialize(v2),
+            }
+        } else {
+            Err(())
         }
     }
 }
@@ -59,22 +73,32 @@ impl<C1, C2> SecureSpecCombinator for Optional<C1, C2> where
     }
 
     proof fn theorem_serialize_parse_roundtrip(&self, v: Self::SpecResult) {
-        let mapped = match v {
-            (OptionDeep::Some(v1), v2) => Either::Left((v1, v2)),
-            (OptionDeep::None, v2) => Either::Right((v2, seq![])),
-        };
-
-        new_spec_optional_inner(self.0, self.1).theorem_serialize_parse_roundtrip(mapped);
+        match v {
+            (OptionDeep::Some(v1), v2) => {
+                (self.0, self.1).theorem_serialize_parse_roundtrip((v1, v2));
+            },
+            (OptionDeep::None, v2) => {
+                if let Ok(buf) = self.1.spec_serialize(v2) {
+                    if self.1.spec_disjoint_from(&self.0) {
+                        self.1.spec_parse_disjoint_on(&self.0, buf);
+                    }
+                }
+                self.1.theorem_serialize_parse_roundtrip(v2);
+            },
+        }
     }
 
     proof fn theorem_parse_serialize_roundtrip(&self, buf: Seq<u8>) {
-        new_spec_optional_inner(self.0, self.1).theorem_parse_serialize_roundtrip(buf);
+        (self.0, self.1).theorem_parse_serialize_roundtrip(buf);
+        self.1.theorem_parse_serialize_roundtrip(buf);
         assert(self.spec_parse(buf) matches Ok((n, v)) ==> self.spec_serialize(v).unwrap() == buf.subrange(0, n as int));
     }
 
     proof fn lemma_prefix_secure(&self, s1: Seq<u8>, s2: Seq<u8>) {
-        if C2::spec_is_prefix_secure() {
-            new_spec_optional_inner(self.0, self.1).lemma_prefix_secure(s1, s2);
+        if self.1.spec_disjoint_from(&self.0) {
+            self.1.spec_parse_disjoint_on(&self.0, s1.add(s2));
+            (self.0, self.1).lemma_prefix_secure(s1, s2);
+            self.1.lemma_prefix_secure(s1, s2);
         }
     }
 }
@@ -85,10 +109,6 @@ impl<C1, C2> Combinator for Optional<C1, C2> where
 
     C1::V: SecureSpecCombinator<SpecResult = <C1::Owned as View>::V>,
     C2::V: SecureSpecCombinator<SpecResult = <C2::Owned as View>::V> + SpecDisjointFrom<C1::V>,
-
-    // for <'a> &'a C1: Combinator,
-    // for <'a> &'a C2: Combinator,
-    // for <'a> &'a C2: DisjointFrom<&'a C1>,
 {
     type Result<'a> = OptionalValue<C1::Result<'a>, C2::Result<'a>>;
     type Owned = OptionalValue<C1::Owned, C2::Owned>;
@@ -111,9 +131,16 @@ impl<C1, C2> Combinator for Optional<C1, C2> where
     }
 
     fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ()>) {
-        let res = match OrdChoice((&self.0, &self.1), (&self.1, BytesN::<0>)).parse(s)? {
-            (n, Either::Left((v1, v2))) => Ok((n, (OptionDeep::Some(v1), v2))),
-            (n, Either::Right((v, _))) => Ok((n, (OptionDeep::None, v))),
+        if !self.1.disjoint_from(&self.0) {
+            return Err(());
+        }
+
+        let res = if let Ok((n, (v1, v2))) = (&self.0, &self.1).parse(s) {
+            Ok((n, (OptionDeep::Some(v1), v2)))
+        } else if let Ok((n, v2)) = self.1.parse(s) {
+            Ok((n, (OptionDeep::None, v2)))
+        } else {
+            Err(())
         };
 
         // TODO: why do we need this?
@@ -131,22 +158,19 @@ impl<C1, C2> Combinator for Optional<C1, C2> where
     }
 
     fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, ()>) {
-        let c = OrdChoice((&self.0, &self.1), (&self.1, BytesN::<0>));
+        if !self.1.disjoint_from(&self.0) {
+            return Err(());
+        }
+
         let len = match v {
-            (OptionDeep::Some(v1), v2) => c.serialize(Either::Left((v1, v2)), data, pos),
-            (OptionDeep::None, v2) => c.serialize(Either::Right((v2, &[])), data, pos),
+            (OptionDeep::Some(v1), v2) => (&self.0, &self.1).serialize((v1, v2), data, pos),
+            (OptionDeep::None, v2) => self.1.serialize(v2, data, pos),
         }?;
 
         assert(data@ =~= seq_splice(old(data)@, pos, self@.spec_serialize(v@).unwrap()));
 
         Ok(len)
     }
-}
-
-type OptionalInner<C1, C2> = OrdChoice<(C1, C2), (C2, BytesN<0>)>;
-
-pub open spec fn new_spec_optional_inner<C1, C2>(c1: C1, c2: C2) -> OptionalInner<C1, C2> {
-    OrdChoice((c1, c2), (c2, BytesN::<0>))
 }
 
 }

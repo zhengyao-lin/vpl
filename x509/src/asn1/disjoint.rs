@@ -18,18 +18,13 @@ impl<T1, T2> SpecDisjointFrom<ASN1<T1>> for ASN1<T2> where
 }
 
 impl<T1, T2> DisjointFrom<ASN1<T1>> for ASN1<T2> where
-    T1: ASN1Tagged + Combinator,
-    T1: SecureSpecCombinator<SpecResult = <<T1 as Combinator>::Owned as View>::V>,
+    T1: ViewWithASN1Tagged + Combinator,
     <T1 as View>::V: SecureSpecCombinator<SpecResult = <<T1 as Combinator>::Owned as View>::V>,
     <T1 as View>::V: ASN1Tagged,
 
-    T2: ASN1Tagged + Combinator,
-    T2: SecureSpecCombinator<SpecResult = <<T2 as Combinator>::Owned as View>::V>,
+    T2: ViewWithASN1Tagged + Combinator,
     <T2 as View>::V: SecureSpecCombinator<SpecResult = <<T2 as Combinator>::Owned as View>::V>,
     <T2 as View>::V: ASN1Tagged,
-
-    T1: ViewWithASN1Tagged,
-    T2: ViewWithASN1Tagged,
 {
     fn disjoint_from(&self, other: &ASN1<T1>) -> bool {
         proof {
@@ -54,18 +49,13 @@ impl<T1, T2, S> SpecDisjointFrom<(ASN1<T1>, S)> for ASN1<T2> where
 }
 
 impl<T1, T2, S> DisjointFrom<(ASN1<T1>, S)> for ASN1<T2> where
-    T1: ASN1Tagged + Combinator,
-    T1: SecureSpecCombinator<SpecResult = <<T1 as Combinator>::Owned as View>::V>,
+    T1: ViewWithASN1Tagged + Combinator,
     <T1 as View>::V: SecureSpecCombinator<SpecResult = <<T1 as Combinator>::Owned as View>::V>,
     <T1 as View>::V: ASN1Tagged,
 
-    T2: ASN1Tagged + Combinator,
-    T2: SecureSpecCombinator<SpecResult = <<T2 as Combinator>::Owned as View>::V>,
+    T2: ViewWithASN1Tagged + Combinator,
     <T2 as View>::V: SecureSpecCombinator<SpecResult = <<T2 as Combinator>::Owned as View>::V>,
     <T2 as View>::V: ASN1Tagged,
-
-    T1: ViewWithASN1Tagged,
-    T2: ViewWithASN1Tagged,
 
     S: Combinator,
     S::V: SecureSpecCombinator<SpecResult = <<S as Combinator>::Owned as View>::V>,
@@ -97,18 +87,13 @@ impl<T1, T2, S> SpecDisjointFrom<Pair<ASN1<T1>, S>> for ASN1<T2> where
 }
 
 impl<T1, T2, S> DisjointFrom<Pair<ASN1<T1>, S>> for ASN1<T2> where
-    T1: ASN1Tagged + Combinator,
-    T1: SecureSpecCombinator<SpecResult = <<T1 as Combinator>::Owned as View>::V>,
+    T1: ViewWithASN1Tagged + Combinator,
     <T1 as View>::V: SecureSpecCombinator<SpecResult = <<T1 as Combinator>::Owned as View>::V>,
     <T1 as View>::V: ASN1Tagged,
 
-    T2: ASN1Tagged + Combinator,
-    T2: SecureSpecCombinator<SpecResult = <<T2 as Combinator>::Owned as View>::V>,
+    T2: ViewWithASN1Tagged + Combinator,
     <T2 as View>::V: SecureSpecCombinator<SpecResult = <<T2 as Combinator>::Owned as View>::V>,
     <T2 as View>::V: ASN1Tagged,
-
-    T1: ViewWithASN1Tagged,
-    T2: ViewWithASN1Tagged,
 
     S: Combinator,
     S::V: SecureSpecCombinator<SpecResult = <<S as Combinator>::Owned as View>::V>,
@@ -136,18 +121,13 @@ impl<T1, T2, S> SpecDisjointFrom<ASN1<T2>> for Pair<ASN1<T1>, S> where
 }
 
 impl<T1, T2, S> DisjointFrom<ASN1<T2>> for Pair<ASN1<T1>, S> where
-    T1: ASN1Tagged + Combinator,
-    T1: SecureSpecCombinator<SpecResult = <<T1 as Combinator>::Owned as View>::V>,
+    T1: ViewWithASN1Tagged + Combinator,
     <T1 as View>::V: SecureSpecCombinator<SpecResult = <<T1 as Combinator>::Owned as View>::V>,
     <T1 as View>::V: ASN1Tagged,
 
-    T2: ASN1Tagged + Combinator,
-    T2: SecureSpecCombinator<SpecResult = <<T2 as Combinator>::Owned as View>::V>,
+    T2: ViewWithASN1Tagged + Combinator,
     <T2 as View>::V: SecureSpecCombinator<SpecResult = <<T2 as Combinator>::Owned as View>::V>,
     <T2 as View>::V: ASN1Tagged,
-
-    T1: ViewWithASN1Tagged,
-    T2: ViewWithASN1Tagged,
 
     S: Combinator,
     S::V: SecureSpecCombinator<SpecResult = <<S as Combinator>::Owned as View>::V>,
@@ -204,6 +184,21 @@ impl<T1, T2, T3> DisjointFrom<T1> for Optional<T2, T3> where
         self.0.disjoint_from(other) &&
         self.1.disjoint_from(other)
     }
+}
+
+impl<T> SpecDisjointFrom<ASN1<T>> for End where
+    T: ASN1Tagged + SpecCombinator,
+{
+    open spec fn spec_disjoint_from(&self, other: &ASN1<T>) -> bool { true }
+    proof fn spec_parse_disjoint_on(&self, other: &ASN1<T>, buf: Seq<u8>) {}
+}
+
+impl<T> DisjointFrom<ASN1<T>> for End where
+    T: ViewWithASN1Tagged + Combinator,
+    <T as View>::V: SecureSpecCombinator<SpecResult = <<T as Combinator>::Owned as View>::V>,
+    <T as View>::V: ASN1Tagged,
+{
+    fn disjoint_from(&self, other: &ASN1<T>) -> bool { true }
 }
 
 }
