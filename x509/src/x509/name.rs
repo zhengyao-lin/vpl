@@ -14,7 +14,7 @@ wrap_combinator! {
     struct Name: NameInner =>
         SpecNameValue,
         NameValue<'a>,
-        NameOwned
+        NameValueOwned
     =
         Mapped {
             inner: SequenceOf(ASN1(RDN)),
@@ -35,7 +35,7 @@ pub struct NamePoly<RDNS> {
 
 pub type SpecNameValue = NamePoly<Seq<SpecRDNValue>>;
 pub type NameValue<'a> = NamePoly<VecDeep<RDNValue<'a>>>;
-pub type NameOwned = NamePoly<VecDeep<RDNOwned>>;
+pub type NameValueOwned = NamePoly<VecDeep<RDNValueOwned>>;
 
 type NameFrom<T> = T;
 
@@ -82,8 +82,8 @@ impl Iso for NameMapper {
     type Src<'a> = NameFrom<VecDeep<RDNValue<'a>>>;
     type Dst<'a> = NamePoly<VecDeep<RDNValue<'a>>>;
 
-    type SrcOwned = NameFrom<VecDeep<RDNOwned>>;
-    type DstOwned = NamePoly<VecDeep<RDNOwned>>;
+    type SrcOwned = NameFrom<VecDeep<RDNValueOwned>>;
+    type DstOwned = NamePoly<VecDeep<RDNValueOwned>>;
 }
 
 }

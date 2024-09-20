@@ -43,7 +43,7 @@ wrap_combinator! {
     struct TBSCertificate: TBSCertificateInner =>
         SpecTBSCertificateValue,
         TBSCertificateValue<'a>,
-        TBSCertificateOwned
+        TBSCertificateValueOwned
     =
         Mapped {
             inner: LengthWrapped(
@@ -135,14 +135,14 @@ pub type TBSCertificateValue<'a> = TBSCertificatePoly<
     VecDeep<ExtensionValue<'a>>,
 >;
 
-pub type TBSCertificateOwned = TBSCertificatePoly<
+pub type TBSCertificateValueOwned = TBSCertificatePoly<
     BigIntOwned,
-    AlgorithmIdentifierOwned,
-    NameOwned,
-    ValidityOwned,
-    PublicKeyInfoOwned,
+    AlgorithmIdentifierValueOwned,
+    NameValueOwned,
+    ValidityValueOwned,
+    PublicKeyInfoValueOwned,
     BitStringValueOwned,
-    VecDeep<ExtensionOwned>,
+    VecDeep<ExtensionValueOwned>,
 >;
 
 type TBSCertificateFrom<
@@ -377,9 +377,9 @@ impl SpecIso for TBSCertificateMapper {
         >;
     type Dst = SpecTBSCertificateValue;
 
-    /// TODO: fix this
-    #[verifier::external_body]
-    proof fn spec_iso(s: Self::Src) {}
+    proof fn spec_iso(s: Self::Src) {
+        assert(s.1.1.1.1.1.1.1.1.1.1 == EndValue);
+    }
     proof fn spec_iso_rev(s: Self::Dst) {}
 }
 
@@ -397,14 +397,14 @@ impl Iso for TBSCertificateMapper {
 
     type SrcOwned = TBSCertificateFrom<
             BigIntOwned,
-            AlgorithmIdentifierOwned,
-            NameOwned,
-            ValidityOwned,
-            PublicKeyInfoOwned,
+            AlgorithmIdentifierValueOwned,
+            NameValueOwned,
+            ValidityValueOwned,
+            PublicKeyInfoValueOwned,
             BitStringValueOwned,
-            VecDeep<ExtensionOwned>,
+            VecDeep<ExtensionValueOwned>,
         >;
-    type DstOwned = TBSCertificateOwned;
+    type DstOwned = TBSCertificateValueOwned;
 }
 
 }

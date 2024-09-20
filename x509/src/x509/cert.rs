@@ -23,7 +23,7 @@ wrap_combinator! {
     struct Certificate: CertificateInner =>
         SpecCertificateValue,
         CertificateValue<'a>,
-        CertificateOwned
+        CertificateValueOwned
     =
         Mapped {
             inner: LengthWrapped(
@@ -50,7 +50,7 @@ pub struct CertificatePoly<Cert, Alg, Signature> {
 
 pub type SpecCertificateValue = CertificatePoly<SpecTBSCertificateValue, SpecAlgorithmIdentifierValue, SpecBitStringValue>;
 pub type CertificateValue<'a> = CertificatePoly<TBSCertificateValue<'a>, AlgorithmIdentifierValue<'a>, BitStringValue<'a>>;
-pub type CertificateOwned = CertificatePoly<TBSCertificateOwned, AlgorithmIdentifierOwned, BitStringValueOwned>;
+pub type CertificateValueOwned = CertificatePoly<TBSCertificateValueOwned, AlgorithmIdentifierValueOwned, BitStringValueOwned>;
 
 type CertificateFrom<Cert, Alg, Signature> = PairValue<Cert, PairValue<Alg, Signature>>;
 
@@ -101,8 +101,8 @@ impl Iso for CertificateMapper {
     type Src<'a> = CertificateFrom<TBSCertificateValue<'a>, AlgorithmIdentifierValue<'a>, BitStringValue<'a>>;
     type Dst<'a> = CertificateValue<'a>;
 
-    type SrcOwned = CertificateFrom<TBSCertificateOwned, AlgorithmIdentifierOwned, BitStringValueOwned>;
-    type DstOwned = CertificateOwned;
+    type SrcOwned = CertificateFrom<TBSCertificateValueOwned, AlgorithmIdentifierValueOwned, BitStringValueOwned>;
+    type DstOwned = CertificateValueOwned;
 }
 
 }

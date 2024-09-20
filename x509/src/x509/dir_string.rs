@@ -20,7 +20,7 @@ wrap_combinator! {
     struct DirectoryString: DirectoryStringInner =>
         SpecDirectoryStringValue,
         DirectoryStringValue<'a>,
-        DirectoryStringOwned
+        DirectoryStringValueOwned
     = Mapped {
             inner: OrdChoice(
                 ASN1(PrintableString),
@@ -38,7 +38,7 @@ pub enum DirectoryStringPoly<PS, US> {
 
 pub type SpecDirectoryStringValue = DirectoryStringPoly<SpecPrintableStringValue, SpecUTF8StringValue>;
 pub type DirectoryStringValue<'a> = DirectoryStringPoly<PrintableStringValue<'a>, UTF8StringValue<'a>>;
-pub type DirectoryStringOwned = DirectoryStringPoly<PrintableStringValueOwned, UTF8StringValueOwned>;
+pub type DirectoryStringValueOwned = DirectoryStringPoly<PrintableStringValueOwned, UTF8StringValueOwned>;
 
 type DirectoryStringFrom<PS, US> = Either<PS, US>;
 

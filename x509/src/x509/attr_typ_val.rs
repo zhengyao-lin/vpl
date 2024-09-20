@@ -24,7 +24,7 @@ wrap_combinator! {
     struct AttributeTypeAndValue: AttributeTypeAndValueInner =>
         SpecAttributeTypeAndValueValue,
         AttributeTypeAndValueValue<'a>,
-        AttributeTypeAndValueOwned
+        AttributeTypeAndValueValueOwned
     = Mapped {
             inner: LengthWrapped((ASN1(ObjectIdentifier), DirectoryString)),
             mapper: AttributeTypeAndValueMapper,
@@ -45,7 +45,7 @@ pub struct AttributeTypeAndValuePoly<Typ, Value> {
 
 pub type SpecAttributeTypeAndValueValue = AttributeTypeAndValuePoly<SpecObjectIdentifierValue, SpecDirectoryStringValue>;
 pub type AttributeTypeAndValueValue<'a> = AttributeTypeAndValuePoly<ObjectIdentifierValue, DirectoryStringValue<'a>>;
-pub type AttributeTypeAndValueOwned = AttributeTypeAndValuePoly<ObjectIdentifierValueOwned, DirectoryStringOwned>;
+pub type AttributeTypeAndValueValueOwned = AttributeTypeAndValuePoly<ObjectIdentifierValueOwned, DirectoryStringValueOwned>;
 
 type AttributeTypeAndValueFrom<Typ, Value> = (Typ, Value);
 
@@ -101,8 +101,8 @@ impl Iso for AttributeTypeAndValueMapper {
     type Src<'a> = AttributeTypeAndValueFrom<ObjectIdentifierValue, DirectoryStringValue<'a>>;
     type Dst<'a> = AttributeTypeAndValuePoly<ObjectIdentifierValue, DirectoryStringValue<'a>>;
 
-    type SrcOwned = AttributeTypeAndValueFrom<ObjectIdentifierValueOwned, DirectoryStringOwned>;
-    type DstOwned = AttributeTypeAndValuePoly<ObjectIdentifierValueOwned, DirectoryStringOwned>;
+    type SrcOwned = AttributeTypeAndValueFrom<ObjectIdentifierValueOwned, DirectoryStringValueOwned>;
+    type DstOwned = AttributeTypeAndValuePoly<ObjectIdentifierValueOwned, DirectoryStringValueOwned>;
 }
 
 }

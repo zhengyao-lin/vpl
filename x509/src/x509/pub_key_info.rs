@@ -17,7 +17,7 @@ wrap_combinator! {
     struct PublicKeyInfo: PublicKeyInfoInner =>
         SpecPublicKeyInfoValue,
         PublicKeyInfoValue<'a>,
-        PublicKeyInfoOwned
+        PublicKeyInfoValueOwned
     =
         Mapped {
             inner: LengthWrapped((ASN1(AlgorithmIdentifier), ASN1(BitString))),
@@ -39,7 +39,7 @@ pub struct PublicKeyInfoPoly<Alg, PubKey> {
 
 pub type SpecPublicKeyInfoValue = PublicKeyInfoPoly<SpecAlgorithmIdentifierValue, SpecBitStringValue>;
 pub type PublicKeyInfoValue<'a> = PublicKeyInfoPoly<AlgorithmIdentifierValue<'a>, BitStringValue<'a>>;
-pub type PublicKeyInfoOwned = PublicKeyInfoPoly<AlgorithmIdentifierOwned, BitStringValueOwned>;
+pub type PublicKeyInfoValueOwned = PublicKeyInfoPoly<AlgorithmIdentifierValueOwned, BitStringValueOwned>;
 
 type PublicKeyInfoFrom<Alg, PubKey> = (Alg, PubKey);
 
@@ -88,8 +88,8 @@ impl Iso for PublicKeyInfoMapper {
     type Src<'a> = PublicKeyInfoFrom<AlgorithmIdentifierValue<'a>, BitStringValue<'a>>;
     type Dst<'a> = PublicKeyInfoPoly<AlgorithmIdentifierValue<'a>, BitStringValue<'a>>;
 
-    type SrcOwned = PublicKeyInfoFrom<AlgorithmIdentifierOwned, BitStringValueOwned>;
-    type DstOwned = PublicKeyInfoPoly<AlgorithmIdentifierOwned, BitStringValueOwned>;
+    type SrcOwned = PublicKeyInfoFrom<AlgorithmIdentifierValueOwned, BitStringValueOwned>;
+    type DstOwned = PublicKeyInfoPoly<AlgorithmIdentifierValueOwned, BitStringValueOwned>;
 }
 
 }

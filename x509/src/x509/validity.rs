@@ -18,7 +18,7 @@ wrap_combinator! {
     struct Validity: ValidityInner =>
         SpecValidityValue,
         ValidityValue<'a>,
-        ValidityOwned
+        ValidityValueOwned
     =
         Mapped {
             inner: LengthWrapped((Time, Time)),
@@ -40,7 +40,7 @@ pub struct ValidityPoly<NB, NA> {
 
 pub type SpecValidityValue = ValidityPoly<SpecTimeValue, SpecTimeValue>;
 pub type ValidityValue<'a> = ValidityPoly<TimeValue<'a>, TimeValue<'a>>;
-pub type ValidityOwned = ValidityPoly<TimeOwned, TimeOwned>;
+pub type ValidityValueOwned = ValidityPoly<TimeValueOwned, TimeValueOwned>;
 
 type ValidityFrom<NB, NA> = (NB, NA);
 
@@ -89,8 +89,8 @@ impl Iso for ValidityMapper {
     type Src<'a> = ValidityFrom<TimeValue<'a>, TimeValue<'a>>;
     type Dst<'a> = ValidityPoly<TimeValue<'a>, TimeValue<'a>>;
 
-    type SrcOwned = ValidityFrom<TimeOwned, TimeOwned>;
-    type DstOwned = ValidityPoly<TimeOwned, TimeOwned>;
+    type SrcOwned = ValidityFrom<TimeValueOwned, TimeValueOwned>;
+    type DstOwned = ValidityPoly<TimeValueOwned, TimeValueOwned>;
 }
 
 }

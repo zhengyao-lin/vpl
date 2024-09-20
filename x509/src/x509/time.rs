@@ -19,7 +19,7 @@ wrap_combinator! {
     struct Time: TimeInner =>
         SpecTimeValue,
         TimeValue<'a>,
-        TimeOwned
+        TimeValueOwned
     =
         Mapped {
             inner: OrdChoice(
@@ -49,7 +49,7 @@ pub enum TimePoly<UT, GT> {
 
 pub type SpecTimeValue = TimePoly<SpecUTF8StringValue, SpecUTF8StringValue>;
 pub type TimeValue<'a> = TimePoly<UTF8StringValue<'a>, UTF8StringValue<'a>>;
-pub type TimeOwned = TimePoly<UTF8StringValueOwned, UTF8StringValueOwned>;
+pub type TimeValueOwned = TimePoly<UTF8StringValueOwned, UTF8StringValueOwned>;
 
 pub type TimeFrom<UT, GT> = Either<UT, GT>;
 

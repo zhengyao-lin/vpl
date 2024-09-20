@@ -18,7 +18,7 @@ wrap_combinator! {
     struct AlgorithmIdentifier: AlgorithmIdentifierInner =>
         SpecAlgorithmIdentifierValue,
         AlgorithmIdentifierValue<'a>,
-        AlgorithmIdentifierOwned
+        AlgorithmIdentifierValueOwned
     = Mapped {
             inner: LengthWrapped((ASN1(ObjectIdentifier), Tail)),
             mapper: AlgorithmIdentifierMapper,
@@ -41,7 +41,7 @@ type AlgorithmIdentifierFrom<Alg, Params> = (Alg, Params);
 
 pub type SpecAlgorithmIdentifierValue = AlgorithmIdentifierTo<SpecObjectIdentifierValue, Seq<u8>>;
 pub type AlgorithmIdentifierValue<'a> = AlgorithmIdentifierTo<ObjectIdentifierValue, &'a [u8]>;
-pub type AlgorithmIdentifierOwned = AlgorithmIdentifierTo<ObjectIdentifierValueOwned, Vec<u8>>;
+pub type AlgorithmIdentifierValueOwned = AlgorithmIdentifierTo<ObjectIdentifierValueOwned, Vec<u8>>;
 
 impl<Alg, Params> SpecFrom<AlgorithmIdentifierTo<Alg, Params>> for AlgorithmIdentifierFrom<Alg, Params> {
     closed spec fn spec_from(s: AlgorithmIdentifierTo<Alg, Params>) -> Self {

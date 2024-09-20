@@ -15,7 +15,7 @@ wrap_combinator! {
     struct RDN: RDNInner =>
         SpecRDNValue,
         RDNValue<'a>,
-        RDNOwned
+        RDNValueOwned
     =
         Mapped {
             inner: SequenceOf(ASN1(AttributeTypeAndValue)),
@@ -37,7 +37,7 @@ pub struct RDNPoly<Attrs> {
 
 pub type SpecRDNValue = RDNPoly<Seq<SpecAttributeTypeAndValueValue>>;
 pub type RDNValue<'a> = RDNPoly<VecDeep<AttributeTypeAndValueValue<'a>>>;
-pub type RDNOwned = RDNPoly<VecDeep<AttributeTypeAndValueOwned>>;
+pub type RDNValueOwned = RDNPoly<VecDeep<AttributeTypeAndValueValueOwned>>;
 
 type RDNFrom<T> = T;
 
@@ -89,8 +89,8 @@ impl Iso for RDNMapper {
     type Src<'a> = RDNFrom<VecDeep<AttributeTypeAndValueValue<'a>>>;
     type Dst<'a> = RDNPoly<VecDeep<AttributeTypeAndValueValue<'a>>>;
 
-    type SrcOwned = RDNFrom<VecDeep<AttributeTypeAndValueOwned>>;
-    type DstOwned = RDNPoly<VecDeep<AttributeTypeAndValueOwned>>;
+    type SrcOwned = RDNFrom<VecDeep<AttributeTypeAndValueValueOwned>>;
+    type DstOwned = RDNPoly<VecDeep<AttributeTypeAndValueValueOwned>>;
 }
 
 }

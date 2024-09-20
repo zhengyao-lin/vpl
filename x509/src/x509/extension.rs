@@ -23,7 +23,7 @@ wrap_combinator! {
     struct Extension: ExtensionInner =>
         SpecExtensionValue,
         ExtensionValue<'a>,
-        ExtensionOwned
+        ExtensionValueOwned
     = Mapped {
             inner: LengthWrapped(Pair(
                 ASN1(ObjectIdentifier),
@@ -61,7 +61,7 @@ pub struct ExtensionPoly<Id, Value> {
 
 pub type SpecExtensionValue = ExtensionPoly<SpecObjectIdentifierValue, Seq<u8>>;
 pub type ExtensionValue<'a> = ExtensionPoly<ObjectIdentifierValue, &'a [u8]>;
-pub type ExtensionOwned = ExtensionPoly<ObjectIdentifierValueOwned, Vec<u8>>;
+pub type ExtensionValueOwned = ExtensionPoly<ObjectIdentifierValueOwned, Vec<u8>>;
 
 type ExtensionFrom<Id, Value> = PairValue<Id, PairValue<OptionDeep<bool>, Value>>;
 
