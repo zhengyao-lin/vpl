@@ -16,7 +16,11 @@ verus! {
 pub type TimeInner = Mapped<OrdChoice<ASN1<ImplicitTag<UTF8String>>, ASN1<ImplicitTag<UTF8String>>>, TimeMapper>;
 
 wrap_combinator! {
-    struct Time: TimeInner =
+    struct Time: TimeInner =>
+        SpecTimeValue,
+        TimeValue<'a>,
+        TimeOwned
+    =
         Mapped {
             inner: OrdChoice(
                 // UTCTime, tag 0x17

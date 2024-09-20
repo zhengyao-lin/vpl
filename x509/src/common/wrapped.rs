@@ -77,12 +77,22 @@ impl<C: Combinator> Iso for IdentityMapper<C> where
 #[allow(unused_macros)]
 macro_rules! wrap_combinator {
     (struct $name:ident: $inner_type:ty = $inner_expr:expr ;) => {
+        wrap_combinator! {
+            struct $name: $inner_type =>
+                <<$inner_type as View>::V as SpecCombinator>::SpecResult,
+                <$inner_type as Combinator>::Result<'a>,
+                <$inner_type as Combinator>::Owned
+            = $inner_expr;
+        }
+    };
+
+    (struct $name:ident: $inner_type:ty => $spec_result:ty, $result:ty, $owned:ty = $inner_expr:expr ;) => {
         ::builtin_macros::verus! {
             #[derive(Debug, View)]
             pub struct $name;
 
             impl SpecCombinator for $name {
-                type SpecResult = <<$inner_type as View>::V as SpecCombinator>::SpecResult;
+                type SpecResult = $spec_result;
 
                 // $inner_expr.view().spec_parse(s)
                 closed spec fn spec_parse(&self, s: Seq<u8>) -> Result<(usize, Self::SpecResult), ()>;
@@ -97,9 +107,8 @@ macro_rules! wrap_combinator {
             }
 
             impl SecureSpecCombinator for $name {
-                closed spec fn spec_is_prefix_secure() -> bool {
-                    $inner_type::spec_is_prefix_secure()
-                }
+                // $inner_type::spec_is_prefix_secure()
+                closed spec fn spec_is_prefix_secure() -> bool;
 
                 #[verifier::external_body]
                 proof fn theorem_serialize_parse_roundtrip(&self, v: Self::SpecResult) {
@@ -118,8 +127,8 @@ macro_rules! wrap_combinator {
             }
 
             impl Combinator for $name {
-                type Result<'a> = <$inner_type as Combinator>::Result<'a>;
-                type Owned =  <$inner_type as Combinator>::Owned;
+                type Result<'a> = $result;
+                type Owned =  $owned;
 
                 /// TODO: using spec_algorithm_identifier() here
                 /// would cause irrelevant proofs to fail
@@ -130,6 +139,7 @@ macro_rules! wrap_combinator {
                     $inner_expr.length()
                 }
 
+                #[verifier::external_body]
                 fn exec_is_prefix_secure() -> bool {
                     $inner_type::exec_is_prefix_secure()
                 }

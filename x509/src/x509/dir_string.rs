@@ -17,8 +17,11 @@ verus! {
 pub type DirectoryStringInner = Mapped<OrdChoice<ASN1<PrintableString>, ASN1<UTF8String>>, DirectoryStringMapper>;
 
 wrap_combinator! {
-    struct DirectoryString: DirectoryStringInner =
-        Mapped {
+    struct DirectoryString: DirectoryStringInner =>
+        SpecDirectoryStringValue,
+        DirectoryStringValue<'a>,
+        DirectoryStringOwned
+    = Mapped {
             inner: OrdChoice(
                 ASN1(PrintableString),
                 ASN1(UTF8String),

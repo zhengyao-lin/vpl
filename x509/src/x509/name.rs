@@ -11,7 +11,11 @@ verus! {
 pub type NameInner = Mapped<SequenceOf<RDN>, NameMapper>;
 
 wrap_combinator! {
-    struct Name: NameInner =
+    struct Name: NameInner =>
+        SpecNameValue,
+        NameValue<'a>,
+        NameOwned
+    =
         Mapped {
             inner: SequenceOf(ASN1(RDN)),
             mapper: NameMapper,

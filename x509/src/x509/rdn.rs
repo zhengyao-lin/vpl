@@ -12,7 +12,11 @@ verus! {
 pub type RDNInner = Mapped<SequenceOf<ASN1<AttributeTypeAndValue>>, RDNMapper>;
 
 wrap_combinator! {
-    struct RDN: RDNInner =
+    struct RDN: RDNInner =>
+        SpecRDNValue,
+        RDNValue<'a>,
+        RDNOwned
+    =
         Mapped {
             inner: SequenceOf(ASN1(AttributeTypeAndValue)),
             mapper: RDNMapper,
