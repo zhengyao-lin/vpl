@@ -1,7 +1,8 @@
 /// Some SpecDisjointFrom and DisjointFrom impls for tagged combinators
 
 use vstd::prelude::*;
-use crate::*;
+use crate::common::*;
+use super::*;
 
 verus! {
 

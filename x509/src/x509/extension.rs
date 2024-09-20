@@ -24,7 +24,7 @@ wrap_combinator! {
         Mapped {
             inner: LengthWrapped((
                 ASN1(ObjectIdentifier),
-                Optional::new(
+                Optional(
                     ASN1(Boolean),
                     ASN1(OctetString),
                 ),
