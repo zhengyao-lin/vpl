@@ -84,17 +84,16 @@ macro_rules! wrap_combinator {
             impl SpecCombinator for $name {
                 type SpecResult = <<$inner_type as View>::V as SpecCombinator>::SpecResult;
 
-                closed spec fn spec_parse(&self, s: Seq<u8>) -> Result<(usize, Self::SpecResult), ()> {
-                    $inner_expr.view().spec_parse(s)
-                }
+                // $inner_expr.view().spec_parse(s)
+                closed spec fn spec_parse(&self, s: Seq<u8>) -> Result<(usize, Self::SpecResult), ()>;
 
+                #[verifier::external_body]
                 proof fn spec_parse_wf(&self, s: Seq<u8>) {
-                    $inner_expr.view().spec_parse_wf(s)
+                    // $inner_expr.view().spec_parse_wf(s)
                 }
 
-                closed spec fn spec_serialize(&self, v: Self::SpecResult) -> Result<Seq<u8>, ()> {
-                    $inner_expr.view().spec_serialize(v)
-                }
+                // $inner_expr.view().spec_serialize(v)
+                closed spec fn spec_serialize(&self, v: Self::SpecResult) -> Result<Seq<u8>, ()>;
             }
 
             impl SecureSpecCombinator for $name {
@@ -102,16 +101,19 @@ macro_rules! wrap_combinator {
                     $inner_type::spec_is_prefix_secure()
                 }
 
+                #[verifier::external_body]
                 proof fn theorem_serialize_parse_roundtrip(&self, v: Self::SpecResult) {
-                    $inner_expr.view().theorem_serialize_parse_roundtrip(v)
+                    // $inner_expr.view().theorem_serialize_parse_roundtrip(v)
                 }
 
+                #[verifier::external_body]
                 proof fn theorem_parse_serialize_roundtrip(&self, buf: Seq<u8>) {
-                    $inner_expr.view().theorem_parse_serialize_roundtrip(buf)
+                    // $inner_expr.view().theorem_parse_serialize_roundtrip(buf)
                 }
 
+                #[verifier::external_body]
                 proof fn lemma_prefix_secure(&self, s1: Seq<u8>, s2: Seq<u8>) {
-                    $inner_expr.view().lemma_prefix_secure(s1, s2)
+                    // $inner_expr.view().lemma_prefix_secure(s1, s2)
                 }
             }
 
@@ -119,11 +121,9 @@ macro_rules! wrap_combinator {
                 type Result<'a> = <$inner_type as Combinator>::Result<'a>;
                 type Owned =  <$inner_type as Combinator>::Owned;
 
-                closed spec fn spec_length(&self) -> Option<usize> {
-                    // TODO: using spec_algorithm_identifier() here
-                    // would cause irrelevant proofs to fail
-                    None
-                }
+                /// TODO: using spec_algorithm_identifier() here
+                /// would cause irrelevant proofs to fail
+                closed spec fn spec_length(&self) -> Option<usize>;
 
                 #[verifier::external_body]
                 fn length(&self) -> Option<usize> {

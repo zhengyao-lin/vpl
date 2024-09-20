@@ -21,7 +21,7 @@ wrap_combinator! {
 asn1_tagged!(Name, TagValue {
     class: TagClass::Universal,
     form: TagForm::Constructed,
-    num: 0x11,
+    num: 0x10,
 });
 
 #[derive(Debug, View, PolyfillClone)]

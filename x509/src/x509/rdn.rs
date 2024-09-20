@@ -72,8 +72,13 @@ impl SpecIso for RDNMapper {
     type Src = RDNFrom<Seq<SpecAttributeTypeAndValueValue>>;
     type Dst = RDNPoly<Seq<SpecAttributeTypeAndValueValue>>;
 
-    proof fn spec_iso(s: Self::Src) {}
-    proof fn spec_iso_rev(s: Self::Dst) {}
+    proof fn spec_iso(s: Self::Src) {
+        let _ = Self::Src::spec_from(Self::Dst::spec_from(s));
+    }
+
+    proof fn spec_iso_rev(s: Self::Dst) {
+        let _ = Self::Dst::spec_from(Self::Src::spec_from(s));
+    }
 }
 
 impl Iso for RDNMapper {

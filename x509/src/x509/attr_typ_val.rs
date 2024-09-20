@@ -4,6 +4,7 @@ use crate::asn1::*;
 use crate::common::*;
 
 use super::dir_string::*;
+use crate::common::SpecFrom;
 
 verus! {
 
@@ -34,41 +35,41 @@ asn1_tagged!(AttributeTypeAndValue, TagValue {
 });
 
 #[derive(Debug, View, PolyfillClone)]
-pub struct AttributeTypeAndValueTo<Typ, Value> {
+pub struct AttributeTypeAndValuePoly<Typ, Value> {
     pub typ: Typ,
     pub value: Value,
 }
 
-pub type SpecAttributeTypeAndValueValue = AttributeTypeAndValueTo<SpecObjectIdentifierValue, SpecDirectoryStringValue>;
-pub type AttributeTypeAndValueValue<'a> = AttributeTypeAndValueTo<ObjectIdentifierValue, DirectoryStringValue<'a>>;
-pub type AttributeTypeAndValueOwned = AttributeTypeAndValueTo<ObjectIdentifierValueOwned, DirectoryStringOwned>;
+pub type SpecAttributeTypeAndValueValue = AttributeTypeAndValuePoly<SpecObjectIdentifierValue, SpecDirectoryStringValue>;
+pub type AttributeTypeAndValueValue<'a> = AttributeTypeAndValuePoly<ObjectIdentifierValue, DirectoryStringValue<'a>>;
+pub type AttributeTypeAndValueOwned = AttributeTypeAndValuePoly<ObjectIdentifierValueOwned, DirectoryStringOwned>;
 
 type AttributeTypeAndValueFrom<Typ, Value> = (Typ, Value);
 
-impl<Typ, Value> SpecFrom<AttributeTypeAndValueTo<Typ, Value>> for AttributeTypeAndValueFrom<Typ, Value> {
-    closed spec fn spec_from(s: AttributeTypeAndValueTo<Typ, Value>) -> Self {
+impl<Typ, Value> SpecFrom<AttributeTypeAndValuePoly<Typ, Value>> for AttributeTypeAndValueFrom<Typ, Value> {
+    closed spec fn spec_from(s: AttributeTypeAndValuePoly<Typ, Value>) -> Self {
         (s.typ, s.value)
     }
 }
 
-impl<Typ, Value> SpecFrom<AttributeTypeAndValueFrom<Typ, Value>> for AttributeTypeAndValueTo<Typ, Value> {
+impl<Typ, Value> SpecFrom<AttributeTypeAndValueFrom<Typ, Value>> for AttributeTypeAndValuePoly<Typ, Value> {
     closed spec fn spec_from(s: AttributeTypeAndValueFrom<Typ, Value>) -> Self {
-        AttributeTypeAndValueTo {
+        AttributeTypeAndValuePoly {
             typ: s.0,
             value: s.1,
         }
     }
 }
 
-impl<Typ: View, Value: View> From<AttributeTypeAndValueTo<Typ, Value>> for AttributeTypeAndValueFrom<Typ, Value> {
-    fn ex_from(s: AttributeTypeAndValueTo<Typ, Value>) -> Self {
+impl<Typ: View, Value: View> From<AttributeTypeAndValuePoly<Typ, Value>> for AttributeTypeAndValueFrom<Typ, Value> {
+    fn ex_from(s: AttributeTypeAndValuePoly<Typ, Value>) -> Self {
         (s.typ, s.value)
     }
 }
 
-impl<Typ: View, Value: View> From<AttributeTypeAndValueFrom<Typ, Value>> for AttributeTypeAndValueTo<Typ, Value> {
+impl<Typ: View, Value: View> From<AttributeTypeAndValueFrom<Typ, Value>> for AttributeTypeAndValuePoly<Typ, Value> {
     fn ex_from(s: AttributeTypeAndValueFrom<Typ, Value>) -> Self {
-        AttributeTypeAndValueTo {
+        AttributeTypeAndValuePoly {
             typ: s.0,
             value: s.1,
         }
@@ -78,20 +79,27 @@ impl<Typ: View, Value: View> From<AttributeTypeAndValueFrom<Typ, Value>> for Att
 #[derive(Debug, View)]
 pub struct AttributeTypeAndValueMapper;
 
-impl SpecIso for AttributeTypeAndValueMapper {
+impl SpecIso for AttributeTypeAndValueMapper
+{
     type Src = AttributeTypeAndValueFrom<SpecObjectIdentifierValue, SpecDirectoryStringValue>;
-    type Dst = AttributeTypeAndValueTo<SpecObjectIdentifierValue, SpecDirectoryStringValue>;
+    type Dst = AttributeTypeAndValuePoly<SpecObjectIdentifierValue, SpecDirectoryStringValue>;
 
-    proof fn spec_iso(s: Self::Src) {}
-    proof fn spec_iso_rev(s: Self::Dst) {}
+    proof fn spec_iso(s: Self::Src) {
+        // Somehow these trigger terms are needed after adding an irrelevant trait impl
+        let _ = Self::Src::spec_from(Self::Dst::spec_from(s));
+    }
+
+    proof fn spec_iso_rev(s: Self::Dst) {
+        let _ = Self::Dst::spec_from(Self::Src::spec_from(s));
+    }
 }
 
 impl Iso for AttributeTypeAndValueMapper {
     type Src<'a> = AttributeTypeAndValueFrom<ObjectIdentifierValue, DirectoryStringValue<'a>>;
-    type Dst<'a> = AttributeTypeAndValueTo<ObjectIdentifierValue, DirectoryStringValue<'a>>;
+    type Dst<'a> = AttributeTypeAndValuePoly<ObjectIdentifierValue, DirectoryStringValue<'a>>;
 
     type SrcOwned = AttributeTypeAndValueFrom<ObjectIdentifierValueOwned, DirectoryStringOwned>;
-    type DstOwned = AttributeTypeAndValueTo<ObjectIdentifierValueOwned, DirectoryStringOwned>;
+    type DstOwned = AttributeTypeAndValuePoly<ObjectIdentifierValueOwned, DirectoryStringOwned>;
 }
 
 }

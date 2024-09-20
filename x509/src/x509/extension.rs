@@ -12,33 +12,42 @@ verus! {
 ///     critical    BOOLEAN DEFAULT FALSE,
 ///     extnValue   OCTET STRING
 /// }
-pub type Extension = Mapped<ASN1<ExplicitTag<(
+pub type ExtensionInner = Mapped<LengthWrapped<(
     ASN1<ObjectIdentifier>,
     Optional<ASN1<Boolean>, ASN1<OctetString>>,
-)>>, ExtensionMapper>;
+)>, ExtensionMapper>;
 
-pub type Extensions = ASN1<SequenceOf<Extension>>;
+pub type ExtensionsInner = SequenceOf<ASN1<Extension>>;
 
-pub fn extension() -> Extension {
-    Mapped {
-        inner: ASN1(ExplicitTag(TagValue {
-            class: TagClass::Universal,
-            form: TagForm::Constructed,
-            num: 0x10,
-        }, (
-            ASN1(ObjectIdentifier),
-            Optional::new(
-                ASN1(Boolean),
-                ASN1(OctetString),
-            ),
-        ))),
-        mapper: ExtensionMapper,
-    }
+wrap_combinator! {
+    struct Extension: ExtensionInner =
+        Mapped {
+            inner: LengthWrapped((
+                ASN1(ObjectIdentifier),
+                Optional::new(
+                    ASN1(Boolean),
+                    ASN1(OctetString),
+                ),
+            )),
+            mapper: ExtensionMapper,
+        };
 }
 
-pub fn extensions() -> Extensions {
-    ASN1(SequenceOf(extension()))
+asn1_tagged!(Extension, TagValue {
+    class: TagClass::Universal,
+    form: TagForm::Constructed,
+    num: 0x10,
+});
+
+wrap_combinator! {
+    struct Extensions: ExtensionsInner = SequenceOf(ASN1(Extension));
 }
+
+asn1_tagged!(Extensions, TagValue {
+    class: TagClass::Universal,
+    form: TagForm::Constructed,
+    num: 0x10,
+});
 
 #[derive(Debug, View, PolyfillClone)]
 pub struct ExtensionPoly<Id, Value> {
