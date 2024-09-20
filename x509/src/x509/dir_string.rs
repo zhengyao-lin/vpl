@@ -18,9 +18,9 @@ pub type DirectoryStringInner = Mapped<OrdChoice<ASN1<PrintableString>, ASN1<UTF
 
 wrap_combinator! {
     struct DirectoryString: DirectoryStringInner =>
-        SpecDirectoryStringValue,
-        DirectoryStringValue<'a>,
-        DirectoryStringValueOwned
+        spec SpecDirectoryStringValue,
+        exec<'a> DirectoryStringValue<'a>,
+        owned DirectoryStringValueOwned,
     = Mapped {
             inner: OrdChoice(
                 ASN1(PrintableString),

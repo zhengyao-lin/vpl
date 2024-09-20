@@ -17,9 +17,9 @@ pub type TimeInner = Mapped<OrdChoice<ASN1<ImplicitTag<UTF8String>>, ASN1<Implic
 
 wrap_combinator! {
     struct Time: TimeInner =>
-        SpecTimeValue,
-        TimeValue<'a>,
-        TimeValueOwned
+        spec SpecTimeValue,
+        exec<'a> TimeValue<'a>,
+        owned TimeValueOwned,
     =
         Mapped {
             inner: OrdChoice(

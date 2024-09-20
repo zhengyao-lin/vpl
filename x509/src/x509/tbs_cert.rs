@@ -41,9 +41,9 @@ pub type TBSCertificateInner = Mapped<
 
 wrap_combinator! {
     struct TBSCertificate: TBSCertificateInner =>
-        SpecTBSCertificateValue,
-        TBSCertificateValue<'a>,
-        TBSCertificateValueOwned
+        spec SpecTBSCertificateValue,
+        exec<'a> TBSCertificateValue<'a>,
+        owned TBSCertificateValueOwned,
     =
         Mapped {
             inner: LengthWrapped(

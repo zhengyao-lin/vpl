@@ -21,9 +21,9 @@ pub type CertificateInner = Mapped<
 
 wrap_combinator! {
     struct Certificate: CertificateInner =>
-        SpecCertificateValue,
-        CertificateValue<'a>,
-        CertificateValueOwned
+        spec SpecCertificateValue,
+        exec<'a> CertificateValue<'a>,
+        owned CertificateValueOwned,
     =
         Mapped {
             inner: LengthWrapped(

@@ -13,9 +13,9 @@ pub type RDNInner = Mapped<SequenceOf<ASN1<AttributeTypeAndValue>>, RDNMapper>;
 
 wrap_combinator! {
     struct RDN: RDNInner =>
-        SpecRDNValue,
-        RDNValue<'a>,
-        RDNValueOwned
+        spec SpecRDNValue,
+        exec<'a> RDNValue<'a>,
+        owned RDNValueOwned,
     =
         Mapped {
             inner: SequenceOf(ASN1(AttributeTypeAndValue)),

@@ -16,9 +16,9 @@ pub type AlgorithmIdentifierInner = Mapped<LengthWrapped<(ASN1<ObjectIdentifier>
 
 wrap_combinator! {
     struct AlgorithmIdentifier: AlgorithmIdentifierInner =>
-        SpecAlgorithmIdentifierValue,
-        AlgorithmIdentifierValue<'a>,
-        AlgorithmIdentifierValueOwned
+        spec SpecAlgorithmIdentifierValue,
+        exec<'a> AlgorithmIdentifierValue<'a>,
+        owned AlgorithmIdentifierValueOwned,
     = Mapped {
             inner: LengthWrapped((ASN1(ObjectIdentifier), Tail)),
             mapper: AlgorithmIdentifierMapper,

@@ -21,9 +21,9 @@ pub type ExtensionsInner = SequenceOf<ASN1<Extension>>;
 
 wrap_combinator! {
     struct Extension: ExtensionInner =>
-        SpecExtensionValue,
-        ExtensionValue<'a>,
-        ExtensionValueOwned
+        spec SpecExtensionValue,
+        exec<'a> ExtensionValue<'a>,
+        owned ExtensionValueOwned,
     = Mapped {
             inner: LengthWrapped(Pair(
                 ASN1(ObjectIdentifier),

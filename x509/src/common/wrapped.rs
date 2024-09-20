@@ -79,14 +79,19 @@ macro_rules! wrap_combinator {
     (struct $name:ident: $inner_type:ty = $inner_expr:expr ;) => {
         wrap_combinator! {
             struct $name: $inner_type =>
-                <<$inner_type as View>::V as SpecCombinator>::SpecResult,
-                <$inner_type as Combinator>::Result<'a>,
-                <$inner_type as Combinator>::Owned
+                spec <<$inner_type as View>::V as SpecCombinator>::SpecResult,
+                exec<'a> <$inner_type as Combinator>::Result<'a>,
+                owned <$inner_type as Combinator>::Owned,
             = $inner_expr;
         }
     };
 
-    (struct $name:ident: $inner_type:ty => $spec_result:ty, $result:ty, $owned:ty = $inner_expr:expr ;) => {
+    // NOTE: use this alternative can reduce type checking time
+    (struct $name:ident: $inner_type:ty =>
+        spec $spec_result:ty,
+        exec<$lt:lifetime> $result:ty,
+        owned $owned:ty $(,)?
+        = $inner_expr:expr ;) => {
         ::builtin_macros::verus! {
             #[derive(Debug, View)]
             pub struct $name;
@@ -127,7 +132,7 @@ macro_rules! wrap_combinator {
             }
 
             impl Combinator for $name {
-                type Result<'a> = $result;
+                type Result<$lt> = $result;
                 type Owned =  $owned;
 
                 /// TODO: using spec_algorithm_identifier() here
