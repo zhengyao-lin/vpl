@@ -13,6 +13,12 @@ release:
 		cd $$project && make release && cd ..; \
 	done
 
+.PHONY: test
+test:
+	@for project in $(PROJECTS); do \
+		cd $$project && make test && cd ..; \
+	done
+
 .PHONY: clean
 clean:
 	@for project in $(PROJECTS); do \

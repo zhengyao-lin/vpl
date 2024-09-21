@@ -8,11 +8,12 @@ MAIN = src/main.rs
 
 CARGO_DEPS = peg clap thiserror tempfile
 VERUS_DEPS = polyfill
+TEST_TARGETS = test-features test-hammurabi
 
 include ../dep.mk
 
 .PHONY: test
-test: debug
+test-features: debug
 	@for test in tests/*.pl; do \
 		printf "%s: " $$test; \
         target/debug/vpl $$test go || exit 1; \
