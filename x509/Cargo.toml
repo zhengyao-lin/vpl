@@ -11,3 +11,4 @@ vest = { path = "../vest" }
 polyfill = { path = "../polyfill" }
 der = { version = "0.7.9", features = [ "alloc", "oid" ] }
 macros = { path = "../macros" }
+base64 = "0.22.1"

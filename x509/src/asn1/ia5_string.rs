@@ -1,5 +1,6 @@
 /// TODO: maybe refactor this using Refined
 
+use std::fmt::{self, Debug, Formatter};
 use vstd::prelude::*;
 
 use polyfill::*;
@@ -23,7 +24,7 @@ asn1_tagged!(IA5String, TagValue {
     num: 0x16,
 });
 
-#[derive(Debug, View, PolyfillClone)]
+#[derive(View, PolyfillClone)]
 pub struct IA5StringPoly<T>(pub T);
 
 pub type SpecIA5StringValue = IA5StringPoly<Seq<u8>>;
@@ -53,6 +54,13 @@ impl<'a> IA5StringValue<'a> {
 
     pub fn as_bytes(&self) -> &'a [u8] {
         self.0
+    }
+
+    pub fn to_string(&self) -> Option<String> {
+        match utf8_to_str(&self.0) {
+            Some(s) => Some(s.to_string()),
+            None => None,
+        }
     }
 
     pub fn wf(&self) -> (res: bool)
@@ -152,4 +160,13 @@ impl Combinator for IA5String {
     }
 }
 
+}
+
+impl<'a> Debug for IA5StringValue<'a> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self.to_string() {
+            Some(s) => write!(f, "IA5StringValue({:?})", s),
+            None => write!(f, "IA5StringValue({:?})", self.0),
+        }
+    }
 }

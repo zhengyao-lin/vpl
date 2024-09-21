@@ -321,15 +321,6 @@ pub fn main() {
     // diff_test_ia5_string_serialize();
     // diff_test_base_128_uint_serialize();
     // diff_test_oid_serialize();
-
-    println!("parsed: {:?}", ASN1(ImplicitTag(TagValue {
-        class: TagClass::ContextSpecific,
-        form: TagForm::Primitive,
-        num: 1,
-    }, BitString)).parse(&[
-        0x81, 0x09, 0x00, 0x42, 0xAF, 0x57, 0x60, 0x12, 0x57, 0xA8, 0x70,
-    ]));
-
     // println!("{:?}", test_x509());
 
     // Create a new string to store the input

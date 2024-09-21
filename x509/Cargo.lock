@@ -3,6 +3,12 @@
 version = 3
 
 [[package]]
+name = "base64"
+version = "0.22.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
+
+[[package]]
 name = "builtin"
 version = "0.1.0"
 source = "git+https://github.com/verus-lang/verus?branch=main#521f5e801c5321b1a9502f9955e0ef8c29606f65"
@@ -158,6 +164,7 @@ dependencies = [
 name = "x509"
 version = "0.1.0"
 dependencies = [
+ "base64",
  "builtin",
  "builtin_macros",
  "der",
