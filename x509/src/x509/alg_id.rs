@@ -94,3 +94,23 @@ impl Iso for AlgorithmIdentifierMapper {
 }
 
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    verus! {
+        /// Check that all trait bounds and preconditions are satisfied
+        #[test]
+        fn is_combinator() {
+            let _ = ASN1(AlgorithmIdentifier).parse(&[]);
+        }
+    }
+
+    #[test]
+    fn sanity() {
+        assert!(ASN1(AlgorithmIdentifier).parse(&[
+            0x30, 0x0D, 0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x01, 0x0C, 0x05, 0x00,
+        ]).is_ok());
+    }
+}

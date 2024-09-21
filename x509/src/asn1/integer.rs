@@ -159,3 +159,48 @@ fn new_integer_inner() -> (res: IntegerInner)
 }
 
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use der::Encode;
+
+    #[test]
+    fn parse() {
+        assert_eq!(Integer.parse(&[ 0x01, 0x00 ]).unwrap(), (2, 0));
+        assert_eq!(Integer.parse(&[ 0x00 ]), Err(()));
+        assert_eq!(Integer.parse(&[ 0x01, 0xff ]).unwrap(), (2, -1));
+        assert_eq!(Integer.parse(&[ 0x81, 0x01, 0xff ]), Err(()));
+        assert_eq!(Integer.parse(&[ 0x02, 0x00, 0xff ]).unwrap(), (3, 0xff));
+        assert_eq!(Integer.parse(&[ 0x02, 0x00, 0x7f ]), Err(())); // violation of minimal encoding
+    }
+
+    fn serialize_int(v: IntegerValue) -> Result<Vec<u8>, ()> {
+        let mut data = vec![0; 16];
+        let len = ASN1(Integer).serialize(v, &mut data, 0)?;
+        data.truncate(len);
+        Ok(data)
+    }
+
+    /// Compare results of serialize to a common ASN.1 DER library
+    #[test]
+    fn diff_with_der() {
+        let diff = |i| {
+            let res1 = serialize_int(i);
+            let res2 = i.to_der().map_err(|_| ());
+            assert_eq!(res1, res2);
+        };
+
+        diff(0);
+        diff(i64::MAX);
+        diff(i64::MIN);
+
+        for i in 0..65535i64 {
+            diff(i);
+        }
+
+        for i in -65535i64..0 {
+            diff(i);
+        }
+    }
+}

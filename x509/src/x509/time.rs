@@ -109,3 +109,23 @@ impl Iso for TimeMapper {
 }
 
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    verus! {
+        /// Check that all trait bounds and preconditions are satisfied
+        #[test]
+        fn is_combinator() {
+            let _ = Time.parse(&[]);
+        }
+    }
+
+    #[test]
+    fn sanity() {
+        assert!(Time.parse(&[
+            0x17, 0x0D, 0x31, 0x36, 0x30, 0x32, 0x30, 0x34, 0x31, 0x32, 0x33, 0x32, 0x32, 0x33, 0x5A,
+        ]).is_ok());
+    }
+}

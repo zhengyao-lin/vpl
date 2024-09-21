@@ -181,3 +181,31 @@ impl<'a> Debug for BitStringValue<'a> {
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use der::Encode;
+
+    fn serialize_bit_string(v: BitStringValue) -> Result<Vec<u8>, ()> {
+        let mut data = vec![0; v.bit_string().len() + 10];
+        data[0] = 0x03; // Prepend the tag byte
+        let len = BitString.serialize(v, &mut data, 1)?;
+        data.truncate(len + 1);
+        Ok(data)
+    }
+
+    #[test]
+    fn diff_with_der() {
+        // The first byte of raw should denote the number of trailing zeros
+        let diff = |raw: &[u8]| {
+            let res1 = serialize_bit_string(BitStringValue::new_raw(raw).unwrap());
+            let res2 = der::asn1::BitString::new(raw[0], &raw[1..]).unwrap().to_der().map_err(|_| ());
+            assert_eq!(res1, res2);
+        };
+
+        diff(&[0]);
+        diff(&[5, 0b11100000]);
+        diff(&[4, 0b11100000]);
+    }
+}

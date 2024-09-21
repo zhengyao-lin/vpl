@@ -24,7 +24,7 @@ asn1_tagged!(PrintableString, TagValue {
     num: 0x13,
 });
 
-#[derive(View, PolyfillClone)]
+#[derive(View, PolyfillClone, Eq, PartialEq)]
 pub struct PrintableStringPoly<T>(pub T);
 
 pub type SpecPrintableStringValue = PrintableStringPoly<Seq<u8>>;

@@ -173,3 +173,31 @@ impl Combinator for UTF8String {
 }
 
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use der::Encode;
+
+    fn serialize_utf8_string(v: &str) -> Result<Vec<u8>, ()> {
+        let mut data = vec![0; v.len() + 10];
+        data[0] = 0x0c; // Prepend the tag byte
+        let len = UTF8String.serialize(v, &mut data, 1)?;
+        data.truncate(len + 1);
+        Ok(data)
+    }
+
+    fn diff_with_der() {
+        let diff = |s: &str| {
+            let res1 = serialize_utf8_string(s);
+            let res2 = s.to_string().to_der().map_err(|_| ());
+            assert_eq!(res1, res2);
+        };
+
+        diff("");
+        diff("asdsad");
+        diff("黑风雷");
+        diff("👨‍👩‍👧‍👦");
+        diff("黑风雷".repeat(256).as_str());
+    }
+}

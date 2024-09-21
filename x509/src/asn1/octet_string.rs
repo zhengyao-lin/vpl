@@ -126,3 +126,32 @@ fn new_octet_string_inner() -> (res: OctetStringInner)
 }
 
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use der::Encode;
+
+    fn serialize_octet_string(v: &[u8]) -> Result<Vec<u8>, ()> {
+        let mut data = vec![0; v.len() + 10];
+        data[0] = 0x04; // Prepend the tag byte
+        let len = OctetString.serialize(v, &mut data, 1)?;
+        data.truncate(len + 1);
+        Ok(data)
+    }
+
+    #[test]
+    fn diff_with_der() {
+        let diff = |bytes: &[u8]| {
+            let res1 = serialize_octet_string(bytes);
+            let res2 = der::asn1::OctetString::new(bytes).unwrap().to_der().map_err(|_| ());
+            assert_eq!(res1, res2);
+        };
+
+        diff(&[]);
+        diff(&[ 0 ]);
+        diff(&[ 0; 256 ]);
+        diff(&[ 0; 257 ]);
+        diff(&[ 0; 65536 ]);
+    }
+}

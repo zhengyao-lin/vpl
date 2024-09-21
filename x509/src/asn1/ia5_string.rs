@@ -24,7 +24,7 @@ asn1_tagged!(IA5String, TagValue {
     num: 0x16,
 });
 
-#[derive(View, PolyfillClone)]
+#[derive(View, PolyfillClone, Eq, PartialEq)]
 pub struct IA5StringPoly<T>(pub T);
 
 pub type SpecIA5StringValue = IA5StringPoly<Seq<u8>>;
@@ -168,5 +168,34 @@ impl<'a> Debug for IA5StringValue<'a> {
             Some(s) => write!(f, "IA5StringValue({:?})", s),
             None => write!(f, "IA5StringValue({:?})", self.0),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use der::Encode;
+
+    fn serialize_ia5_string(v: &str) -> Result<Vec<u8>, ()> {
+        let mut data = vec![0; v.len() + 10];
+        data[0] = 0x16; // Prepend the tag byte
+        let len = IA5String.serialize(IA5StringValue::new(v.as_bytes()).unwrap(), &mut data, 1)?;
+        data.truncate(len + 1);
+        Ok(data)
+    }
+
+    #[test]
+    fn diff_with_der() {
+        let diff = |s: &str| {
+            let res1 = serialize_ia5_string(s);
+            let res2 = der::asn1::Ia5StringRef::new(s).unwrap().to_der().map_err(|_| ());
+            assert_eq!(res1, res2);
+        };
+
+        diff("");
+        diff("\x7f");
+        diff("asdsad");
+        diff("aaaaaa");
+        diff("aaaaa".repeat(100).as_str());
     }
 }

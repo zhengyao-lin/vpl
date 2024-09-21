@@ -288,3 +288,35 @@ impl Debug for ObjectIdentifierValue {
         write!(f, ")")
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use der::Encode;
+
+    fn serialize_oid(v: Vec<UInt>) -> Result<Vec<u8>, ()> {
+        let mut data = vec![0; 1 + 4 + v.len() * 8];
+        data[0] = 0x06;
+        let len = ObjectIdentifier.serialize(ObjectIdentifierValue(VecDeep::from_vec(v)), &mut data, 1)?;
+        data.truncate(len + 1);
+        Ok(data)
+    }
+
+    #[test]
+    fn diff_with_der() {
+        let diff = |v: Vec<UInt>| {
+            let res1 = serialize_oid(PolyfillClone::clone(&v));
+            let res2 = der::asn1::ObjectIdentifier::new_unwrap(
+                v.iter().map(|i| i.to_string()).collect::<Vec<_>>().join(".").as_str()
+            ).to_der().map_err(|_| ());
+
+            assert_eq!(res1, res2);
+        };
+
+        diff(vec![1, 2, 3]);
+        diff(vec![1, 2, 123214]);
+        diff(vec![1, 2, 123214, 1231, 4534, 231]);
+        diff(vec![2, 10, 123214, 1231, 4534, 231]);
+        diff(vec![2, 39, 123214, 1231, 4534, 231]);
+    }
+}

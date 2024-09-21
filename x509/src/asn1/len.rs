@@ -188,3 +188,19 @@ impl Combinator for Length {
 }
 
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn parse() {
+        assert_eq!(Length.parse(&[ 0x0 ]).unwrap(), (1, 0));
+        assert_eq!(Length.parse(&[ 0x7f ]).unwrap(), (1, 0x7f));
+        assert_eq!(Length.parse(&[ 0x80 ]), Err(()));
+        assert_eq!(Length.parse(&[ 0x81, 0x80 ]).unwrap(), (2, 0x80));
+        assert_eq!(Length.parse(&[ 0x81, 0x7f ]), Err(()));
+        assert_eq!(Length.parse(&[ 0x82, 0x00, 0xff ]), Err(()));
+        assert_eq!(Length.parse(&[ 0x82, 0x0f, 0xff ]).unwrap(), (3, 0x0fff));
+    }
+}

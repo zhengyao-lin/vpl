@@ -34,7 +34,7 @@ wrap_combinator! {
         };
 }
 
-#[derive(Debug, View, PolyfillClone)]
+#[derive(Eq, PartialEq, Debug, View, PolyfillClone)]
 pub enum DirectoryStringPoly<PS, US, IS> {
     PrintableString(PS),
     UTF8String(US),
@@ -111,4 +111,52 @@ impl Iso for DirectoryStringMapper {
     type DstOwned = DirectoryStringPoly<PrintableStringValueOwned, UTF8StringValueOwned, IA5StringValueOwned>;
 }
 
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    verus! {
+        /// Check that all trait bounds and preconditions are satisfied
+        #[test]
+        fn is_combinator() {
+            let _ = DirectoryString.parse(&[]);
+        }
+    }
+
+    #[test]
+    fn utf8() {
+        assert_eq!(DirectoryString.parse(&[
+            0x0C, 0x07, 0x52, 0x75, 0x62, 0x79, 0x20, 0x43, 0x41,
+        ]).unwrap().1, DirectoryStringPoly::UTF8String("Ruby CA"));
+    }
+
+    #[test]
+    fn ia5_string() {
+        let parsed = DirectoryString.parse(&[
+            0x16, 0x09, 0x72, 0x75, 0x62, 0x79, 0x2D, 0x6C, 0x61, 0x6E, 0x67,
+        ]).unwrap().1;
+
+        match parsed {
+            DirectoryStringPoly::IA5String(s) => {
+                assert_eq!(s.to_string(), Some("ruby-lang".to_string()));
+            }
+            _ => panic!("{:?}", parsed),
+        }
+    }
+
+    #[test]
+    fn printable_string() {
+        let parsed = DirectoryString.parse(&[
+            0x13, 0x19, 0x47, 0x6F, 0x6F, 0x67, 0x6C, 0x65, 0x20, 0x54, 0x72, 0x75, 0x73, 0x74, 0x20, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x73, 0x20, 0x4C, 0x4C, 0x43,
+        ]).unwrap().1;
+
+        match parsed {
+            DirectoryStringPoly::PrintableString(s) => {
+                assert_eq!(s.to_string(), Some("Google Trust Services LLC".to_string()));
+            }
+            _ => panic!("{:?}", parsed),
+        }
+    }
 }

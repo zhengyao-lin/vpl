@@ -679,3 +679,38 @@ impl Combinator for Base128UInt {
 }
 
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use der::Encode;
+
+    /// Wrap a base 128 uint in an object identifier for testing
+    fn serialize_base_128_uint(v: UInt) -> Result<Vec<u8>, ()> {
+        let mut data = vec![0; 3 + 10];
+        data[0] = 0x06;
+        data[2] = 0x2a;
+        let len = Base128UInt.serialize(v, &mut data, 3)?;
+        data.truncate(len + 3);
+        data[1] = (len + 1) as u8;
+        Ok(data)
+    }
+
+    #[test]
+    fn diff_with_der() {
+        let diff = |v: UInt| {
+            let res1 = serialize_base_128_uint(v);
+            let res2 = der::asn1::ObjectIdentifier::new_unwrap(format!("1.2.{}", v).as_str()).to_der().map_err(|_| ());
+            assert_eq!(res1, res2);
+        };
+
+        for i in 0..16383 {
+            // TODO: this seems to a bug in the der crate
+            if i == 128 {
+                continue;
+            }
+
+            diff(i);
+        }
+    }
+}

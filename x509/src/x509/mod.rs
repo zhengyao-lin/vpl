@@ -11,6 +11,7 @@ mod pub_key_info;
 mod extension;
 mod tbs_cert;
 mod cert;
+mod macros;
 
 pub use name::*;
 pub use rdn::*;
@@ -23,3 +24,4 @@ pub use pub_key_info::*;
 pub use extension::*;
 pub use tbs_cert::*;
 pub use cert::*;
+pub use macros::*;
