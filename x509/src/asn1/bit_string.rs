@@ -1,3 +1,4 @@
+use std::fmt::{self, Debug, Formatter};
 use vstd::prelude::*;
 use vstd::std_specs::bits::u8_trailing_zeros;
 
@@ -23,7 +24,7 @@ asn1_tagged!(BitString, TagValue {
     num: 0x03,
 });
 
-#[derive(Debug, View, PolyfillClone)]
+#[derive(View, PolyfillClone)]
 pub struct BitStringValuePoly<T>(pub T);
 
 pub type SpecBitStringValue = BitStringValuePoly<Seq<u8>>;
@@ -162,4 +163,21 @@ impl Combinator for BitString {
     }
 }
 
+}
+
+impl<'a> Debug for BitStringValue<'a> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        if self.wf() {
+            write!(f, "BitStringValue([{}] ", (self.0.len() - 1) * 8 - self.0[0] as usize)?;
+
+            // Print the hex values
+            for i in 1..self.0.len() {
+                write!(f, "{:02x}", self.0[i])?;
+            }
+
+            write!(f, ")")
+        } else {
+            write!(f, "BitStringValue(ill-formed)")
+        }
+    }
 }

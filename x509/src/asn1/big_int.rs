@@ -1,3 +1,4 @@
+use std::fmt::{self, Debug, Formatter};
 use vstd::prelude::*;
 
 use crate::common::*;
@@ -22,7 +23,6 @@ asn1_tagged!(BigInt, TagValue {
 /// BigInt represents the integer with a sequence of bytes in big-endian order
 /// (same as ASN.1) and the most significant bit of the first byte is the sign bit.
 pub type SpecBigIntValue = Seq<u8>;
-#[derive(Debug)]
 pub struct BigIntValue<'a>(&'a [u8]);
 pub struct BigIntOwned(Vec<u8>);
 
@@ -181,4 +181,15 @@ fn new_big_int_inner() -> (res: BigIntInner)
     }
 }
 
+}
+
+impl<'a> Debug for BigIntValue<'a> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        // Print self.0 as a big-endian big integer
+        write!(f, "BigIntValue(0x")?;
+        for b in self.0 {
+            write!(f, "{:02x}", b)?;
+        }
+        write!(f, ")")
+    }
 }

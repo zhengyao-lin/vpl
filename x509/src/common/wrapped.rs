@@ -104,6 +104,8 @@ macro_rules! wrap_combinator {
 
                 #[verifier::external_body]
                 proof fn spec_parse_wf(&self, s: Seq<u8>) {
+                    // Type check
+                    let _: $inner_type = $inner_expr;
                     // $inner_expr.view().spec_parse_wf(s)
                 }
 
@@ -151,6 +153,11 @@ macro_rules! wrap_combinator {
 
                 #[verifier::external_body]
                 fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ()>) {
+                    // println_join!("Parsing ", stringify!($name));
+                    // let res = $inner_expr.parse(s)?;
+                    // println_join!("Parsing ", stringify!($name), ": success");
+                    // Ok(res)
+
                     $inner_expr.parse(s)
                 }
 

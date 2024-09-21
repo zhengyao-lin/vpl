@@ -1,3 +1,4 @@
+use std::fmt::{self, Debug, Formatter};
 use vstd::prelude::*;
 
 use crate::common::*;
@@ -20,8 +21,17 @@ asn1_tagged!(ObjectIdentifier, TagValue {
 });
 
 pub type SpecObjectIdentifierValue = Seq<UInt>;
-pub type ObjectIdentifierValue = VecDeep<UInt>;
-pub type ObjectIdentifierValueOwned = VecDeep<UInt>;
+#[derive(PolyfillClone)]
+pub struct ObjectIdentifierValue(pub VecDeep<UInt>);
+pub type ObjectIdentifierValueOwned = ObjectIdentifierValue;
+
+impl View for ObjectIdentifierValue {
+    type V = Seq<UInt>;
+
+    open spec fn view(&self) -> Self::V {
+        self.0@
+    }
+}
 
 impl ObjectIdentifier {
     /// First byte of an OID is 40 * arc1 + arc2
@@ -167,13 +177,14 @@ impl Combinator for ObjectIdentifier {
 
             assert(res@ == self.spec_parse(s@).unwrap().1);
 
-            Ok((len, res))
+            Ok((len, ObjectIdentifierValue(res)))
         } else {
             Err(())
         }
     }
 
     fn serialize(&self, mut v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, ()>) {
+        let mut v = v.0;
         let ghost old_v = v@;
 
         if v.len() < 2 {
@@ -260,4 +271,20 @@ fn new_object_identifier_inner() -> (res: ObjectIdentifierInner)
     }
 }
 
+}
+
+impl Debug for ObjectIdentifierValue {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "OID(")?;
+
+        for (i, arc) in self.0.0.iter().enumerate() {
+            if i != 0 {
+                write!(f, ".")?;
+            }
+
+            write!(f, "{}", arc)?;
+        }
+
+        write!(f, ")")
+    }
 }

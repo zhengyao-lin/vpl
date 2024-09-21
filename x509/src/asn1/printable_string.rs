@@ -1,5 +1,6 @@
 /// TODO: maybe refactor this using Refined
 
+use std::fmt::{self, Debug, Formatter};
 use vstd::prelude::*;
 
 use polyfill::*;
@@ -23,7 +24,7 @@ asn1_tagged!(PrintableString, TagValue {
     num: 0x13,
 });
 
-#[derive(Debug, View, PolyfillClone)]
+#[derive(View, PolyfillClone)]
 pub struct PrintableStringPoly<T>(pub T);
 
 pub type SpecPrintableStringValue = PrintableStringPoly<Seq<u8>>;
@@ -66,6 +67,13 @@ impl<'a> PrintableStringValue<'a> {
 
     pub fn as_bytes(&self) -> &'a [u8] {
         self.0
+    }
+
+    pub fn to_string(&self) -> Option<String> {
+        match utf8_to_str(&self.0) {
+            Some(s) => Some(s.to_string()),
+            None => None,
+        }
     }
 
     pub fn wf(&self) -> (res: bool)
@@ -180,4 +188,13 @@ impl Combinator for PrintableString {
     }
 }
 
+}
+
+impl<'a> Debug for PrintableStringValue<'a> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self.to_string() {
+            Some(s) => write!(f, "PrintableStringValue({:?})", s),
+            None => write!(f, "PrintableStringValue({:?})", self.0),
+        }
+    }
 }

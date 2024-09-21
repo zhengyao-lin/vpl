@@ -25,16 +25,16 @@ verus! {
 /// }
 pub type TBSCertificateInner = Mapped<
     LengthWrapped<
-        Optional<ASN1<Integer>,
+        Optional<ASN1<ExplicitTag<ASN1<Integer>>>,
         Pair<ASN1<BigInt>,
         Pair<ASN1<AlgorithmIdentifier>,
         Pair<ASN1<Name>,
         Pair<ASN1<Validity>,
         Pair<ASN1<Name>,
         Pair<ASN1<PublicKeyInfo>,
-        Optional<ASN1<BitString>,
-        Optional<ASN1<BitString>,
-        Optional<ASN1<Extensions>,
+        Optional<ASN1<ImplicitTag<BitString>>,
+        Optional<ASN1<ImplicitTag<BitString>>,
+        Optional<ASN1<ExplicitTag<ASN1<Extensions>>>,
         End
     >>>>>>>>>>>,
     TBSCertificateMapper>;

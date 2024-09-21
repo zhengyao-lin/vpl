@@ -8,7 +8,7 @@ use super::rdn::*;
 verus! {
 
 /// In X.509: Name ::= SEQUENCE OF RelativeDistinguishedName
-pub type NameInner = Mapped<SequenceOf<RDN>, NameMapper>;
+pub type NameInner = Mapped<SequenceOf<ASN1<RDN>>, NameMapper>;
 
 wrap_combinator! {
     struct Name: NameInner =>
