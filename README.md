@@ -1,13 +1,13 @@
-Certified Prolog
+Verified X.509 Certificate Validation
 ---
 
-## Usage
+## Verified X.509 Parser
 
-To compile, make sure you are in the `vpl` directory.
+Run `make` in `x509`. `target/debug/x509` will parse a PEM file read from stdin.
 
-Then run `make`, which will produce an executable at `target/debug/vpl`.
+## Certified Prolog
 
-To run queries, use the following command:
+Run `make` in `vpl`. Usage:
 ```
 target/debug/vpl <Prolog source file> <entry query>
 ```
@@ -43,7 +43,7 @@ validated: go
 ```
 Each line `validated: <Goal>` indicates that a proof of `<Goal>` has been validated in the verified kernel.
 
-## Validation pipeline
+### Validation pipeline
 
 Given a source Prolog program and an entry goal `goal`, the Prolog program is first parsed to create an in-memory representation for proof checking.
 
@@ -66,7 +66,7 @@ The apply tactic is read as `apply(subgoals, line number of the clause)`.
 
 Our tool then parses this trace and uses a verified kernel to check its validity against the specification of well-formed proofs in `src/proof.rs`.
 
-## What am I trusting
+### What am I trusting
 
 The idea is to reduce the trusted parts to:
 1. The specification of the kernel in `src/proof.rs`,
@@ -75,7 +75,7 @@ which describes the proof rules allowed to construct valid goals (e.g. clause ap
 
 The rest of the tool, including SWI-Prolog, does not need to be trusted.
 
-## TODO
+### TODO
 
 - [x] Integers
 - [x] Strings
