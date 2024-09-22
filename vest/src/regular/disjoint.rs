@@ -138,17 +138,17 @@ impl<U1, U2, V1, V2> SpecDisjointFrom<Preceded<U2, V2>> for Preceded<U1, V1> whe
 // }
 
 impl<U1, U2, U3> SpecDisjointFrom<U3> for OrdChoice<U1, U2> where
-    U2: SpecDisjointFrom<U1>,
-    U3: SpecDisjointFrom<U1> + SpecDisjointFrom<U2>,
-    U1: SpecCombinator,
+    U1: SpecDisjointFrom<U3>,
+    U2: SpecDisjointFrom<U1> + SpecDisjointFrom<U3>,
+    U3: SpecCombinator,
  {
     open spec fn spec_disjoint_from(&self, other: &U3) -> bool {
-        other.spec_disjoint_from(&self.0) && other.spec_disjoint_from(&self.1)
+        self.0.spec_disjoint_from(other) && self.1.spec_disjoint_from(other)
     }
 
     proof fn spec_parse_disjoint_on(&self, other: &U3, buf: Seq<u8>) {
-        other.spec_parse_disjoint_on(&self.0, buf);
-        other.spec_parse_disjoint_on(&self.1, buf);
+        self.0.spec_parse_disjoint_on(other, buf);
+        self.1.spec_parse_disjoint_on(other, buf);
     }
 }
 
@@ -327,10 +327,12 @@ impl<U1, U2, V1, V2> DisjointFrom<Preceded<U2, V2>> for Preceded<U1, V1> where
 // }
 
 impl<U1, U2, U3> DisjointFrom<U3> for OrdChoice<U1, U2> where
-    U2: DisjointFrom<U1>,
-    U3: DisjointFrom<U1> + DisjointFrom<U2>,
-    U2::V: SpecDisjointFrom<U1::V>,
-    U3::V: SpecDisjointFrom<U1::V> + SpecDisjointFrom<U2::V>,
+    U1: DisjointFrom<U3>,
+    U2: DisjointFrom<U1> + DisjointFrom<U3>,
+
+    U1::V: SpecDisjointFrom<U3::V>,
+    U2::V: SpecDisjointFrom<U1::V> + SpecDisjointFrom<U3::V>,
+
     U1: Combinator,
     U2: Combinator,
     U3: Combinator,
@@ -339,7 +341,7 @@ impl<U1, U2, U3> DisjointFrom<U3> for OrdChoice<U1, U2> where
     U3::V: SecureSpecCombinator<SpecResult = <U3::Owned as View>::V>,
  {
     fn disjoint_from(&self, other: &U3) -> bool {
-        other.disjoint_from(&self.0) && other.disjoint_from(&self.1)
+        self.0.disjoint_from(other) && self.1.disjoint_from(other)
     }
 }
 

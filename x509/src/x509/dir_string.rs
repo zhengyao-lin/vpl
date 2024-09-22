@@ -13,9 +13,14 @@ verus! {
 ///     bmpString               BMPString (SIZE (1..MAX))
 ///     ia5String               IA5String (SIZE (1..MAX))
 /// }
-///
-/// TODO: only supporting PrintableString and UTF8String for now
-pub type DirectoryStringInner = Mapped<OrdChoice<ASN1<PrintableString>, OrdChoice<ASN1<UTF8String>, ASN1<IA5String>>>, DirectoryStringMapper>;
+pub type DirectoryStringInner = Mapped<
+        OrdChoice<ASN1<PrintableString>,
+        OrdChoice<ASN1<UTF8String>,
+        OrdChoice<ASN1<IA5String>,
+        OrdChoice<ASN1<ImplicitTag<OctetString>>,
+        OrdChoice<ASN1<ImplicitTag<OctetString>>,
+        ASN1<ImplicitTag<OctetString>>,
+    >>>>>, DirectoryStringMapper>;
 
 wrap_combinator! {
     struct DirectoryString: DirectoryStringInner =>
@@ -23,66 +28,94 @@ wrap_combinator! {
         exec<'a> DirectoryStringValue<'a>,
         owned DirectoryStringValueOwned,
     = Mapped {
-            inner: OrdChoice(
-                ASN1(PrintableString),
-                OrdChoice(
-                    ASN1(UTF8String),
-                    ASN1(IA5String),
-                )
-            ),
+            inner:
+                OrdChoice(ASN1(PrintableString),
+                OrdChoice(ASN1(UTF8String),
+                OrdChoice(ASN1(IA5String),
+                OrdChoice(ASN1(ImplicitTag(TagValue {
+                    class: TagClass::Universal,
+                    form: TagForm::Primitive,
+                    num: 0x14, // TeletexString
+                }, OctetString)),
+                OrdChoice(ASN1(ImplicitTag(TagValue {
+                    class: TagClass::Universal,
+                    form: TagForm::Primitive,
+                    num: 0x1c, // UniversalString
+                }, OctetString)),
+                ASN1(ImplicitTag(TagValue {
+                    class: TagClass::Universal,
+                    form: TagForm::Primitive,
+                    num: 0x1e, // BMPString
+                }, OctetString)),
+                ))))),
             mapper: DirectoryStringMapper,
         };
 }
 
 #[derive(Eq, PartialEq, Debug, View, PolyfillClone)]
-pub enum DirectoryStringPoly<PS, US, IS> {
+pub enum DirectoryStringPoly<PS, US, IS, TS, UNS, BS> {
     PrintableString(PS),
     UTF8String(US),
     IA5String(IS),
+    TeletexString(TS),
+    UniversalString(UNS),
+    BMPString(BS),
 }
 
-pub type SpecDirectoryStringValue = DirectoryStringPoly<SpecPrintableStringValue, SpecUTF8StringValue, SpecIA5StringValue>;
-pub type DirectoryStringValue<'a> = DirectoryStringPoly<PrintableStringValue<'a>, UTF8StringValue<'a>, IA5StringValue<'a>>;
-pub type DirectoryStringValueOwned = DirectoryStringPoly<PrintableStringValueOwned, UTF8StringValueOwned, IA5StringValueOwned>;
+pub type SpecDirectoryStringValue = DirectoryStringPoly<SpecPrintableStringValue, SpecUTF8StringValue, SpecIA5StringValue, Seq<u8>, Seq<u8>, Seq<u8>>;
+pub type DirectoryStringValue<'a> = DirectoryStringPoly<PrintableStringValue<'a>, UTF8StringValue<'a>, IA5StringValue<'a>, &'a [u8], &'a [u8], &'a [u8]>;
+pub type DirectoryStringValueOwned = DirectoryStringPoly<PrintableStringValueOwned, UTF8StringValueOwned, IA5StringValueOwned, Vec<u8>, Vec<u8>, Vec<u8>>;
 
-type DirectoryStringFrom<PS, US, IS> = Either<PS, Either<US, IS>>;
+type DirectoryStringFrom<PS, US, IS, TS, UNS, BS> = Either<PS, Either<US, Either<IS, Either<TS, Either<UNS, BS>>>>>;
 
-impl<PS, US, IS> SpecFrom<DirectoryStringFrom<PS, US, IS>> for DirectoryStringPoly<PS, US, IS> {
-    open spec fn spec_from(inner: DirectoryStringFrom<PS, US, IS>) -> Self {
+impl<PS, US, IS, TS, UNS, BS> SpecFrom<DirectoryStringFrom<PS, US, IS, TS, UNS, BS>> for DirectoryStringPoly<PS, US, IS, TS, UNS, BS> {
+    open spec fn spec_from(inner: DirectoryStringFrom<PS, US, IS, TS, UNS, BS>) -> Self {
         match inner {
             Either::Left(s) => DirectoryStringPoly::PrintableString(s),
             Either::Right(Either::Left(s)) => DirectoryStringPoly::UTF8String(s),
-            Either::Right(Either::Right(s)) => DirectoryStringPoly::IA5String(s),
+            Either::Right(Either::Right(Either::Left(s))) => DirectoryStringPoly::IA5String(s),
+            Either::Right(Either::Right(Either::Right(Either::Left(s)))) => DirectoryStringPoly::TeletexString(s),
+            Either::Right(Either::Right(Either::Right(Either::Right(Either::Left(s))))) => DirectoryStringPoly::UniversalString(s),
+            Either::Right(Either::Right(Either::Right(Either::Right(Either::Right(s))))) => DirectoryStringPoly::BMPString(s),
         }
     }
 }
 
-impl<PS, US, IS> SpecFrom<DirectoryStringPoly<PS, US, IS>> for DirectoryStringFrom<PS, US, IS> {
-    open spec fn spec_from(inner: DirectoryStringPoly<PS, US, IS>) -> Self {
+impl<PS, US, IS, TS, UNS, BS> SpecFrom<DirectoryStringPoly<PS, US, IS, TS, UNS, BS>> for DirectoryStringFrom<PS, US, IS, TS, UNS, BS> {
+    open spec fn spec_from(inner: DirectoryStringPoly<PS, US, IS, TS, UNS, BS>) -> Self {
         match inner {
             DirectoryStringPoly::PrintableString(s) => Either::Left(s),
             DirectoryStringPoly::UTF8String(s) => Either::Right(Either::Left(s)),
-            DirectoryStringPoly::IA5String(s) => Either::Right(Either::Right(s)),
+            DirectoryStringPoly::IA5String(s) => Either::Right(Either::Right(Either::Left(s))),
+            DirectoryStringPoly::TeletexString(s) => Either::Right(Either::Right(Either::Right(Either::Left(s)))),
+            DirectoryStringPoly::UniversalString(s) => Either::Right(Either::Right(Either::Right(Either::Right(Either::Left(s))))),
+            DirectoryStringPoly::BMPString(s) => Either::Right(Either::Right(Either::Right(Either::Right(Either::Right(s))))),
         }
     }
 }
 
-impl<PS: View, US: View, IS: View> From<DirectoryStringFrom<PS, US, IS>> for DirectoryStringPoly<PS, US, IS> {
-    fn ex_from(inner: DirectoryStringFrom<PS, US, IS>) -> Self {
+impl<PS: View, US: View, IS: View, TS: View, UNS: View, BS: View> From<DirectoryStringFrom<PS, US, IS, TS, UNS, BS>> for DirectoryStringPoly<PS, US, IS, TS, UNS, BS> {
+    fn ex_from(inner: DirectoryStringFrom<PS, US, IS, TS, UNS, BS>) -> Self {
         match inner {
             Either::Left(s) => DirectoryStringPoly::PrintableString(s),
             Either::Right(Either::Left(s)) => DirectoryStringPoly::UTF8String(s),
-            Either::Right(Either::Right(s)) => DirectoryStringPoly::IA5String(s),
+            Either::Right(Either::Right(Either::Left(s))) => DirectoryStringPoly::IA5String(s),
+            Either::Right(Either::Right(Either::Right(Either::Left(s)))) => DirectoryStringPoly::TeletexString(s),
+            Either::Right(Either::Right(Either::Right(Either::Right(Either::Left(s))))) => DirectoryStringPoly::UniversalString(s),
+            Either::Right(Either::Right(Either::Right(Either::Right(Either::Right(s))))) => DirectoryStringPoly::BMPString(s),
         }
     }
 }
 
-impl<PS: View, US: View, IS: View> From<DirectoryStringPoly<PS, US, IS>> for DirectoryStringFrom<PS, US, IS> {
-    fn ex_from(inner: DirectoryStringPoly<PS, US, IS>) -> Self {
+impl<PS: View, US: View, IS: View, TS: View, UNS: View, BS: View> From<DirectoryStringPoly<PS, US, IS, TS, UNS, BS>> for DirectoryStringFrom<PS, US, IS, TS, UNS, BS> {
+    fn ex_from(inner: DirectoryStringPoly<PS, US, IS, TS, UNS, BS>) -> Self {
         match inner {
             DirectoryStringPoly::PrintableString(s) => Either::Left(s),
             DirectoryStringPoly::UTF8String(s) => Either::Right(Either::Left(s)),
-            DirectoryStringPoly::IA5String(s) => Either::Right(Either::Right(s)),
+            DirectoryStringPoly::IA5String(s) => Either::Right(Either::Right(Either::Left(s))),
+            DirectoryStringPoly::TeletexString(s) => Either::Right(Either::Right(Either::Right(Either::Left(s)))),
+            DirectoryStringPoly::UniversalString(s) => Either::Right(Either::Right(Either::Right(Either::Right(Either::Left(s))))),
+            DirectoryStringPoly::BMPString(s) => Either::Right(Either::Right(Either::Right(Either::Right(Either::Right(s))))),
         }
     }
 }
@@ -91,8 +124,8 @@ impl<PS: View, US: View, IS: View> From<DirectoryStringPoly<PS, US, IS>> for Dir
 pub struct DirectoryStringMapper;
 
 impl SpecIso for DirectoryStringMapper {
-    type Src = DirectoryStringFrom<SpecPrintableStringValue, SpecUTF8StringValue, SpecIA5StringValue>;
-    type Dst = DirectoryStringPoly<SpecPrintableStringValue, SpecUTF8StringValue, SpecIA5StringValue>;
+    type Src = DirectoryStringFrom<SpecPrintableStringValue, SpecUTF8StringValue, SpecIA5StringValue, Seq<u8>, Seq<u8>, Seq<u8>>;
+    type Dst = DirectoryStringPoly<SpecPrintableStringValue, SpecUTF8StringValue, SpecIA5StringValue, Seq<u8>, Seq<u8>, Seq<u8>>;
 
     proof fn spec_iso(s: Self::Src) {
         let _ = Self::Src::spec_from(Self::Dst::spec_from(s));
@@ -104,11 +137,11 @@ impl SpecIso for DirectoryStringMapper {
 }
 
 impl Iso for DirectoryStringMapper {
-    type Src<'a> = DirectoryStringFrom<PrintableStringValue<'a>, UTF8StringValue<'a>, IA5StringValue<'a>>;
-    type Dst<'a> = DirectoryStringPoly<PrintableStringValue<'a>, UTF8StringValue<'a>, IA5StringValue<'a>>;
+    type Src<'a> = DirectoryStringFrom<PrintableStringValue<'a>, UTF8StringValue<'a>, IA5StringValue<'a>, &'a [u8], &'a [u8], &'a [u8]>;
+    type Dst<'a> = DirectoryStringPoly<PrintableStringValue<'a>, UTF8StringValue<'a>, IA5StringValue<'a>, &'a [u8], &'a [u8], &'a [u8]>;
 
-    type SrcOwned = DirectoryStringFrom<PrintableStringValueOwned, UTF8StringValueOwned, IA5StringValueOwned>;
-    type DstOwned = DirectoryStringPoly<PrintableStringValueOwned, UTF8StringValueOwned, IA5StringValueOwned>;
+    type SrcOwned = DirectoryStringFrom<PrintableStringValueOwned, UTF8StringValueOwned, IA5StringValueOwned, Vec<u8>, Vec<u8>, Vec<u8>>;
+    type DstOwned = DirectoryStringPoly<PrintableStringValueOwned, UTF8StringValueOwned, IA5StringValueOwned, Vec<u8>, Vec<u8>, Vec<u8>>;
 }
 
 }
