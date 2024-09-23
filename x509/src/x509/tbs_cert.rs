@@ -92,7 +92,7 @@ asn1_tagged!(TBSCertificate, TagValue {
 });
 
 mapper! {
-    struct TBSCertificateMapper;
+    pub struct TBSCertificateMapper;
 
     for <Serial, AlgoId, Name, Validity, PubKeyInfo, UID, Extensions>
 
@@ -147,8 +147,8 @@ mapper! {
         SpecValidityValue,
         SpecPublicKeyInfoValue,
         SpecBitStringValue,
-        Seq<SpecExtensionValue>
-    >
+        Seq<SpecExtensionValue>,
+    >;
 
     exec TBSCertificateValue<'a> with <
         BigIntValue<'a>,
@@ -157,8 +157,8 @@ mapper! {
         ValidityValue<'a>,
         PublicKeyInfoValue<'a>,
         BitStringValue<'a>,
-        VecDeep<ExtensionValue<'a>>
-    >
+        VecDeep<ExtensionValue<'a>>,
+    >;
 
     owned TBSCertificateValueOwned with <
         BigIntOwned,
@@ -167,8 +167,8 @@ mapper! {
         ValidityValueOwned,
         PublicKeyInfoValueOwned,
         BitStringValueOwned,
-        VecDeep<ExtensionValueOwned>
-    >
+        VecDeep<ExtensionValueOwned>,
+    >;
 
     forward(x) {
         TBSCertificatePoly {

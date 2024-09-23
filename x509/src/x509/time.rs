@@ -42,7 +42,7 @@ wrap_combinator! {
 }
 
 mapper! {
-    struct TimeMapper;
+    pub struct TimeMapper;
 
     for <UT, GT>
     from TimeFrom where type TimeFrom<UT, GT> = Either<UT, GT>;
@@ -51,9 +51,9 @@ mapper! {
         GeneralizedTime(GT),
     }
 
-    spec SpecTimeValue with <SpecUTF8StringValue, SpecUTF8StringValue>
-    exec TimeValue<'a> with <UTF8StringValue<'a>, UTF8StringValue<'a>>
-    owned TimeValueOwned with <UTF8StringValueOwned, UTF8StringValueOwned>
+    spec SpecTimeValue with <SpecUTF8StringValue, SpecUTF8StringValue>;
+    exec TimeValue<'a> with <UTF8StringValue<'a>, UTF8StringValue<'a>>;
+    owned TimeValueOwned with <UTF8StringValueOwned, UTF8StringValueOwned>;
 
     forward(x) {
         match x {

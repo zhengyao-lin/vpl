@@ -33,7 +33,7 @@ asn1_tagged!(Validity, TagValue {
 });
 
 mapper! {
-    struct ValidityMapper;
+    pub struct ValidityMapper;
 
     for <NA, NB>
     from ValidityFrom where type ValidityFrom<NA, NB> = (NB, NA);
@@ -42,9 +42,9 @@ mapper! {
         pub not_after: NA,
     }
 
-    spec SpecValidityValue with <SpecTimeValue, SpecTimeValue>
-    exec ValidityValue<'a> with <TimeValue<'a>, TimeValue<'a>>
-    owned ValidityValueOwned with <TimeValueOwned, TimeValueOwned>
+    spec SpecValidityValue with <SpecTimeValue, SpecTimeValue>;
+    exec ValidityValue<'a> with <TimeValue<'a>, TimeValue<'a>>;
+    owned ValidityValueOwned with <TimeValueOwned, TimeValueOwned>;
 
     forward(x) {
         ValidityPoly {

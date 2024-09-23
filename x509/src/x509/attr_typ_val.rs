@@ -38,7 +38,7 @@ asn1_tagged!(AttributeTypeAndValue, TagValue {
 });
 
 mapper! {
-    struct AttributeTypeAndValueMapper;
+    pub struct AttributeTypeAndValueMapper;
 
     for <Typ, Value>
     from AttributeTypeAndValueFrom where type AttributeTypeAndValueFrom<Typ, Value> = (Typ, Value);
@@ -47,9 +47,9 @@ mapper! {
         pub value: Value,
     }
 
-    spec SpecAttributeTypeAndValueValue with <SpecObjectIdentifierValue, SpecDirectoryStringValue>
-    exec AttributeTypeAndValueValue<'a> with <ObjectIdentifierValue, DirectoryStringValue<'a>>
-    owned AttributeTypeAndValueValueOwned with <ObjectIdentifierValueOwned, DirectoryStringValueOwned>
+    spec SpecAttributeTypeAndValueValue with <SpecObjectIdentifierValue, SpecDirectoryStringValue>;
+    exec AttributeTypeAndValueValue<'a> with <ObjectIdentifierValue, DirectoryStringValue<'a>>;
+    owned AttributeTypeAndValueValueOwned with <ObjectIdentifierValueOwned, DirectoryStringValueOwned>;
 
     forward(x) {
         AttributeTypeAndValuePoly {

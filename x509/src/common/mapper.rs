@@ -30,15 +30,15 @@ verus! {
 #[allow(unused_macros)]
 macro_rules! mapper {
     (
-        struct $name:ident;
+        $vis:vis struct $name:ident $(;)?
 
-        for <$($param:ident),*>
+        for <$($param:ident),*$(,)?> $(;)?
         from $from:ident where $from_defn:item
         to $to:ident where $to_defn:item
 
-        spec $spec_alias:ident with <$($spec_type:ty),*>
-        exec $exec_alias:ident<$lt:lifetime> with <$($exec_type:ty),*>
-        owned $owned_alias:ident with <$($owned_type:ty),*>
+        spec $spec_alias:ident with <$($spec_type:ty),*$(,)?> $(;)?
+        exec $exec_alias:ident<$lt:lifetime> with <$($exec_type:ty),*$(,)?> $(;)?
+        owned $owned_alias:ident with <$($owned_type:ty),*$(,)?> $(;)?
 
         forward($forward_var:ident) $forward_body:block $(by $forward_proof:block)?
         backward($backward_var:ident) $backward_body:block $(by $backward_proof:block)?
@@ -60,7 +60,7 @@ macro_rules! mapper {
             );
 
             mapper_iso_impls!(
-                $name, $from, $to,
+                $vis, $name, $from, $to,
                 $forward_var, { $($forward_proof)? },
                 $backward_var, { $($backward_proof)? },
                 <$($spec_type),*>,
@@ -107,7 +107,7 @@ pub(crate) use mapper_from_impls;
 #[allow(unused_macros)]
 macro_rules! mapper_iso_impls {
     (
-        $name:ident, $from:ident, $to:ident,
+        $vis:vis, $name:ident, $from:ident, $to:ident,
         $forward_var:ident, $forward_proof:block,
         $backward_var:ident, $backward_proof:block,
         <$($spec_type:ty),*>,
@@ -116,7 +116,7 @@ macro_rules! mapper_iso_impls {
     ) => {
         ::builtin_macros::verus! {
             #[derive(Debug, View)]
-            pub struct $name;
+            $vis struct $name;
 
             impl SpecIso for $name {
                 type Src = $from<$($spec_type),*>;

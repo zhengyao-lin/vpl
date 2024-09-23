@@ -42,7 +42,7 @@ asn1_tagged!(Certificate, TagValue {
 });
 
 mapper! {
-    struct CertificateMapper;
+    pub struct CertificateMapper;
 
     for <Cert, Alg, Signature>
     from CertificateFrom where type CertificateFrom<Cert, Alg, Signature> = PairValue<Cert, PairValue<Alg, Signature>>;
@@ -52,9 +52,9 @@ mapper! {
         pub signature: Signature,
     }
 
-    spec SpecCertificateValue with <SpecTBSCertificateValue, SpecAlgorithmIdentifierValue, SpecBitStringValue>
-    exec CertificateValue<'a> with <TBSCertificateValue<'a>, AlgorithmIdentifierValue<'a>, BitStringValue<'a>>
-    owned CertificateValueOwned with <TBSCertificateValueOwned, AlgorithmIdentifierValueOwned, BitStringValueOwned>
+    spec SpecCertificateValue with <SpecTBSCertificateValue, SpecAlgorithmIdentifierValue, SpecBitStringValue>;
+    exec CertificateValue<'a> with <TBSCertificateValue<'a>, AlgorithmIdentifierValue<'a>, BitStringValue<'a>>;
+    owned CertificateValueOwned with <TBSCertificateValueOwned, AlgorithmIdentifierValueOwned, BitStringValueOwned>;
 
     forward(x) {
         CertificatePoly {

@@ -9,18 +9,14 @@ verus! {
 
 /// In X.509: RelativeDistinguishedName ::= SET OF AttributeTypeAndValue
 /// TODO: support SET OF instead of using a sequence
-pub type RDNInner = Mapped<SequenceOf<ASN1<AttributeTypeAndValue>>, RDNMapper>;
+pub type RDNInner = SequenceOf<ASN1<AttributeTypeAndValue>>;
 
 wrap_combinator! {
     struct RDN: RDNInner =>
         spec SpecRDNValue,
         exec<'a> RDNValue<'a>,
         owned RDNValueOwned,
-    =
-        Mapped {
-            inner: SequenceOf(ASN1(AttributeTypeAndValue)),
-            mapper: RDNMapper,
-        };
+    = SequenceOf(ASN1(AttributeTypeAndValue));
 }
 
 // Override the tag to SET OF
@@ -30,63 +26,9 @@ asn1_tagged!(RDN, TagValue {
     num: 0x11,
 });
 
-#[derive(Debug, View, PolyfillClone)]
-pub struct RDNPoly<Attrs> {
-    pub attrs: Attrs,
-}
-
-pub type SpecRDNValue = RDNPoly<Seq<SpecAttributeTypeAndValueValue>>;
-pub type RDNValue<'a> = RDNPoly<VecDeep<AttributeTypeAndValueValue<'a>>>;
-pub type RDNValueOwned = RDNPoly<VecDeep<AttributeTypeAndValueValueOwned>>;
-
-type RDNFrom<T> = T;
-
-impl<T> SpecFrom<RDNPoly<Seq<T>>> for RDNFrom<Seq<T>> {
-    closed spec fn spec_from(s: RDNPoly<Seq<T>>) -> Self {
-        s.attrs
-    }
-}
-
-impl<T> SpecFrom<RDNFrom<T>> for RDNPoly<T> {
-    closed spec fn spec_from(s: RDNFrom<T>) -> Self {
-        RDNPoly {
-            attrs: s,
-        }
-    }
-}
-
-impl<T: View> From<RDNPoly<VecDeep<T>>> for RDNFrom<VecDeep<T>> {
-    fn ex_from(s: RDNPoly<VecDeep<T>>) -> Self {
-        s.attrs
-    }
-}
-
-impl<T: View> From<RDNFrom<T>> for RDNPoly<T> {
-    fn ex_from(s: RDNFrom<T>) -> Self {
-        RDNPoly {
-            attrs: s,
-        }
-    }
-}
-
-#[derive(Debug, View)]
-pub struct RDNMapper;
-
-impl SpecIso for RDNMapper {
-    type Src = RDNFrom<Seq<SpecAttributeTypeAndValueValue>>;
-    type Dst = RDNPoly<Seq<SpecAttributeTypeAndValueValue>>;
-
-    proof fn spec_iso(s: Self::Src) {}
-    proof fn spec_iso_rev(s: Self::Dst) {}
-}
-
-impl Iso for RDNMapper {
-    type Src<'a> = RDNFrom<VecDeep<AttributeTypeAndValueValue<'a>>>;
-    type Dst<'a> = RDNPoly<VecDeep<AttributeTypeAndValueValue<'a>>>;
-
-    type SrcOwned = RDNFrom<VecDeep<AttributeTypeAndValueValueOwned>>;
-    type DstOwned = RDNPoly<VecDeep<AttributeTypeAndValueValueOwned>>;
-}
+pub type SpecRDNValue = Seq<SpecAttributeTypeAndValueValue>;
+pub type RDNValue<'a> = VecDeep<AttributeTypeAndValueValue<'a>>;
+pub type RDNValueOwned = VecDeep<AttributeTypeAndValueValueOwned>;
 
 }
 

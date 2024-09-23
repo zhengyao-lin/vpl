@@ -53,7 +53,7 @@ asn1_tagged!(Extensions, TagValue {
 });
 
 mapper! {
-    struct ExtensionMapper;
+    pub struct ExtensionMapper;
 
     for <Id, Value>
     from ExtensionFrom where type ExtensionFrom<Id, Value> = PairValue<Id, PairValue<OptionDeep<bool>, Value>>;
@@ -63,9 +63,9 @@ mapper! {
         pub value: Value,
     }
 
-    spec SpecExtensionValue with <SpecObjectIdentifierValue, Seq<u8>>
-    exec ExtensionValue<'a> with <ObjectIdentifierValue, &'a [u8]>
-    owned ExtensionValueOwned with <ObjectIdentifierValueOwned, Vec<u8>>
+    spec SpecExtensionValue with <SpecObjectIdentifierValue, Seq<u8>>;
+    exec ExtensionValue<'a> with <ObjectIdentifierValue, &'a [u8]>;
+    owned ExtensionValueOwned with <ObjectIdentifierValueOwned, Vec<u8>>;
 
     forward(x) {
         ExtensionPoly {

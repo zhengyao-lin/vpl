@@ -32,7 +32,7 @@ asn1_tagged!(PublicKeyInfo, TagValue {
 });
 
 mapper! {
-    struct PublicKeyInfoMapper;
+    pub struct PublicKeyInfoMapper;
 
     for <Alg, PubKey>
     from PublicKeyInfoFrom where type PublicKeyInfoFrom<Alg, PubKey> = (Alg, PubKey);
@@ -41,9 +41,9 @@ mapper! {
         pub pub_key: PubKey,
     }
 
-    spec SpecPublicKeyInfoValue with <SpecAlgorithmIdentifierValue, SpecBitStringValue>
-    exec PublicKeyInfoValue<'a> with <AlgorithmIdentifierValue<'a>, BitStringValue<'a>>
-    owned PublicKeyInfoValueOwned with <AlgorithmIdentifierValueOwned, BitStringValueOwned>
+    spec SpecPublicKeyInfoValue with <SpecAlgorithmIdentifierValue, SpecBitStringValue>;
+    exec PublicKeyInfoValue<'a> with <AlgorithmIdentifierValue<'a>, BitStringValue<'a>>;
+    owned PublicKeyInfoValueOwned with <AlgorithmIdentifierValueOwned, BitStringValueOwned>;
 
     forward(x) {
         PublicKeyInfoPoly {

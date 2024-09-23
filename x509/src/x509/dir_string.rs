@@ -53,7 +53,7 @@ wrap_combinator! {
 }
 
 mapper! {
-    struct DirectoryStringMapper;
+    pub struct DirectoryStringMapper;
 
     for <PS, US, IS, TS, UNS, BS>
 
@@ -71,9 +71,9 @@ mapper! {
             BMPString(BS),
         }
 
-    spec SpecDirectoryStringValue with <SpecPrintableStringValue, SpecUTF8StringValue, SpecIA5StringValue, Seq<u8>, Seq<u8>, Seq<u8>>
-    exec DirectoryStringValue<'a> with <PrintableStringValue<'a>, UTF8StringValue<'a>, IA5StringValue<'a>, &'a [u8], &'a [u8], &'a [u8]>
-    owned DirectoryStringValueOwned with <PrintableStringValueOwned, UTF8StringValueOwned, IA5StringValueOwned, Vec<u8>, Vec<u8>, Vec<u8>>
+    spec SpecDirectoryStringValue with <SpecPrintableStringValue, SpecUTF8StringValue, SpecIA5StringValue, Seq<u8>, Seq<u8>, Seq<u8>>;
+    exec DirectoryStringValue<'a> with <PrintableStringValue<'a>, UTF8StringValue<'a>, IA5StringValue<'a>, &'a [u8], &'a [u8], &'a [u8]>;
+    owned DirectoryStringValueOwned with <PrintableStringValueOwned, UTF8StringValueOwned, IA5StringValueOwned, Vec<u8>, Vec<u8>, Vec<u8>>;
 
     forward(x) {
         match x {

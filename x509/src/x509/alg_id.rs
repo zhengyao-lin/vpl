@@ -32,7 +32,7 @@ asn1_tagged!(AlgorithmIdentifier, TagValue {
 });
 
 mapper! {
-    struct AlgorithmIdentifierMapper;
+    pub struct AlgorithmIdentifierMapper;
 
     for <Alg, Params>
     from AlgorithmIdentifierFrom where type AlgorithmIdentifierFrom<Alg, Params> = (Alg, Params);
@@ -41,9 +41,9 @@ mapper! {
         pub params: Params,
     }
 
-    spec SpecAlgorithmIdentifierValue with <SpecObjectIdentifierValue, Seq<u8>>
-    exec AlgorithmIdentifierValue<'a> with <ObjectIdentifierValue, &'a [u8]>
-    owned AlgorithmIdentifierValueOwned with <ObjectIdentifierValueOwned, Vec<u8>>
+    spec SpecAlgorithmIdentifierValue with <SpecObjectIdentifierValue, Seq<u8>>;
+    exec AlgorithmIdentifierValue<'a> with <ObjectIdentifierValue, &'a [u8]>;
+    owned AlgorithmIdentifierValueOwned with <ObjectIdentifierValueOwned, Vec<u8>>;
 
     forward(x) {
         AlgorithmIdentifierPoly {
