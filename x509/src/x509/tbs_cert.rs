@@ -91,320 +91,116 @@ asn1_tagged!(TBSCertificate, TagValue {
     num: 0x10,
 });
 
-/// TODO: maybe refactor this with a macro
-#[derive(Debug, View, PolyfillClone)]
-pub struct TBSCertificatePoly<
-    Serial,
-    AlgoId,
-    Name,
-    Validity,
-    PubKeyInfo,
-    UID,
-    Extensions,
-> {
-    pub version: OptionDeep<IntegerValue>,
-    pub serial: Serial,
-    pub signature: AlgoId,
-    pub issuer: Name,
-    pub validity: Validity,
-    pub subject: Name,
-    pub subject_key: PubKeyInfo,
-    pub issuer_uid: OptionDeep<UID>,
-    pub subject_uid: OptionDeep<UID>,
-    pub extensions: OptionDeep<Extensions>,
-}
+mapper! {
+    struct TBSCertificateMapper;
 
-/// Different instantiations for the spec/normal/owned types
-pub type SpecTBSCertificateValue = TBSCertificatePoly<
-    SpecBigIntValue,
-    SpecAlgorithmIdentifierValue,
-    SpecNameValue,
-    SpecValidityValue,
-    SpecPublicKeyInfoValue,
-    SpecBitStringValue,
-    Seq<SpecExtensionValue>,
->;
+    for <Serial, AlgoId, Name, Validity, PubKeyInfo, UID, Extensions>
 
-pub type TBSCertificateValue<'a> = TBSCertificatePoly<
-    BigIntValue<'a>,
-    AlgorithmIdentifierValue<'a>,
-    NameValue<'a>,
-    ValidityValue<'a>,
-    PublicKeyInfoValue<'a>,
-    BitStringValue<'a>,
-    VecDeep<ExtensionValue<'a>>,
->;
+    from TBSCertificateFrom where
+        type TBSCertificateFrom<
+            Serial,
+            AlgoId,
+            Name,
+            Validity,
+            PubKeyInfo,
+            UID,
+            Extensions,
+        > = PairValue<OptionDeep<IntegerValue>,
+            PairValue<Serial,
+            PairValue<AlgoId,
+            PairValue<Name,
+            PairValue<Validity,
+            PairValue<Name,
+            PairValue<PubKeyInfo,
+            PairValue<OptionDeep<UID>,
+            PairValue<OptionDeep<UID>,
+            PairValue<OptionDeep<Extensions>,
+            EndValue,
+            >>>>>>>>>>;
 
-pub type TBSCertificateValueOwned = TBSCertificatePoly<
-    BigIntOwned,
-    AlgorithmIdentifierValueOwned,
-    NameValueOwned,
-    ValidityValueOwned,
-    PublicKeyInfoValueOwned,
-    BitStringValueOwned,
-    VecDeep<ExtensionValueOwned>,
->;
+    to TBSCertificatePoly where
+        pub struct TBSCertificatePoly<
+            Serial,
+            AlgoId,
+            Name,
+            Validity,
+            PubKeyInfo,
+            UID,
+            Extensions,
+        > {
+            pub version: OptionDeep<IntegerValue>,
+            pub serial: Serial,
+            pub signature: AlgoId,
+            pub issuer: Name,
+            pub validity: Validity,
+            pub subject: Name,
+            pub subject_key: PubKeyInfo,
+            pub issuer_uid: OptionDeep<UID>,
+            pub subject_uid: OptionDeep<UID>,
+            pub extensions: OptionDeep<Extensions>,
+        }
 
-type TBSCertificateFrom<
-    Serial,
-    AlgoId,
-    Name,
-    Validity,
-    PubKeyInfo,
-    UID,
-    Extensions,
-> = PairValue<OptionDeep<IntegerValue>,
-    PairValue<Serial,
-    PairValue<AlgoId,
-    PairValue<Name,
-    PairValue<Validity,
-    PairValue<Name,
-    PairValue<PubKeyInfo,
-    PairValue<OptionDeep<UID>,
-    PairValue<OptionDeep<UID>,
-    PairValue<OptionDeep<Extensions>,
-    EndValue,
-    >>>>>>>>>>;
+    spec SpecTBSCertificateValue with <
+        SpecBigIntValue,
+        SpecAlgorithmIdentifierValue,
+        SpecNameValue,
+        SpecValidityValue,
+        SpecPublicKeyInfoValue,
+        SpecBitStringValue,
+        Seq<SpecExtensionValue>
+    >
 
-impl<
-    Serial,
-    AlgoId,
-    Name,
-    Validity,
-    PubKeyInfo,
-    UID,
-    Extensions,
-> SpecFrom<TBSCertificatePoly<
-    Serial,
-    AlgoId,
-    Name,
-    Validity,
-    PubKeyInfo,
-    UID,
-    Extensions,
->> for TBSCertificateFrom<
-    Serial,
-    AlgoId,
-    Name,
-    Validity,
-    PubKeyInfo,
-    UID,
-    Extensions,
-> {
-    closed spec fn spec_from(s: TBSCertificatePoly<
-        Serial,
-        AlgoId,
-        Name,
-        Validity,
-        PubKeyInfo,
-        UID,
-        Extensions,
-    >) -> Self {
-        PairValue(s.version,
-        PairValue(s.serial,
-        PairValue(s.signature,
-        PairValue(s.issuer,
-        PairValue(s.validity,
-        PairValue(s.subject,
-        PairValue(s.subject_key,
-        PairValue(s.issuer_uid,
-        PairValue(s.subject_uid,
-        PairValue(s.extensions,
+    exec TBSCertificateValue<'a> with <
+        BigIntValue<'a>,
+        AlgorithmIdentifierValue<'a>,
+        NameValue<'a>,
+        ValidityValue<'a>,
+        PublicKeyInfoValue<'a>,
+        BitStringValue<'a>,
+        VecDeep<ExtensionValue<'a>>
+    >
+
+    owned TBSCertificateValueOwned with <
+        BigIntOwned,
+        AlgorithmIdentifierValueOwned,
+        NameValueOwned,
+        ValidityValueOwned,
+        PublicKeyInfoValueOwned,
+        BitStringValueOwned,
+        VecDeep<ExtensionValueOwned>
+    >
+
+    forward(x) {
+        TBSCertificatePoly {
+            version: x.0,
+            serial: x.1.0,
+            signature: x.1.1.0,
+            issuer: x.1.1.1.0,
+            validity: x.1.1.1.1.0,
+            subject: x.1.1.1.1.1.0,
+            subject_key: x.1.1.1.1.1.1.0,
+            issuer_uid: x.1.1.1.1.1.1.1.0,
+            subject_uid: x.1.1.1.1.1.1.1.1.0,
+            extensions: x.1.1.1.1.1.1.1.1.1.0,
+        }
+    } by {
+        assert(x.1.1.1.1.1.1.1.1.1.1 == EndValue);
+    }
+
+    backward(y) {
+        PairValue(y.version,
+        PairValue(y.serial,
+        PairValue(y.signature,
+        PairValue(y.issuer,
+        PairValue(y.validity,
+        PairValue(y.subject,
+        PairValue(y.subject_key,
+        PairValue(y.issuer_uid,
+        PairValue(y.subject_uid,
+        PairValue(y.extensions,
         EndValue,
         ))))))))))
     }
-}
-
-impl<
-    Serial,
-    AlgoId,
-    Name,
-    Validity,
-    PubKeyInfo,
-    UID,
-    Extensions,
-> SpecFrom<TBSCertificateFrom<
-    Serial,
-    AlgoId,
-    Name,
-    Validity,
-    PubKeyInfo,
-    UID,
-    Extensions,
->> for TBSCertificatePoly<
-    Serial,
-    AlgoId,
-    Name,
-    Validity,
-    PubKeyInfo,
-    UID,
-    Extensions,
-> {
-    closed spec fn spec_from(s: TBSCertificateFrom<
-        Serial,
-        AlgoId,
-        Name,
-        Validity,
-        PubKeyInfo,
-        UID,
-        Extensions,
-    >) -> Self {
-        TBSCertificatePoly {
-            version: s.0,
-            serial: s.1.0,
-            signature: s.1.1.0,
-            issuer: s.1.1.1.0,
-            validity: s.1.1.1.1.0,
-            subject: s.1.1.1.1.1.0,
-            subject_key: s.1.1.1.1.1.1.0,
-            issuer_uid: s.1.1.1.1.1.1.1.0,
-            subject_uid: s.1.1.1.1.1.1.1.1.0,
-            extensions: s.1.1.1.1.1.1.1.1.1.0,
-        }
-    }
-}
-
-impl<
-    Serial: View,
-    AlgoId: View,
-    Name: View,
-    Validity: View,
-    PubKeyInfo: View,
-    UID: View,
-    Extensions: View,
-> From<TBSCertificatePoly<
-    Serial,
-    AlgoId,
-    Name,
-    Validity,
-    PubKeyInfo,
-    UID,
-    Extensions,
->> for TBSCertificateFrom<
-    Serial,
-    AlgoId,
-    Name,
-    Validity,
-    PubKeyInfo,
-    UID,
-    Extensions,
-> {
-    fn ex_from(s: TBSCertificatePoly<
-        Serial,
-        AlgoId,
-        Name,
-        Validity,
-        PubKeyInfo,
-        UID,
-        Extensions,
-    >) -> Self {
-        PairValue(s.version,
-        PairValue(s.serial,
-        PairValue(s.signature,
-        PairValue(s.issuer,
-        PairValue(s.validity,
-        PairValue(s.subject,
-        PairValue(s.subject_key,
-        PairValue(s.issuer_uid,
-        PairValue(s.subject_uid,
-        PairValue(s.extensions,
-        EndValue,
-        ))))))))))
-    }
-}
-
-impl<
-    Serial: View,
-    AlgoId: View,
-    Name: View,
-    Validity: View,
-    PubKeyInfo: View,
-    UID: View,
-    Extensions: View,
-> From<TBSCertificateFrom<
-    Serial,
-    AlgoId,
-    Name,
-    Validity,
-    PubKeyInfo,
-    UID,
-    Extensions,
->> for TBSCertificatePoly<
-    Serial,
-    AlgoId,
-    Name,
-    Validity,
-    PubKeyInfo,
-    UID,
-    Extensions,
-> {
-    fn ex_from(s: TBSCertificateFrom<
-        Serial,
-        AlgoId,
-        Name,
-        Validity,
-        PubKeyInfo,
-        UID,
-        Extensions,
-    >) -> Self {
-        TBSCertificatePoly {
-            version: s.0,
-            serial: s.1.0,
-            signature: s.1.1.0,
-            issuer: s.1.1.1.0,
-            validity: s.1.1.1.1.0,
-            subject: s.1.1.1.1.1.0,
-            subject_key: s.1.1.1.1.1.1.0,
-            issuer_uid: s.1.1.1.1.1.1.1.0,
-            subject_uid: s.1.1.1.1.1.1.1.1.0,
-            extensions: s.1.1.1.1.1.1.1.1.1.0,
-        }
-    }
-}
-
-#[derive(Debug, View)]
-pub struct TBSCertificateMapper;
-
-impl SpecIso for TBSCertificateMapper {
-    type Src = TBSCertificateFrom<
-            SpecBigIntValue,
-            SpecAlgorithmIdentifierValue,
-            SpecNameValue,
-            SpecValidityValue,
-            SpecPublicKeyInfoValue,
-            SpecBitStringValue,
-            Seq<SpecExtensionValue>,
-        >;
-    type Dst = SpecTBSCertificateValue;
-
-    proof fn spec_iso(s: Self::Src) {
-        assert(s.1.1.1.1.1.1.1.1.1.1 == EndValue);
-    }
-    proof fn spec_iso_rev(s: Self::Dst) {}
-}
-
-impl Iso for TBSCertificateMapper {
-    type Src<'a> = TBSCertificateFrom<
-            BigIntValue<'a>,
-            AlgorithmIdentifierValue<'a>,
-            NameValue<'a>,
-            ValidityValue<'a>,
-            PublicKeyInfoValue<'a>,
-            BitStringValue<'a>,
-            VecDeep<ExtensionValue<'a>>,
-        >;
-    type Dst<'a> = TBSCertificateValue<'a>;
-
-    type SrcOwned = TBSCertificateFrom<
-            BigIntOwned,
-            AlgorithmIdentifierValueOwned,
-            NameValueOwned,
-            ValidityValueOwned,
-            PublicKeyInfoValueOwned,
-            BitStringValueOwned,
-            VecDeep<ExtensionValueOwned>,
-        >;
-    type DstOwned = TBSCertificateValueOwned;
 }
 
 }

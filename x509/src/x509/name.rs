@@ -8,18 +8,14 @@ use super::rdn::*;
 verus! {
 
 /// In X.509: Name ::= SEQUENCE OF RelativeDistinguishedName
-pub type NameInner = Mapped<SequenceOf<ASN1<RDN>>, NameMapper>;
+pub type NameInner = SequenceOf<ASN1<RDN>>;
 
 wrap_combinator! {
     struct Name: NameInner =>
         spec SpecNameValue,
         exec<'a> NameValue<'a>,
         owned NameValueOwned,
-    =
-        Mapped {
-            inner: SequenceOf(ASN1(RDN)),
-            mapper: NameMapper,
-        };
+    = SequenceOf(ASN1(RDN));
 }
 
 asn1_tagged!(Name, TagValue {
@@ -28,63 +24,9 @@ asn1_tagged!(Name, TagValue {
     num: 0x10,
 });
 
-#[derive(Debug, View, PolyfillClone)]
-pub struct NamePoly<RDNS> {
-    pub rdns: RDNS,
-}
-
-pub type SpecNameValue = NamePoly<Seq<SpecRDNValue>>;
-pub type NameValue<'a> = NamePoly<VecDeep<RDNValue<'a>>>;
-pub type NameValueOwned = NamePoly<VecDeep<RDNValueOwned>>;
-
-type NameFrom<T> = T;
-
-impl<T> SpecFrom<NamePoly<Seq<T>>> for NameFrom<Seq<T>> {
-    closed spec fn spec_from(s: NamePoly<Seq<T>>) -> Self {
-        s.rdns
-    }
-}
-
-impl<T> SpecFrom<NameFrom<T>> for NamePoly<T> {
-    closed spec fn spec_from(s: NameFrom<T>) -> Self {
-        NamePoly {
-            rdns: s,
-        }
-    }
-}
-
-impl<T: View> From<NamePoly<VecDeep<T>>> for NameFrom<VecDeep<T>> {
-    fn ex_from(s: NamePoly<VecDeep<T>>) -> Self {
-        s.rdns
-    }
-}
-
-impl<T: View> From<NameFrom<T>> for NamePoly<T> {
-    fn ex_from(s: NameFrom<T>) -> Self {
-        NamePoly {
-            rdns: s,
-        }
-    }
-}
-
-#[derive(Debug, View)]
-pub struct NameMapper;
-
-impl SpecIso for NameMapper {
-    type Src = NameFrom<Seq<SpecRDNValue>>;
-    type Dst = NamePoly<Seq<SpecRDNValue>>;
-
-    proof fn spec_iso(s: Self::Src) {}
-    proof fn spec_iso_rev(s: Self::Dst) {}
-}
-
-impl Iso for NameMapper {
-    type Src<'a> = NameFrom<VecDeep<RDNValue<'a>>>;
-    type Dst<'a> = NamePoly<VecDeep<RDNValue<'a>>>;
-
-    type SrcOwned = NameFrom<VecDeep<RDNValueOwned>>;
-    type DstOwned = NamePoly<VecDeep<RDNValueOwned>>;
-}
+pub type SpecNameValue = Seq<SpecRDNValue>;
+pub type NameValue<'a> = VecDeep<RDNValue<'a>>;
+pub type NameValueOwned = VecDeep<RDNValueOwned>;
 
 }
 

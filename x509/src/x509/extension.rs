@@ -52,68 +52,32 @@ asn1_tagged!(Extensions, TagValue {
     num: 0x10,
 });
 
-#[derive(Debug, View, PolyfillClone)]
-pub struct ExtensionPoly<Id, Value> {
-    pub id: Id,
-    pub critical: OptionDeep<bool>,
-    pub value: Value,
-}
+mapper! {
+    struct ExtensionMapper;
 
-pub type SpecExtensionValue = ExtensionPoly<SpecObjectIdentifierValue, Seq<u8>>;
-pub type ExtensionValue<'a> = ExtensionPoly<ObjectIdentifierValue, &'a [u8]>;
-pub type ExtensionValueOwned = ExtensionPoly<ObjectIdentifierValueOwned, Vec<u8>>;
-
-type ExtensionFrom<Id, Value> = PairValue<Id, PairValue<OptionDeep<bool>, Value>>;
-
-impl<Id, Value> SpecFrom<ExtensionPoly<Id, Value>> for ExtensionFrom<Id, Value> {
-    closed spec fn spec_from(s: ExtensionPoly<Id, Value>) -> Self {
-        PairValue(s.id, PairValue(s.critical, s.value))
+    for <Id, Value>
+    from ExtensionFrom where type ExtensionFrom<Id, Value> = PairValue<Id, PairValue<OptionDeep<bool>, Value>>;
+    to ExtensionPoly where pub struct ExtensionPoly<Id, Value> {
+        pub id: Id,
+        pub critical: OptionDeep<bool>,
+        pub value: Value,
     }
-}
 
-impl<Id, Value> SpecFrom<ExtensionFrom<Id, Value>> for ExtensionPoly<Id, Value> {
-    closed spec fn spec_from(s: ExtensionFrom<Id, Value>) -> Self {
+    spec SpecExtensionValue with <SpecObjectIdentifierValue, Seq<u8>>
+    exec ExtensionValue<'a> with <ObjectIdentifierValue, &'a [u8]>
+    owned ExtensionValueOwned with <ObjectIdentifierValueOwned, Vec<u8>>
+
+    forward(x) {
         ExtensionPoly {
-            id: s.0,
-            critical: s.1.0,
-            value: s.1.1,
+            id: x.0,
+            critical: x.1.0,
+            value: x.1.1,
         }
     }
-}
 
-impl<Id: View, Value: View> From<ExtensionPoly<Id, Value>> for ExtensionFrom<Id, Value> {
-    fn ex_from(s: ExtensionPoly<Id, Value>) -> Self {
-        PairValue(s.id, PairValue(s.critical, s.value))
+    backward(y) {
+        PairValue(y.id, PairValue(y.critical, y.value))
     }
-}
-
-impl<Id: View, Value: View> From<ExtensionFrom<Id, Value>> for ExtensionPoly<Id, Value> {
-    fn ex_from(s: ExtensionFrom<Id, Value>) -> Self {
-        ExtensionPoly {
-            id: s.0,
-            critical: s.1.0,
-            value: s.1.1,
-        }
-    }
-}
-
-#[derive(Debug, View)]
-pub struct ExtensionMapper;
-
-impl SpecIso for ExtensionMapper {
-    type Src = ExtensionFrom<SpecObjectIdentifierValue, Seq<u8>>;
-    type Dst = ExtensionPoly<SpecObjectIdentifierValue, Seq<u8>>;
-
-    proof fn spec_iso(s: Self::Src) {}
-    proof fn spec_iso_rev(s: Self::Dst) {}
-}
-
-impl Iso for ExtensionMapper {
-    type Src<'a> = ExtensionFrom<ObjectIdentifierValue, &'a [u8]>;
-    type Dst<'a> = ExtensionPoly<ObjectIdentifierValue, &'a [u8]>;
-
-    type SrcOwned = ExtensionFrom<ObjectIdentifierValueOwned, Vec<u8>>;
-    type DstOwned = ExtensionPoly<ObjectIdentifierValueOwned, Vec<u8>>;
 }
 
 }

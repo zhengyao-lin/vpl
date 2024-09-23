@@ -12,6 +12,7 @@ mod vec_deep;
 mod option_deep;
 mod pair;
 mod wrapped;
+mod mapper;
 
 pub use depend::*;
 pub use repeat::*;
@@ -23,6 +24,7 @@ pub use vec_deep::*;
 pub use option_deep::*;
 pub use pair::*;
 pub use wrapped::*;
+pub use mapper::*;
 
 pub use macros::View;
 pub use macros::PolyfillClone;

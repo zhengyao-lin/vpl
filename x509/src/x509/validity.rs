@@ -32,65 +32,30 @@ asn1_tagged!(Validity, TagValue {
     num: 0x10,
 });
 
-#[derive(Debug, View, PolyfillClone)]
-pub struct ValidityPoly<NB, NA> {
-    pub not_before: NB,
-    pub not_after: NA,
-}
+mapper! {
+    struct ValidityMapper;
 
-pub type SpecValidityValue = ValidityPoly<SpecTimeValue, SpecTimeValue>;
-pub type ValidityValue<'a> = ValidityPoly<TimeValue<'a>, TimeValue<'a>>;
-pub type ValidityValueOwned = ValidityPoly<TimeValueOwned, TimeValueOwned>;
-
-type ValidityFrom<NB, NA> = (NB, NA);
-
-impl<NB, NA> SpecFrom<ValidityPoly<NB, NA>> for ValidityFrom<NB, NA> {
-    closed spec fn spec_from(s: ValidityPoly<NB, NA>) -> Self {
-        (s.not_before, s.not_after)
+    for <NA, NB>
+    from ValidityFrom where type ValidityFrom<NA, NB> = (NB, NA);
+    to ValidityPoly where pub struct ValidityPoly<NA, NB> {
+        pub not_before: NB,
+        pub not_after: NA,
     }
-}
 
-impl<NB, NA> SpecFrom<ValidityFrom<NB, NA>> for ValidityPoly<NB, NA> {
-    closed spec fn spec_from(s: ValidityFrom<NB, NA>) -> Self {
+    spec SpecValidityValue with <SpecTimeValue, SpecTimeValue>
+    exec ValidityValue<'a> with <TimeValue<'a>, TimeValue<'a>>
+    owned ValidityValueOwned with <TimeValueOwned, TimeValueOwned>
+
+    forward(x) {
         ValidityPoly {
-            not_before: s.0,
-            not_after: s.1,
+            not_before: x.0,
+            not_after: x.1,
         }
     }
-}
 
-impl<NB: View, NA: View> From<ValidityPoly<NB, NA>> for ValidityFrom<NB, NA> {
-    fn ex_from(s: ValidityPoly<NB, NA>) -> Self {
-        (s.not_before, s.not_after)
+    backward(y) {
+        (y.not_before, y.not_after)
     }
-}
-
-impl<NB: View, NA: View> From<ValidityFrom<NB, NA>> for ValidityPoly<NB, NA> {
-    fn ex_from(s: ValidityFrom<NB, NA>) -> Self {
-        ValidityPoly {
-            not_before: s.0,
-            not_after: s.1,
-        }
-    }
-}
-
-#[derive(Debug, View)]
-pub struct ValidityMapper;
-
-impl SpecIso for ValidityMapper {
-    type Src = ValidityFrom<SpecTimeValue, SpecTimeValue>;
-    type Dst = ValidityPoly<SpecTimeValue, SpecTimeValue>;
-
-    proof fn spec_iso(s: Self::Src) {}
-    proof fn spec_iso_rev(s: Self::Dst) {}
-}
-
-impl Iso for ValidityMapper {
-    type Src<'a> = ValidityFrom<TimeValue<'a>, TimeValue<'a>>;
-    type Dst<'a> = ValidityPoly<TimeValue<'a>, TimeValue<'a>>;
-
-    type SrcOwned = ValidityFrom<TimeValueOwned, TimeValueOwned>;
-    type DstOwned = ValidityPoly<TimeValueOwned, TimeValueOwned>;
 }
 
 }

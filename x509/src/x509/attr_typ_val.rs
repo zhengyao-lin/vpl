@@ -37,72 +37,30 @@ asn1_tagged!(AttributeTypeAndValue, TagValue {
     num: 0x10,
 });
 
-#[derive(Debug, View, PolyfillClone)]
-pub struct AttributeTypeAndValuePoly<Typ, Value> {
-    pub typ: Typ,
-    pub value: Value,
-}
+mapper! {
+    struct AttributeTypeAndValueMapper;
 
-pub type SpecAttributeTypeAndValueValue = AttributeTypeAndValuePoly<SpecObjectIdentifierValue, SpecDirectoryStringValue>;
-pub type AttributeTypeAndValueValue<'a> = AttributeTypeAndValuePoly<ObjectIdentifierValue, DirectoryStringValue<'a>>;
-pub type AttributeTypeAndValueValueOwned = AttributeTypeAndValuePoly<ObjectIdentifierValueOwned, DirectoryStringValueOwned>;
-
-type AttributeTypeAndValueFrom<Typ, Value> = (Typ, Value);
-
-impl<Typ, Value> SpecFrom<AttributeTypeAndValuePoly<Typ, Value>> for AttributeTypeAndValueFrom<Typ, Value> {
-    closed spec fn spec_from(s: AttributeTypeAndValuePoly<Typ, Value>) -> Self {
-        (s.typ, s.value)
+    for <Typ, Value>
+    from AttributeTypeAndValueFrom where type AttributeTypeAndValueFrom<Typ, Value> = (Typ, Value);
+    to AttributeTypeAndValuePoly where pub struct AttributeTypeAndValuePoly<Typ, Value> {
+        pub typ: Typ,
+        pub value: Value,
     }
-}
 
-impl<Typ, Value> SpecFrom<AttributeTypeAndValueFrom<Typ, Value>> for AttributeTypeAndValuePoly<Typ, Value> {
-    closed spec fn spec_from(s: AttributeTypeAndValueFrom<Typ, Value>) -> Self {
+    spec SpecAttributeTypeAndValueValue with <SpecObjectIdentifierValue, SpecDirectoryStringValue>
+    exec AttributeTypeAndValueValue<'a> with <ObjectIdentifierValue, DirectoryStringValue<'a>>
+    owned AttributeTypeAndValueValueOwned with <ObjectIdentifierValueOwned, DirectoryStringValueOwned>
+
+    forward(x) {
         AttributeTypeAndValuePoly {
-            typ: s.0,
-            value: s.1,
+            typ: x.0,
+            value: x.1,
         }
     }
-}
 
-impl<Typ: View, Value: View> From<AttributeTypeAndValuePoly<Typ, Value>> for AttributeTypeAndValueFrom<Typ, Value> {
-    fn ex_from(s: AttributeTypeAndValuePoly<Typ, Value>) -> Self {
-        (s.typ, s.value)
+    backward(y) {
+        (y.typ, y.value)
     }
-}
-
-impl<Typ: View, Value: View> From<AttributeTypeAndValueFrom<Typ, Value>> for AttributeTypeAndValuePoly<Typ, Value> {
-    fn ex_from(s: AttributeTypeAndValueFrom<Typ, Value>) -> Self {
-        AttributeTypeAndValuePoly {
-            typ: s.0,
-            value: s.1,
-        }
-    }
-}
-
-#[derive(Debug, View)]
-pub struct AttributeTypeAndValueMapper;
-
-impl SpecIso for AttributeTypeAndValueMapper
-{
-    type Src = AttributeTypeAndValueFrom<SpecObjectIdentifierValue, SpecDirectoryStringValue>;
-    type Dst = AttributeTypeAndValuePoly<SpecObjectIdentifierValue, SpecDirectoryStringValue>;
-
-    proof fn spec_iso(s: Self::Src) {
-        // Somehow these trigger terms are needed after adding an irrelevant trait impl
-        let _ = Self::Src::spec_from(Self::Dst::spec_from(s));
-    }
-
-    proof fn spec_iso_rev(s: Self::Dst) {
-        let _ = Self::Dst::spec_from(Self::Src::spec_from(s));
-    }
-}
-
-impl Iso for AttributeTypeAndValueMapper {
-    type Src<'a> = AttributeTypeAndValueFrom<ObjectIdentifierValue, DirectoryStringValue<'a>>;
-    type Dst<'a> = AttributeTypeAndValuePoly<ObjectIdentifierValue, DirectoryStringValue<'a>>;
-
-    type SrcOwned = AttributeTypeAndValueFrom<ObjectIdentifierValueOwned, DirectoryStringValueOwned>;
-    type DstOwned = AttributeTypeAndValuePoly<ObjectIdentifierValueOwned, DirectoryStringValueOwned>;
 }
 
 }

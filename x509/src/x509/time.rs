@@ -41,71 +41,33 @@ wrap_combinator! {
         };
 }
 
-#[derive(Debug, View, PolyfillClone)]
-pub enum TimePoly<UT, GT> {
-    UTCTime(UT),
-    GeneralizedTime(GT),
-}
+mapper! {
+    struct TimeMapper;
 
-pub type SpecTimeValue = TimePoly<SpecUTF8StringValue, SpecUTF8StringValue>;
-pub type TimeValue<'a> = TimePoly<UTF8StringValue<'a>, UTF8StringValue<'a>>;
-pub type TimeValueOwned = TimePoly<UTF8StringValueOwned, UTF8StringValueOwned>;
+    for <UT, GT>
+    from TimeFrom where type TimeFrom<UT, GT> = Either<UT, GT>;
+    to TimePoly where pub enum TimePoly<UT, GT> {
+        UTCTime(UT),
+        GeneralizedTime(GT),
+    }
 
-pub type TimeFrom<UT, GT> = Either<UT, GT>;
+    spec SpecTimeValue with <SpecUTF8StringValue, SpecUTF8StringValue>
+    exec TimeValue<'a> with <UTF8StringValue<'a>, UTF8StringValue<'a>>
+    owned TimeValueOwned with <UTF8StringValueOwned, UTF8StringValueOwned>
 
-impl<UT, GT> SpecFrom<TimeFrom<UT, GT>> for TimePoly<UT, GT> {
-    open spec fn spec_from(inner: TimeFrom<UT, GT>) -> Self {
-        match inner {
+    forward(x) {
+        match x {
             Either::Left(s) => TimePoly::UTCTime(s),
             Either::Right(s) => TimePoly::GeneralizedTime(s),
         }
     }
-}
 
-impl<UT, GT> SpecFrom<TimePoly<UT, GT>> for TimeFrom<UT, GT> {
-    open spec fn spec_from(inner: TimePoly<UT, GT>) -> Self {
-        match inner {
+    backward(y) {
+        match y {
             TimePoly::UTCTime(s) => Either::Left(s),
             TimePoly::GeneralizedTime(s) => Either::Right(s),
         }
     }
-}
-
-impl<UT: View, GT: View> From<TimePoly<UT, GT>> for TimeFrom<UT, GT> {
-    fn ex_from(inner: TimePoly<UT, GT>) -> Self {
-        match inner {
-            TimePoly::UTCTime(s) => Either::Left(s),
-            TimePoly::GeneralizedTime(s) => Either::Right(s),
-        }
-    }
-}
-
-impl<UT: View, GT: View> From<TimeFrom<UT, GT>> for TimePoly<UT, GT> {
-    fn ex_from(inner: TimeFrom<UT, GT>) -> Self {
-        match inner {
-            Either::Left(s) => TimePoly::UTCTime(s),
-            Either::Right(s) => TimePoly::GeneralizedTime(s),
-        }
-    }
-}
-
-#[derive(Debug, View)]
-pub struct TimeMapper;
-
-impl SpecIso for TimeMapper {
-    type Src = TimeFrom<SpecUTF8StringValue, SpecUTF8StringValue>;
-    type Dst = TimePoly<SpecUTF8StringValue, SpecUTF8StringValue>;
-
-    proof fn spec_iso(s: Self::Src) {}
-    proof fn spec_iso_rev(s: Self::Dst) {}
-}
-
-impl Iso for TimeMapper {
-    type Src<'a> = TimeFrom<UTF8StringValue<'a>, UTF8StringValue<'a>>;
-    type Dst<'a> = TimePoly<UTF8StringValue<'a>, UTF8StringValue<'a>>;
-
-    type SrcOwned = TimeFrom<UTF8StringValueOwned, UTF8StringValueOwned>;
-    type DstOwned = TimePoly<UTF8StringValueOwned, UTF8StringValueOwned>;
 }
 
 }
