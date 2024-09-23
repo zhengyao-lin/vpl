@@ -76,9 +76,9 @@ impl<C: Combinator> Iso for IdentityMapper<C> where
 /// NOTE: $inner_expr is used both in exec and spec mode
 #[allow(unused_macros)]
 macro_rules! wrap_combinator {
-    (struct $name:ident: $inner_type:ty = $inner_expr:expr ;) => {
+    ($vis:vis struct $name:ident: $inner_type:ty = $inner_expr:expr ;) => {
         wrap_combinator! {
-            struct $name: $inner_type =>
+           $vis struct $name: $inner_type =>
                 spec <<$inner_type as View>::V as SpecCombinator>::SpecResult,
                 exec<'a> <$inner_type as Combinator>::Result<'a>,
                 owned <$inner_type as Combinator>::Owned,
@@ -87,14 +87,14 @@ macro_rules! wrap_combinator {
     };
 
     // NOTE: use this alternative can reduce type checking time
-    (struct $name:ident: $inner_type:ty =>
+    ($vis:vis struct $name:ident: $inner_type:ty =>
         spec $spec_result:ty,
         exec<$lt:lifetime> $result:ty,
         owned $owned:ty $(,)?
         = $inner_expr:expr ;) => {
         ::builtin_macros::verus! {
             #[derive(Debug, View)]
-            pub struct $name;
+            $vis struct $name;
 
             impl SpecCombinator for $name {
                 type SpecResult = $spec_result;

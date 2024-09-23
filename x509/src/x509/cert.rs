@@ -20,7 +20,7 @@ pub type CertificateInner = Mapped<
     CertificateMapper>;
 
 wrap_combinator! {
-    struct Certificate: CertificateInner =>
+    pub struct Certificate: CertificateInner =>
         spec SpecCertificateValue,
         exec<'a> CertificateValue<'a>,
         owned CertificateValueOwned,

@@ -23,7 +23,7 @@ pub type DirectoryStringInner = Mapped<
     >>>>>, DirectoryStringMapper>;
 
 wrap_combinator! {
-    struct DirectoryString: DirectoryStringInner =>
+    pub struct DirectoryString: DirectoryStringInner =>
         spec SpecDirectoryStringValue,
         exec<'a> DirectoryStringValue<'a>,
         owned DirectoryStringValueOwned,

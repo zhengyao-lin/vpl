@@ -15,7 +15,7 @@ verus! {
 pub type ValidityInner = Mapped<LengthWrapped<(Time, Time)>, ValidityMapper>;
 
 wrap_combinator! {
-    struct Validity: ValidityInner =>
+    pub struct Validity: ValidityInner =>
         spec SpecValidityValue,
         exec<'a> ValidityValue<'a>,
         owned ValidityValueOwned,

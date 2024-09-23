@@ -12,7 +12,7 @@ verus! {
 pub type RDNInner = SequenceOf<ASN1<AttributeTypeAndValue>>;
 
 wrap_combinator! {
-    struct RDN: RDNInner =>
+    pub struct RDN: RDNInner =>
         spec SpecRDNValue,
         exec<'a> RDNValue<'a>,
         owned RDNValueOwned,

@@ -11,7 +11,7 @@ verus! {
 pub type NameInner = SequenceOf<ASN1<RDN>>;
 
 wrap_combinator! {
-    struct Name: NameInner =>
+    pub struct Name: NameInner =>
         spec SpecNameValue,
         exec<'a> NameValue<'a>,
         owned NameValueOwned,

@@ -14,7 +14,7 @@ verus! {
 pub type PublicKeyInfoInner = Mapped<LengthWrapped<(ASN1<AlgorithmIdentifier>, ASN1<BitString>)>, PublicKeyInfoMapper>;
 
 wrap_combinator! {
-    struct PublicKeyInfo: PublicKeyInfoInner =>
+    pub struct PublicKeyInfo: PublicKeyInfoInner =>
         spec SpecPublicKeyInfoValue,
         exec<'a> PublicKeyInfoValue<'a>,
         owned PublicKeyInfoValueOwned,

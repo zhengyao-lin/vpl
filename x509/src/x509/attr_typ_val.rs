@@ -21,7 +21,7 @@ verus! {
 pub type AttributeTypeAndValueInner = Mapped<LengthWrapped<(ASN1<ObjectIdentifier>, DirectoryString)>, AttributeTypeAndValueMapper>;
 
 wrap_combinator! {
-    struct AttributeTypeAndValue: AttributeTypeAndValueInner =>
+    pub struct AttributeTypeAndValue: AttributeTypeAndValueInner =>
         spec SpecAttributeTypeAndValueValue,
         exec<'a> AttributeTypeAndValueValue<'a>,
         owned AttributeTypeAndValueValueOwned,
