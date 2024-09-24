@@ -163,36 +163,34 @@ impl Combinator for ObjectIdentifier {
         true
     }
 
-    fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ()>) {
-        if let Ok((len, (_, (first, mut rest_arcs)))) = new_object_identifier_inner().parse(s) {
-            let arc1 = first / 40;
-            let arc2 = first % 40;
+    fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ParseError>) {
+        let (len, (_, (first, mut rest_arcs))) = new_object_identifier_inner().parse(s)?;
 
-            if arc1 > 2 || arc2 > 39 {
-                return Err(());
-            }
+        let arc1 = first / 40;
+        let arc2 = first % 40;
 
-            let mut res = VecDeep::from_vec(vec![ arc1 as UInt, arc2 as UInt ]);
-            res.append(&mut rest_arcs);
-
-            assert(res@ == self.spec_parse(s@).unwrap().1);
-
-            Ok((len, ObjectIdentifierValue(res)))
-        } else {
-            Err(())
+        if arc1 > 2 || arc2 > 39 {
+            return Err(ParseError::Other("Invalid first two arcs".to_string()));
         }
+
+        let mut res = VecDeep::from_vec(vec![ arc1 as UInt, arc2 as UInt ]);
+        res.append(&mut rest_arcs);
+
+        assert(res@ == self.spec_parse(s@).unwrap().1);
+
+        Ok((len, ObjectIdentifierValue(res)))
     }
 
-    fn serialize(&self, mut v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, ()>) {
+    fn serialize(&self, mut v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, SerializeError>) {
         let mut v = v.0;
         let ghost old_v = v@;
 
         if v.len() < 2 {
-            return Err(());
+            return Err(SerializeError::Other("OID should have at least two arcs".to_string()));
         }
 
         if *v.get(0) > 2 || *v.get(1) > 39 {
-            return Err(());
+            return Err(SerializeError::Other("Invalid first two arcs".to_string()));
         }
 
         let first_byte = *v.get(0) as u8 * 40 + *v.get(1) as u8;
@@ -204,23 +202,17 @@ impl Combinator for ObjectIdentifier {
         let rest_arcs_cloned = PolyfillClone::clone(&rest_arcs_inner);
         let rest_arcs = rest_arcs_inner;
 
-        if let Ok(len) = (U8, Repeat(Base128UInt)).serialize((first_byte, rest_arcs_cloned), data, pos) {
-            let ghost data2 = data@;
+        let len = (U8, Repeat(Base128UInt)).serialize((first_byte, rest_arcs_cloned), data, pos)?;
+        let len2 = new_object_identifier_inner().serialize((len as LengthValue, (first_byte, rest_arcs)), data, pos)?;
 
-            if let Ok(len2) = new_object_identifier_inner().serialize((len as LengthValue, (first_byte, rest_arcs)), data, pos) {
-                // assert(data@ == seq_splice(old(data)@, pos, b));
-                // assert(len2 >= len);
+        if pos.checked_add(len2).is_some() && pos + len2 <= data.len() {
+            assert(rest_arcs_cloned@ == old_v.skip(2));
+            assert(data@ =~= seq_splice(old(data)@, pos, self.spec_serialize(old_v).unwrap()));
 
-                if pos.checked_add(len2).is_some() && pos + len2 <= data.len() {
-                    assert(rest_arcs_cloned@ == old_v.skip(2));
-                    assert(data@ =~= seq_splice(old(data)@, pos, self.spec_serialize(old_v).unwrap()));
-
-                    return Ok(len2);
-                }
-            }
+            return Ok(len2);
         }
 
-        Err(())
+        Err(SerializeError::InsufficientBuffer)
     }
 }
 
@@ -294,7 +286,7 @@ mod tests {
     use super::*;
     use der::Encode;
 
-    fn serialize_oid(v: Vec<UInt>) -> Result<Vec<u8>, ()> {
+    fn serialize_oid(v: Vec<UInt>) -> Result<Vec<u8>, SerializeError> {
         let mut data = vec![0; 1 + 4 + v.len() * 8];
         data[0] = 0x06;
         let len = ObjectIdentifier.serialize(ObjectIdentifierValue(VecDeep::from_vec(v)), &mut data, 1)?;
@@ -305,7 +297,7 @@ mod tests {
     #[test]
     fn diff_with_der() {
         let diff = |v: Vec<UInt>| {
-            let res1 = serialize_oid(PolyfillClone::clone(&v));
+            let res1 = serialize_oid(PolyfillClone::clone(&v)).map_err(|_| ());
             let res2 = der::asn1::ObjectIdentifier::new_unwrap(
                 v.iter().map(|i| i.to_string()).collect::<Vec<_>>().join(".").as_str()
             ).to_der().map_err(|_| ());

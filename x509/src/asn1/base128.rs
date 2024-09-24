@@ -547,11 +547,11 @@ impl Combinator for Base128UInt {
         true
     }
 
-    fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ()>) {
+    fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ParseError>) {
         let len = if let Some(len) = Self::exec_find_first_arc(s) {
             len
         } else {
-            return Err(());
+            return Err(ParseError::Other("No first arc found".to_string()));
         };
 
         proof {
@@ -566,7 +566,7 @@ impl Combinator for Base128UInt {
             assert(prefix.drop_last() == s@.take(len - 1));
             assert(Self::spec_parse_helper(s@.take(len - 1), false).is_none());
             assert(Self::spec_parse_helper(prefix, true).is_none());
-            return Err(());
+            return Err(ParseError::Other("Non-minimal encoding".to_string()));
         }
 
         // Parse the high-8-bit part
@@ -607,7 +607,7 @@ impl Combinator for Base128UInt {
                     assert(prefix.drop_last().take(i + 1) == s@.take(i + 1));
                     Self::lemma_spec_parse_helper_error_prop(prefix.drop_last(), i + 1);
                 }
-                return Err(());
+                return Err(ParseError::SizeOverflow);
             }
 
             v = v << 7 | take_low_7_bits!(s[i]) as UInt;
@@ -618,7 +618,7 @@ impl Combinator for Base128UInt {
 
         if v > n_bit_max_unsigned!(8 * uint_size!() - 7) {
             assert(Self::spec_parse_helper(prefix, true).is_none());
-            return Err(());
+            return Err(ParseError::SizeOverflow);
         }
 
         // Add the last byte
@@ -627,9 +627,9 @@ impl Combinator for Base128UInt {
         Ok((len, v))
     }
 
-    fn serialize(&self, mut v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, ()>) {
+    fn serialize(&self, mut v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, SerializeError>) {
         if pos >= data.len() {
-            return Err(());
+            return Err(SerializeError::SizeOverflow);
         }
 
         // For 0, we just emit a single byte
@@ -654,10 +654,10 @@ impl Combinator for Base128UInt {
         let end = if let Some(end) = pos.checked_add(rest.len()) {
             end
         } else {
-            return Err(());
+            return Err(SerializeError::SizeOverflow);
         };
         if end > data.len() - 1 {
-            return Err(());
+            return Err(SerializeError::InsufficientBuffer);
         }
 
         // Write rest to data at pos
@@ -686,7 +686,7 @@ mod tests {
     use der::Encode;
 
     /// Wrap a base 128 uint in an object identifier for testing
-    fn serialize_base_128_uint(v: UInt) -> Result<Vec<u8>, ()> {
+    fn serialize_base_128_uint(v: UInt) -> Result<Vec<u8>, SerializeError> {
         let mut data = vec![0; 3 + 10];
         data[0] = 0x06;
         data[2] = 0x2a;
@@ -699,7 +699,7 @@ mod tests {
     #[test]
     fn diff_with_der() {
         let diff = |v: UInt| {
-            let res1 = serialize_base_128_uint(v);
+            let res1 = serialize_base_128_uint(v).map_err(|_| ());
             let res2 = der::asn1::ObjectIdentifier::new_unwrap(format!("1.2.{}", v).as_str()).to_der().map_err(|_| ());
             assert_eq!(res1, res2);
         };

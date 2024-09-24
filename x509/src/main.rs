@@ -11,7 +11,7 @@ use asn1::*;
 use common::*;
 
 verus! {
-    fn parse_x509_bytes(bytes: &[u8]) -> Result<x509::CertificateValue, ()> {
+    fn parse_x509_bytes(bytes: &[u8]) -> Result<x509::CertificateValue, ParseError> {
         let (_, cert) = ASN1(x509::Certificate).parse(bytes)?;
         Ok(cert)
     }
@@ -33,7 +33,7 @@ fn parse_cert(src: &str) -> Result<(), String>
         .map_err(|e| format!("Failed to decode Base64: {}", e))?;
 
     let cert = parse_x509_bytes(&cert_bytes)
-        .map_err(|e| format!("Failed to parse certificate"))?;
+        .map_err(|e| format!("Failed to parse certificate: {:?}", e))?;
 
     println!("Certificate: {:?}", cert);
 

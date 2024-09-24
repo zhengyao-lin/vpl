@@ -4,7 +4,6 @@ use vstd::prelude::*;
 verus! {
 
 /// Combinator that returns the rest of the input bytes from the current position.
-#[derive(Debug)]
 pub struct Tail;
 
 impl View for Tail {
@@ -71,17 +70,17 @@ impl Combinator for Tail {
         false
     }
 
-    fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ()>) {
+    fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ParseError>) {
         if s.len() <= usize::MAX {
             Ok(((s.len()), s))
         } else {
-            Err(())
+            Err(ParseError::SizeOverflow)
         }
     }
 
     fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<
         usize,
-        (),
+        SerializeError,
     >) {
         if pos <= data.len() {
             if v.len() <= data.len() - pos {
@@ -91,10 +90,10 @@ impl Combinator for Tail {
                 ).unwrap());
                 Ok(v.len())
             } else {
-                Err(())
+                Err(SerializeError::InsufficientBuffer)
             }
         } else {
-            Err(())
+            Err(SerializeError::InsufficientBuffer)
         }
     }
 }

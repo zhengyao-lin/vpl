@@ -169,21 +169,21 @@ impl Combinator for PrintableString {
         true
     }
 
-    fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ()>) {
+    fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ParseError>) {
         let (len, v) = OctetString.parse(s)?;
 
         if PrintableStringPoly(v).wf() {
             Ok((len, PrintableStringPoly(v)))
         } else {
-            Err(())
+            Err(ParseError::Other("Ill-formed printable string".to_string()))
         }
     }
 
-    fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, ()>) {
+    fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, SerializeError>) {
         if v.wf() {
             OctetString.serialize(v.0, data, pos)
         } else {
-            Err(())
+            Err(SerializeError::Other("Ill-formed printable string".to_string()))
         }
     }
 }

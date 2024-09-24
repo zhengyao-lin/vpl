@@ -18,7 +18,7 @@ pub type OptionalValue<T1, T2> = PairValue<OptionDeep<T1>, T2>;
 
 impl<C1: Combinator, C2: Combinator> Optional<C1, C2> where
     C1::V: SecureSpecCombinator<SpecResult = <C1::Owned as View>::V>,
-    C2::V: SecureSpecCombinator<SpecResult = <C2::Owned as View>::V> + SpecDisjointFrom<C1::V>,
+    C2::V: SecureSpecCombinator<SpecResult = <C2::Owned as View>::V> + DisjointFrom<C1::V>,
 {
     pub fn new(c1: C1, c2: C2) -> Self {
         Optional(c1, c2)
@@ -27,13 +27,13 @@ impl<C1: Combinator, C2: Combinator> Optional<C1, C2> where
 
 impl<C1, C2> SpecCombinator for Optional<C1, C2> where
     C1: SecureSpecCombinator,
-    C2: SecureSpecCombinator + SpecDisjointFrom<C1>,
+    C2: SecureSpecCombinator + DisjointFrom<C1>,
 {
     type SpecResult = PairValue<OptionDeep<C1::SpecResult>, C2::SpecResult>;
 
     open spec fn spec_parse(&self, s: Seq<u8>) -> Result<(usize, Self::SpecResult), ()>
     {
-        if self.1.spec_disjoint_from(&self.0) {
+        if self.1.disjoint_from(&self.0) {
             if let Ok((n, (v1, v2))) = (self.0, self.1).spec_parse(s) {
                 Ok((n, PairValue(OptionDeep::Some(v1), v2)))
             } else if let Ok((n, v)) = self.1.spec_parse(s) {
@@ -53,7 +53,7 @@ impl<C1, C2> SpecCombinator for Optional<C1, C2> where
 
     open spec fn spec_serialize(&self, v: Self::SpecResult) -> Result<Seq<u8>, ()>
     {
-        if self.1.spec_disjoint_from(&self.0) {
+        if self.1.disjoint_from(&self.0) {
             match v {
                 PairValue(OptionDeep::Some(v1), v2) => (self.0, self.1).spec_serialize((v1, v2)),
                 PairValue(OptionDeep::None, v2) => self.1.spec_serialize(v2),
@@ -66,7 +66,7 @@ impl<C1, C2> SpecCombinator for Optional<C1, C2> where
 
 impl<C1, C2> SecureSpecCombinator for Optional<C1, C2> where
     C1: SecureSpecCombinator,
-    C2: SecureSpecCombinator + SpecDisjointFrom<C1>
+    C2: SecureSpecCombinator + DisjointFrom<C1>
 {
     open spec fn spec_is_prefix_secure() -> bool {
         C1::spec_is_prefix_secure() && C2::spec_is_prefix_secure()
@@ -79,8 +79,8 @@ impl<C1, C2> SecureSpecCombinator for Optional<C1, C2> where
             },
             PairValue(OptionDeep::None, v2) => {
                 if let Ok(buf) = self.1.spec_serialize(v2) {
-                    if self.1.spec_disjoint_from(&self.0) {
-                        self.1.spec_parse_disjoint_on(&self.0, buf);
+                    if self.1.disjoint_from(&self.0) {
+                        self.1.parse_disjoint_on(&self.0, buf);
                     }
                 }
                 self.1.theorem_serialize_parse_roundtrip(v2);
@@ -95,8 +95,8 @@ impl<C1, C2> SecureSpecCombinator for Optional<C1, C2> where
     }
 
     proof fn lemma_prefix_secure(&self, s1: Seq<u8>, s2: Seq<u8>) {
-        if self.1.spec_disjoint_from(&self.0) {
-            self.1.spec_parse_disjoint_on(&self.0, s1.add(s2));
+        if self.1.disjoint_from(&self.0) {
+            self.1.parse_disjoint_on(&self.0, s1.add(s2));
             (self.0, self.1).lemma_prefix_secure(s1, s2);
             self.1.lemma_prefix_secure(s1, s2);
         }
@@ -105,10 +105,10 @@ impl<C1, C2> SecureSpecCombinator for Optional<C1, C2> where
 
 impl<C1, C2> Combinator for Optional<C1, C2> where
     C1: Combinator,
-    C2: Combinator + DisjointFrom<C1>,
+    C2: Combinator,
 
     C1::V: SecureSpecCombinator<SpecResult = <C1::Owned as View>::V>,
-    C2::V: SecureSpecCombinator<SpecResult = <C2::Owned as View>::V> + SpecDisjointFrom<C1::V>,
+    C2::V: SecureSpecCombinator<SpecResult = <C2::Owned as View>::V> + DisjointFrom<C1::V>,
 {
     type Result<'a> = OptionalValue<C1::Result<'a>, C2::Result<'a>>;
     type Owned = OptionalValue<C1::Owned, C2::Owned>;
@@ -128,19 +128,16 @@ impl<C1, C2> Combinator for Optional<C1, C2> where
     open spec fn parse_requires(&self) -> bool {
         &&& self.0.parse_requires()
         &&& self.1.parse_requires()
+        &&& self.1@.disjoint_from(&self.0@)
     }
 
-    fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ()>) {
-        if !self.1.disjoint_from(&self.0) {
-            return Err(());
-        }
-
+    fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ParseError>) {
         let res = if let Ok((n, (v1, v2))) = (&self.0, &self.1).parse(s) {
             Ok((n, PairValue(OptionDeep::Some(v1), v2)))
         } else if let Ok((n, v2)) = self.1.parse(s) {
             Ok((n, PairValue(OptionDeep::None, v2)))
         } else {
-            Err(())
+            Err(ParseError::OrdChoiceNoMatch)
         };
 
         // TODO: why do we need this?
@@ -155,13 +152,10 @@ impl<C1, C2> Combinator for Optional<C1, C2> where
     open spec fn serialize_requires(&self) -> bool {
         &&& self.0.serialize_requires()
         &&& self.1.serialize_requires()
+        &&& self.1@.disjoint_from(&self.0@)
     }
 
-    fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, ()>) {
-        if !self.1.disjoint_from(&self.0) {
-            return Err(());
-        }
-
+    fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, SerializeError>) {
         let len = match v {
             PairValue(OptionDeep::Some(v1), v2) => (&self.0, &self.1).serialize((v1, v2), data, pos),
             PairValue(OptionDeep::None, v2) => self.1.serialize(v2, data, pos),

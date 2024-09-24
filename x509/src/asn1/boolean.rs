@@ -78,21 +78,21 @@ impl Combinator for Boolean {
         true
     }
 
-    fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ()>) {
+    fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ParseError>) {
         if s.len() < 2 {
-            Err(())
+            Err(ParseError::UnexpectedEndOfInput)
         } else if s[0] == 0x01 && s[1] == 0xff {
             Ok((2, true))
         } else if s[0] == 0x01 && s[1] == 0x00 {
             Ok((2, false))
         } else {
-            Err(())
+            Err(ParseError::Other("Invalid boolean value".to_string()))
         }
     }
 
-    fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, ()>) {
+    fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, SerializeError>) {
         if pos > usize::MAX - 2 || pos + 2 > data.len() {
-            return Err(());
+            return Err(SerializeError::InsufficientBuffer);
         }
 
         if v {

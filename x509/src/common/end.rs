@@ -60,21 +60,21 @@ impl Combinator for End {
         false
     }
 
-    fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ()>) {
+    fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ParseError>) {
         if s.len() == 0 {
             Ok((0, EndValue))
         } else {
-            Err(())
+            Err(ParseError::Other("Expecting end of the buffer".to_string()))
         }
     }
 
-    fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, ()>) {
-        if pos < data.len() {
+    fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, SerializeError>) {
+        if pos <= data.len() {
             let ghost empty: Seq<u8> = seq![];
             assert(data@ =~= seq_splice(old(data)@, pos, empty));
             Ok(0)
         } else {
-            Err(())
+            Err(SerializeError::InsufficientBuffer)
         }
     }
 }

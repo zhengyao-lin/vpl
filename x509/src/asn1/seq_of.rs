@@ -93,7 +93,7 @@ impl<C: Combinator> Combinator for SequenceOf<C> where
         &&& self.0.parse_requires()
     }
 
-    fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ()>) {
+    fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ParseError>) {
         ExplicitTag(self.tag(), Repeat(&self.0)).parse(s)
     }
 
@@ -102,7 +102,7 @@ impl<C: Combinator> Combinator for SequenceOf<C> where
         &&& self.0.serialize_requires()
     }
 
-    fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, ()>) {
+    fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, SerializeError>) {
         ExplicitTag(self.tag(), Repeat(&self.0)).serialize(v, data, pos)
     }
 }

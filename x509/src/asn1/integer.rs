@@ -89,17 +89,17 @@ impl Combinator for Integer {
         true
     }
 
-    fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ()>) {
+    fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ParseError>) {
         let (len, (n, v)) = new_integer_inner().parse(s)?;
 
         if is_min_num_bytes_signed_exec(v, n) {
             Ok((len, v))
         } else {
-            Err(())
+            Err(ParseError::Other("Non-minimal integer encoding".to_string()))
         }
     }
 
-    fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, ()>) {
+    fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, SerializeError>) {
         proof {
             lemma_min_num_bytes_signed(v);
         }
@@ -168,14 +168,15 @@ mod test {
     #[test]
     fn parse() {
         assert_eq!(Integer.parse(&[ 0x01, 0x00 ]).unwrap(), (2, 0));
-        assert_eq!(Integer.parse(&[ 0x00 ]), Err(()));
         assert_eq!(Integer.parse(&[ 0x01, 0xff ]).unwrap(), (2, -1));
-        assert_eq!(Integer.parse(&[ 0x81, 0x01, 0xff ]), Err(()));
         assert_eq!(Integer.parse(&[ 0x02, 0x00, 0xff ]).unwrap(), (3, 0xff));
-        assert_eq!(Integer.parse(&[ 0x02, 0x00, 0x7f ]), Err(())); // violation of minimal encoding
+
+        assert!(Integer.parse(&[ 0x00 ]).is_err());
+        assert!(Integer.parse(&[ 0x81, 0x01, 0xff ]).is_err());
+        assert!(Integer.parse(&[ 0x02, 0x00, 0x7f ]).is_err()); // violation of minimal encoding
     }
 
-    fn serialize_int(v: IntegerValue) -> Result<Vec<u8>, ()> {
+    fn serialize_int(v: IntegerValue) -> Result<Vec<u8>, SerializeError> {
         let mut data = vec![0; 16];
         let len = ASN1(Integer).serialize(v, &mut data, 0)?;
         data.truncate(len);
@@ -186,7 +187,7 @@ mod test {
     #[test]
     fn diff_with_der() {
         let diff = |i| {
-            let res1 = serialize_int(i);
+            let res1 = serialize_int(i).map_err(|_| ());
             let res2 = i.to_der().map_err(|_| ());
             assert_eq!(res1, res2);
         };

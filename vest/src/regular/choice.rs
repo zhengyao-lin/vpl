@@ -1,11 +1,10 @@
-use super::disjoint::{DisjointFrom, SpecDisjointFrom};
+use super::disjoint::DisjointFrom;
 use crate::properties::*;
 use vstd::prelude::*;
 
 verus! {
 
 #[allow(missing_docs)]
-#[derive(Debug)]
 pub enum Either<A, B> {
     Left(A),
     Right(B),
@@ -23,33 +22,9 @@ impl<A: View, B: View> View for Either<A, B> {
 }
 
 /// Combinator that tries the `Fst` combinator and if it fails, tries the `Snd` combinator.
-#[derive(Debug)]
 pub struct OrdChoice<Fst, Snd>(pub Fst, pub Snd);
 
-impl<Fst, Snd> OrdChoice<Fst, Snd> where
-    Fst: Combinator,
-    Snd: Combinator + DisjointFrom<Fst>,
-    Fst::V: SecureSpecCombinator<SpecResult = <Fst::Owned as View>::V>,
-    Snd::V: SecureSpecCombinator<SpecResult = <Snd::Owned as View>::V> + SpecDisjointFrom<Fst::V>,
- {
-    /// Creates a new `OrdChoice` combinator.
-    /// > **Note**: The `Snd` parser must be disjoint from the `Fst` parser.
-    pub fn new(parser1: Fst, parser2: Snd) -> (o: Self)
-        requires
-            parser2@.spec_disjoint_from(&parser1@),
-        ensures
-            o.0 == parser1 && o.1 == parser2,
-    {
-        OrdChoice(parser1, parser2)
-    }
-}
-
-impl<Fst, Snd> View for OrdChoice<Fst, Snd> where
-    Fst: Combinator,
-    Snd: Combinator + DisjointFrom<Fst>,
-    Fst::V: SecureSpecCombinator<SpecResult = <Fst::Owned as View>::V>,
-    Snd::V: SecureSpecCombinator<SpecResult = <Snd::Owned as View>::V> + SpecDisjointFrom<Fst::V>,
- {
+impl<Fst: View, Snd: View> View for OrdChoice<Fst, Snd> where  {
     type V = OrdChoice<Fst::V, Snd::V>;
 
     open spec fn view(&self) -> Self::V {
@@ -59,12 +34,12 @@ impl<Fst, Snd> View for OrdChoice<Fst, Snd> where
 
 impl<Fst, Snd> SpecCombinator for OrdChoice<Fst, Snd> where
     Fst: SpecCombinator,
-    Snd: SpecCombinator + SpecDisjointFrom<Fst>,
+    Snd: SpecCombinator + DisjointFrom<Fst>,
  {
     type SpecResult = Either<Fst::SpecResult, Snd::SpecResult>;
 
     open spec fn spec_parse(&self, s: Seq<u8>) -> Result<(usize, Self::SpecResult), ()> {
-        if self.1.spec_disjoint_from(&self.0) {
+        if self.1.disjoint_from(&self.0) {
             if let Ok((n, v)) = self.0.spec_parse(s) {
                 Ok((n, Either::Left(v)))
             } else {
@@ -90,7 +65,7 @@ impl<Fst, Snd> SpecCombinator for OrdChoice<Fst, Snd> where
     }
 
     open spec fn spec_serialize(&self, v: Self::SpecResult) -> Result<Seq<u8>, ()> {
-        if self.1.spec_disjoint_from(&self.0) {
+        if self.1.disjoint_from(&self.0) {
             match v {
                 Either::Left(v) => self.0.spec_serialize(v),
                 Either::Right(v) => self.1.spec_serialize(v),
@@ -103,16 +78,16 @@ impl<Fst, Snd> SpecCombinator for OrdChoice<Fst, Snd> where
 
 impl<Fst, Snd> SecureSpecCombinator for OrdChoice<Fst, Snd> where
     Fst: SecureSpecCombinator,
-    Snd: SecureSpecCombinator + SpecDisjointFrom<Fst>,
+    Snd: SecureSpecCombinator + DisjointFrom<Fst>,
  {
     open spec fn spec_is_prefix_secure() -> bool {
         Fst::spec_is_prefix_secure() && Snd::spec_is_prefix_secure()
     }
 
     proof fn lemma_prefix_secure(&self, s1: Seq<u8>, s2: Seq<u8>) {
-        if self.1.spec_disjoint_from(&self.0) {
+        if self.1.disjoint_from(&self.0) {
             // must also explicitly state that parser1 will fail on anything that parser2 will succeed on
-            self.1.spec_parse_disjoint_on(&self.0, s1.add(s2));
+            self.1.parse_disjoint_on(&self.0, s1.add(s2));
             if Self::spec_is_prefix_secure() {
                 self.0.lemma_prefix_secure(s1, s2);
                 self.1.lemma_prefix_secure(s1, s2);
@@ -128,8 +103,8 @@ impl<Fst, Snd> SecureSpecCombinator for OrdChoice<Fst, Snd> where
             Either::Right(v) => {
                 self.1.theorem_serialize_parse_roundtrip(v);
                 let buf = self.1.spec_serialize(v).unwrap();
-                if self.1.spec_disjoint_from(&self.0) {
-                    self.1.spec_parse_disjoint_on(&self.0, buf);
+                if self.1.disjoint_from(&self.0) {
+                    self.1.parse_disjoint_on(&self.0, buf);
                 }
             },
         }
@@ -148,9 +123,10 @@ impl<Fst, Snd> SecureSpecCombinator for OrdChoice<Fst, Snd> where
 
 impl<Fst, Snd> Combinator for OrdChoice<Fst, Snd> where
     Fst: Combinator,
-    Snd: Combinator + DisjointFrom<Fst>,
+    Snd: Combinator,
     Fst::V: SecureSpecCombinator<SpecResult = <Fst::Owned as View>::V>,
-    Snd::V: SecureSpecCombinator<SpecResult = <Snd::Owned as View>::V> + SpecDisjointFrom<Fst::V>,
+    Snd::V: SecureSpecCombinator<SpecResult = <Snd::Owned as View>::V>,
+    Snd::V: DisjointFrom<Fst::V>,
  {
     type Result<'a> = Either<Fst::Result<'a>, Snd::Result<'a>>;
 
@@ -169,57 +145,382 @@ impl<Fst, Snd> Combinator for OrdChoice<Fst, Snd> where
     }
 
     open spec fn parse_requires(&self) -> bool {
-        self.0.parse_requires() && self.1.parse_requires()
+        self.0.parse_requires() && self.1.parse_requires() && self@.1.disjoint_from(&self@.0)
     }
 
-    fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ()>) {
-        if self.1.disjoint_from(&self.0) {
-            if let Ok((n, v)) = self.0.parse(s) {
-                Ok((n, Either::Left(v)))
-            } else {
-                if let Ok((n, v)) = self.1.parse(s) {
-                    Ok((n, Either::Right(v)))
-                } else {
-                    Err(())
-                }
-            }
+    fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ParseError>) {
+        if let Ok((n, v)) = self.0.parse(s) {
+            Ok((n, Either::Left(v)))
         } else {
-            Err(())
+            if let Ok((n, v)) = self.1.parse(s) {
+                Ok((n, Either::Right(v)))
+            } else {
+                Err(ParseError::OrdChoiceNoMatch)
+            }
         }
     }
 
     open spec fn serialize_requires(&self) -> bool {
-        self.0.serialize_requires() && self.1.serialize_requires()
+        self.0.serialize_requires() && self.1.serialize_requires() && self@.1.disjoint_from(
+            &self@.0,
+        )
     }
 
     fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<
         usize,
-        (),
+        SerializeError,
     >) {
-        if self.1.disjoint_from(&self.0) {
-            match v {
-                Either::Left(v) => {
-                    let n = self.0.serialize(v, data, pos)?;
-                    if n <= usize::MAX - pos && n + pos <= data.len() {
-                        Ok(n)
-                    } else {
-                        Err(())
-                    }
-                },
-                Either::Right(v) => {
-                    let n = self.1.serialize(v, data, pos)?;
-                    if n <= usize::MAX - pos && n + pos <= data.len() {
-                        Ok(n)
-                    } else {
-                        Err(())
-                    }
-                },
-            }
-        } else {
-            Err(())
+        match v {
+            Either::Left(v) => {
+                let n = self.0.serialize(v, data, pos)?;
+                if n <= usize::MAX - pos && n + pos <= data.len() {
+                    Ok(n)
+                } else {
+                    Err(SerializeError::InsufficientBuffer)
+                }
+            },
+            Either::Right(v) => {
+                let n = self.1.serialize(v, data, pos)?;
+                if n <= usize::MAX - pos && n + pos <= data.len() {
+                    Ok(n)
+                } else {
+                    Err(SerializeError::InsufficientBuffer)
+                }
+            },
         }
     }
 }
 
+// what would it look like if we manually implemented the match combinator?
 //
+// use super::uints::*;
+// use super::tail::*;
+//
+// pub struct MatchU8With123 {
+//     pub val: u8,
+//     pub arm1: U8,
+//     pub arm2: U16,
+//     pub arm3: U32,
+//     pub default: Tail,
+// }
+//
+// impl View for MatchU8With123 {
+//     type V = Self;
+//
+//     open spec fn view(&self) -> Self::V {
+//         MatchU8With123 {
+//             val: self.val,
+//             arm1: self.arm1@,
+//             arm2: self.arm2@,
+//             arm3: self.arm3@,
+//             default: self.default@,
+//         }
+//     }
+// }
+//
+// pub enum SpecMsgMatchU8With123 {
+//     Arm1(u8),
+//     Arm2(u16),
+//     Arm3(u32),
+//     Default(Seq<u8>),
+// }
+//
+// pub enum MsgMatchU8With123<'a> {
+//     Arm1(u8),
+//     Arm2(u16),
+//     Arm3(u32),
+//     Default(&'a [u8]),
+// }
+//
+// pub enum MsgOwnedMatchU8With123 {
+//     Arm1(u8),
+//     Arm2(u16),
+//     Arm3(u32),
+//     Default(Vec<u8>),
+// }
+//
+// impl View for MsgMatchU8With123<'_> {
+//     type V = SpecMsgMatchU8With123;
+//
+//     open spec fn view(&self) -> Self::V {
+//         match self {
+//             MsgMatchU8With123::Arm1(v) => SpecMsgMatchU8With123::Arm1(v@),
+//             MsgMatchU8With123::Arm2(v) => SpecMsgMatchU8With123::Arm2(v@),
+//             MsgMatchU8With123::Arm3(v) => SpecMsgMatchU8With123::Arm3(v@),
+//             MsgMatchU8With123::Default(v) => SpecMsgMatchU8With123::Default(v@),
+//         }
+//     }
+// }
+//
+// impl View for MsgOwnedMatchU8With123 {
+//     type V = SpecMsgMatchU8With123;
+//
+//     open spec fn view(&self) -> Self::V {
+//         match self {
+//             MsgOwnedMatchU8With123::Arm1(v) => SpecMsgMatchU8With123::Arm1(v@),
+//             MsgOwnedMatchU8With123::Arm2(v) => SpecMsgMatchU8With123::Arm2(v@),
+//             MsgOwnedMatchU8With123::Arm3(v) => SpecMsgMatchU8With123::Arm3(v@),
+//             MsgOwnedMatchU8With123::Default(v) => SpecMsgMatchU8With123::Default(v@),
+//         }
+//     }
+// }
+//
+// impl SpecCombinator for MatchU8With123 {
+//     type SpecResult = SpecMsgMatchU8With123;
+//
+//     open spec fn spec_parse(&self, s: Seq<u8>) -> Result<(usize, Self::SpecResult), ()> {
+//         match self.val {
+//             1u8 => {
+//                 if let Ok((n, v)) = self.arm1.spec_parse(s) {
+//                     Ok((n, SpecMsgMatchU8With123::Arm1(v)))
+//                 } else {
+//                     Err(())
+//                 }
+//             },
+//             2u8 => {
+//                 if let Ok((n, v)) = self.arm2.spec_parse(s) {
+//                     Ok((n, SpecMsgMatchU8With123::Arm2(v)))
+//                 } else {
+//                     Err(())
+//                 }
+//             },
+//             3u8 => {
+//                 if let Ok((n, v)) = self.arm3.spec_parse(s) {
+//                     Ok((n, SpecMsgMatchU8With123::Arm3(v)))
+//                 } else {
+//                     Err(())
+//                 }
+//             },
+//             _ => {
+//                 if let Ok((n, v)) = self.default.spec_parse(s) {
+//                     Ok((n, SpecMsgMatchU8With123::Default(v)))
+//                 } else {
+//                     Err(())
+//                 }
+//             },
+//         }
+//     }
+//
+//     proof fn spec_parse_wf(&self, s: Seq<u8>) {
+//         match self.val {
+//             1u8 => {
+//                 if let Ok((n, v)) = self.arm1.spec_parse(s) {
+//                     self.arm1.spec_parse_wf(s);
+//                 }
+//             },
+//             2u8 => {
+//                 if let Ok((n, v)) = self.arm2.spec_parse(s) {
+//                     self.arm2.spec_parse_wf(s);
+//                 }
+//             },
+//             3u8 => {
+//                 if let Ok((n, v)) = self.arm3.spec_parse(s) {
+//                     self.arm3.spec_parse_wf(s);
+//                 }
+//             },
+//             _ => {
+//                 if let Ok((n, v)) = self.default.spec_parse(s) {
+//                     self.default.spec_parse_wf(s);
+//                 }
+//             },
+//         }
+//     }
+//
+//     open spec fn spec_serialize(&self, v: Self::SpecResult) -> Result<Seq<u8>, ()> {
+//         match self.val {
+//             1u8 => {
+//                 if let SpecMsgMatchU8With123::Arm1(v) = v {
+//                     self.arm1.spec_serialize(v)
+//                 } else {
+//                     Err(())
+//                 }
+//             },
+//             2u8 => {
+//                 if let SpecMsgMatchU8With123::Arm2(v) = v {
+//                     self.arm2.spec_serialize(v)
+//                 } else {
+//                     Err(())
+//                 }
+//             },
+//             3u8 => {
+//                 if let SpecMsgMatchU8With123::Arm3(v) = v {
+//                     self.arm3.spec_serialize(v)
+//                 } else {
+//                     Err(())
+//                 }
+//             },
+//             _ => {
+//                 if let SpecMsgMatchU8With123::Default(v) = v {
+//                     self.default.spec_serialize(v)
+//                 } else {
+//                     Err(())
+//                 }
+//             },
+//         }
+//     }
+// }
+//
+// impl SecureSpecCombinator for MatchU8With123 {
+//     open spec fn spec_is_prefix_secure() -> bool {
+//         U8::spec_is_prefix_secure() && U16::spec_is_prefix_secure() && U32::spec_is_prefix_secure()
+//             && Tail::spec_is_prefix_secure()
+//     }
+//
+//     proof fn lemma_prefix_secure(&self, s1: Seq<u8>, s2: Seq<u8>) {
+//         match self.val {
+//             1u8 => {
+//                 self.arm1.lemma_prefix_secure(s1, s2);
+//             },
+//             2u8 => {
+//                 self.arm2.lemma_prefix_secure(s1, s2);
+//             },
+//             3u8 => {
+//                 self.arm3.lemma_prefix_secure(s1, s2);
+//             },
+//             _ => {
+//                 self.default.lemma_prefix_secure(s1, s2);
+//             },
+//         }
+//     }
+//
+//     proof fn theorem_serialize_parse_roundtrip(&self, v: Self::SpecResult) {
+//         match self.val {
+//             1u8 => {
+//                 if let SpecMsgMatchU8With123::Arm1(v) = v {
+//                     self.arm1.theorem_serialize_parse_roundtrip(v);
+//                 }
+//             },
+//             2u8 => {
+//                 if let SpecMsgMatchU8With123::Arm2(v) = v {
+//                     self.arm2.theorem_serialize_parse_roundtrip(v);
+//                 }
+//             },
+//             3u8 => {
+//                 if let SpecMsgMatchU8With123::Arm3(v) = v {
+//                     self.arm3.theorem_serialize_parse_roundtrip(v);
+//                 }
+//             },
+//             _ => {
+//                 if let SpecMsgMatchU8With123::Default(v) = v {
+//                     self.default.theorem_serialize_parse_roundtrip(v);
+//                 }
+//             },
+//         }
+//     }
+//
+//     proof fn theorem_parse_serialize_roundtrip(&self, buf: Seq<u8>) {
+//         match self.val {
+//             1u8 => {
+//                 self.arm1.theorem_parse_serialize_roundtrip(buf);
+//             },
+//             2u8 => {
+//                 self.arm2.theorem_parse_serialize_roundtrip(buf);
+//             },
+//             3u8 => {
+//                 self.arm3.theorem_parse_serialize_roundtrip(buf);
+//             },
+//             _ => {
+//                 self.default.theorem_parse_serialize_roundtrip(buf);
+//             },
+//         }
+//     }
+// }
+//
+// impl Combinator for MatchU8With123 {
+//     type Result<'a> = MsgMatchU8With123<'a>;
+//
+//     type Owned = MsgOwnedMatchU8With123;
+//
+//     open spec fn spec_length(&self) -> Option<usize> {
+//         None
+//     }
+//
+//     fn length(&self) -> Option<usize> {
+//         None
+//     }
+//
+//     fn exec_is_prefix_secure() -> bool {
+//         U8::exec_is_prefix_secure() && U16::exec_is_prefix_secure() && U32::exec_is_prefix_secure()
+//             && Tail::exec_is_prefix_secure()
+//     }
+//
+//     open spec fn parse_requires(&self) -> bool {
+//         self.arm1.parse_requires() && self.arm2.parse_requires() && self.arm3.parse_requires()
+//             && self.default.parse_requires()
+//     }
+//
+//     fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ()>) {
+//         match self.val {
+//             1u8 => {
+//                 if let Ok((n, v)) = self.arm1.parse(s) {
+//                     Ok((n, MsgMatchU8With123::Arm1(v)))
+//                 } else {
+//                     Err(())
+//                 }
+//             },
+//             2u8 => {
+//                 if let Ok((n, v)) = self.arm2.parse(s) {
+//                     Ok((n, MsgMatchU8With123::Arm2(v)))
+//                 } else {
+//                     Err(())
+//                 }
+//             },
+//             3u8 => {
+//                 if let Ok((n, v)) = self.arm3.parse(s) {
+//                     Ok((n, MsgMatchU8With123::Arm3(v)))
+//                 } else {
+//                     Err(())
+//                 }
+//             },
+//             _ => {
+//                 if let Ok((n, v)) = self.default.parse(s) {
+//                     Ok((n, MsgMatchU8With123::Default(v)))
+//                 } else {
+//                     Err(())
+//                 }
+//             },
+//         }
+//     }
+//
+//     open spec fn serialize_requires(&self) -> bool {
+//         self.arm1.serialize_requires() && self.arm2.serialize_requires()
+//             && self.arm3.serialize_requires() && self.default.serialize_requires()
+//     }
+//
+//     fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<
+//         usize,
+//         (),
+//     >) {
+//         match self.val {
+//             1u8 => {
+//                 if let MsgMatchU8With123::Arm1(v) = v {
+//                     self.arm1.serialize(v, data, pos)
+//                 } else {
+//                     Err(())
+//                 }
+//             },
+//             2u8 => {
+//                 if let MsgMatchU8With123::Arm2(v) = v {
+//                     self.arm2.serialize(v, data, pos)
+//                 } else {
+//                     Err(())
+//                 }
+//             },
+//             3u8 => {
+//                 if let MsgMatchU8With123::Arm3(v) = v {
+//                     self.arm3.serialize(v, data, pos)
+//                 } else {
+//                     Err(())
+//                 }
+//             },
+//             _ => {
+//                 if let MsgMatchU8With123::Default(v) = v {
+//                     self.default.serialize(v, data, pos)
+//                 } else {
+//                     Err(())
+//                 }
+//             },
+//         }
+//     }
+// }
 } // verus!

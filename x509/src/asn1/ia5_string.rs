@@ -141,21 +141,21 @@ impl Combinator for IA5String {
         true
     }
 
-    fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ()>) {
+    fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ParseError>) {
         let (len, v) = OctetString.parse(s)?;
 
         if IA5StringPoly(v).wf() {
             Ok((len, IA5StringPoly(v)))
         } else {
-            Err(())
+            Err(ParseError::Other("Ill-formed IA5 string".to_string()))
         }
     }
 
-    fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, ()>) {
+    fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, SerializeError>) {
         if v.wf() {
             OctetString.serialize(v.0, data, pos)
         } else {
-            Err(())
+            Err(SerializeError::Other("Ill-formed IA5 string".to_string()))
         }
     }
 }
@@ -176,7 +176,7 @@ mod tests {
     use super::*;
     use der::Encode;
 
-    fn serialize_ia5_string(v: &str) -> Result<Vec<u8>, ()> {
+    fn serialize_ia5_string(v: &str) -> Result<Vec<u8>, SerializeError> {
         let mut data = vec![0; v.len() + 10];
         data[0] = 0x16; // Prepend the tag byte
         let len = IA5String.serialize(IA5StringValue::new(v.as_bytes()).unwrap(), &mut data, 1)?;
@@ -187,7 +187,7 @@ mod tests {
     #[test]
     fn diff_with_der() {
         let diff = |s: &str| {
-            let res1 = serialize_ia5_string(s);
+            let res1 = serialize_ia5_string(s).map_err(|_| ());
             let res2 = der::asn1::Ia5StringRef::new(s).unwrap().to_der().map_err(|_| ());
             assert_eq!(res1, res2);
         };

@@ -144,21 +144,21 @@ impl Combinator for BitString {
         true
     }
 
-    fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ()>) {
+    fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ParseError>) {
         let (len, v) = OctetString.parse(s)?;
 
         if BitStringValuePoly(v).wf() {
             Ok((len, BitStringValuePoly(v)))
         } else {
-            Err(())
+            Err(ParseError::Other("Ill-formed bit string".to_string()))
         }
     }
 
-    fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, ()>) {
+    fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, SerializeError>) {
         if v.wf() {
             OctetString.serialize(v.0, data, pos)
         } else {
-            Err(())
+            Err(SerializeError::Other("Ill-formed bit string".to_string()))
         }
     }
 }
@@ -187,7 +187,7 @@ mod test {
     use super::*;
     use der::Encode;
 
-    fn serialize_bit_string(v: BitStringValue) -> Result<Vec<u8>, ()> {
+    fn serialize_bit_string(v: BitStringValue) -> Result<Vec<u8>, SerializeError> {
         let mut data = vec![0; v.bit_string().len() + 10];
         data[0] = 0x03; // Prepend the tag byte
         let len = BitString.serialize(v, &mut data, 1)?;
@@ -199,7 +199,7 @@ mod test {
     fn diff_with_der() {
         // The first byte of raw should denote the number of trailing zeros
         let diff = |raw: &[u8]| {
-            let res1 = serialize_bit_string(BitStringValue::new_raw(raw).unwrap());
+            let res1 = serialize_bit_string(BitStringValue::new_raw(raw).unwrap()).map_err(|_| ());
             let res2 = der::asn1::BitString::new(raw[0], &raw[1..]).unwrap().to_der().map_err(|_| ());
             assert_eq!(res1, res2);
         };

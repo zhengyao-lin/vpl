@@ -85,7 +85,7 @@ impl<T: Combinator> Combinator for LengthWrapped<T> where
         self.0.parse_requires()
     }
 
-    fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ()>) {
+    fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ParseError>) {
         let (len, (_, v)) = new_length_wrapped_inner(&self.0).parse(s)?;
         Ok((len, v))
     }
@@ -94,7 +94,7 @@ impl<T: Combinator> Combinator for LengthWrapped<T> where
         self.0.serialize_requires()
     }
 
-    fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, ()>) {
+    fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, SerializeError>) {
         // TODO: can we avoid serializing twice?
         let len = self.0.serialize(v.clone(), data, pos)?;
         let final_len = new_length_wrapped_inner(&self.0).serialize((len as LengthValue, v), data, pos)?;
@@ -104,7 +104,7 @@ impl<T: Combinator> Combinator for LengthWrapped<T> where
             return Ok(final_len);
         }
 
-        Err(())
+        Err(SerializeError::InsufficientBuffer)
     }
 }
 

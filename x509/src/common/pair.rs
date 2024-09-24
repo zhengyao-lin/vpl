@@ -80,7 +80,7 @@ impl<C1, C2> Combinator for Pair<C1, C2> where
         &&& self.1.parse_requires()
     }
 
-    fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ()>) {
+    fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ParseError>) {
         let (n, v) = (&self.0, &self.1).parse(s)?;
         Ok((n, PairValue(v.0, v.1)))
     }
@@ -90,7 +90,7 @@ impl<C1, C2> Combinator for Pair<C1, C2> where
         &&& self.1.serialize_requires()
     }
 
-    fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, ()>) {
+    fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, SerializeError>) {
         (&self.0, &self.1).serialize((v.0, v.1), data, pos)
     }
 }

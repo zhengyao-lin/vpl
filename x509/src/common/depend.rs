@@ -225,7 +225,7 @@ impl<Fst, Snd, C> Combinator for Depend<Fst, Snd, C> where
         &&& forall |i, snd| self.snd.ensures(i, snd) ==> snd.parse_requires()
     }
 
-    fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ()>) {
+    fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ParseError>) {
         if Fst::exec_is_prefix_secure() {
             let (n, v1) = self.fst.parse(s)?;
             let s_ = slice_subrange(s, n, s.len());
@@ -234,10 +234,10 @@ impl<Fst, Snd, C> Combinator for Depend<Fst, Snd, C> where
             if n <= usize::MAX - m {
                 Ok(((n + m), (v1, v2)))
             } else {
-                Err(())
+                Err(ParseError::SizeOverflow)
             }
         } else {
-            Err(())
+            Err(ParseError::DependFstNotPrefixSecure)
         }
     }
 
@@ -249,7 +249,7 @@ impl<Fst, Snd, C> Combinator for Depend<Fst, Snd, C> where
 
     fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<
         usize,
-        (),
+        SerializeError,
     >) {
         if Fst::exec_is_prefix_secure() {
             let n = self.fst.serialize(v.0, data, pos)?;
@@ -263,13 +263,13 @@ impl<Fst, Snd, C> Combinator for Depend<Fst, Snd, C> where
                     assert(data@ == seq_splice(old(data)@, pos, self@.spec_serialize(v@).unwrap()));
                     Ok(n + m)
                 } else {
-                    Err(())
+                    Err(SerializeError::SizeOverflow)
                 }
             } else {
-                Err(())
+                Err(SerializeError::InsufficientBuffer)
             }
         } else {
-            Err(())
+            Err(SerializeError::DependFstNotPrefixSecure)
         }
     }
 }

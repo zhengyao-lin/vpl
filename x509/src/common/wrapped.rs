@@ -152,7 +152,7 @@ macro_rules! wrap_combinator {
                 }
 
                 #[verifier::external_body]
-                fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ()>) {
+                fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ParseError>) {
                     // println_join!("Parsing ", stringify!($name));
                     // let res = $inner_expr.parse(s)?;
                     // println_join!("Parsing ", stringify!($name), ": success");
@@ -162,7 +162,7 @@ macro_rules! wrap_combinator {
                 }
 
                 #[verifier::external_body]
-                fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, ()>) {
+                fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, SerializeError>) {
                     $inner_expr.serialize(v, data, pos)
                 }
             }

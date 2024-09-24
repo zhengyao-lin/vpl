@@ -117,40 +117,37 @@ impl Combinator for UTF8String {
         true
     }
 
-    fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ()>) {
-        match Length.parse(s) {
-            Ok((n, l)) => {
-                if let Some(total_len) = n.checked_add(l as usize) {
-                    if total_len <= s.len() {
-                        match utf8_to_str(slice_take(slice_subrange(s, n, s.len()), l as usize)) {
-                            Some(parsed) => {
-                                return Ok((total_len, parsed));
-                            },
-                            _ => {}
-                        }
-                    }
-                }
-            }
-            _ => {},
-        }
+    fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ParseError>) {
+        let (n, l) = Length.parse(s)?;
 
-        Err(())
+        if let Some(total_len) = n.checked_add(l as usize) {
+            if total_len <= s.len() {
+                match utf8_to_str(slice_take(slice_subrange(s, n, s.len()), l as usize)) {
+                    Some(parsed) => Ok((total_len, parsed)),
+                    _ => Err(ParseError::Other("Invalid UTF-8".to_string()))
+                }
+            } else {
+                Err(ParseError::UnexpectedEndOfInput)
+            }
+        } else {
+            Err(ParseError::SizeOverflow)
+        }
     }
 
-    fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, ()>) {
+    fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, SerializeError>) {
         let s = str_to_utf8(v);
         let n = Length.serialize(s.len() as LengthValue, data, pos)?;
 
         if pos.checked_add(n).is_none() {
-            return Err(());
+            return Err(SerializeError::SizeOverflow);
         }
 
         if (pos + n).checked_add(s.len()).is_none() {
-            return Err(());
+            return Err(SerializeError::SizeOverflow);
         }
 
         if pos + n + s.len() >= data.len() {
-            return Err(());
+            return Err(SerializeError::InsufficientBuffer);
         }
 
         let ghost data_after_len = data@;
@@ -179,7 +176,7 @@ mod test {
     use super::*;
     use der::Encode;
 
-    fn serialize_utf8_string(v: &str) -> Result<Vec<u8>, ()> {
+    fn serialize_utf8_string(v: &str) -> Result<Vec<u8>, SerializeError> {
         let mut data = vec![0; v.len() + 10];
         data[0] = 0x0c; // Prepend the tag byte
         let len = UTF8String.serialize(v, &mut data, 1)?;
@@ -189,7 +186,7 @@ mod test {
 
     fn diff_with_der() {
         let diff = |s: &str| {
-            let res1 = serialize_utf8_string(s);
+            let res1 = serialize_utf8_string(s).map_err(|_| ());
             let res2 = s.to_string().to_der().map_err(|_| ());
             assert_eq!(res1, res2);
         };

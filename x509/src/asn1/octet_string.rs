@@ -68,15 +68,12 @@ impl Combinator for OctetString {
         true
     }
 
-    fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ()>) {
-        if let Ok((len, (_, v))) = new_octet_string_inner().parse(s) {
-            Ok((len, v))
-        } else {
-            Err(())
-        }
+    fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ParseError>) {
+        let (len, (_, v)) = new_octet_string_inner().parse(s)?;
+        Ok((len, v))
     }
 
-    fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, ()>) {
+    fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, SerializeError>) {
         new_octet_string_inner().serialize((v.len() as LengthValue, v), data, pos)
     }
 }
@@ -132,7 +129,7 @@ mod test {
     use super::*;
     use der::Encode;
 
-    fn serialize_octet_string(v: &[u8]) -> Result<Vec<u8>, ()> {
+    fn serialize_octet_string(v: &[u8]) -> Result<Vec<u8>, SerializeError> {
         let mut data = vec![0; v.len() + 10];
         data[0] = 0x04; // Prepend the tag byte
         let len = OctetString.serialize(v, &mut data, 1)?;
@@ -143,7 +140,7 @@ mod test {
     #[test]
     fn diff_with_der() {
         let diff = |bytes: &[u8]| {
-            let res1 = serialize_octet_string(bytes);
+            let res1 = serialize_octet_string(bytes).map_err(|_| ());
             let res2 = der::asn1::OctetString::new(bytes).unwrap().to_der().map_err(|_| ());
             assert_eq!(res1, res2);
         };

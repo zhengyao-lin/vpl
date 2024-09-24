@@ -120,15 +120,12 @@ impl Combinator for BigInt {
         true
     }
 
-    fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ()>) {
-        if let Ok((len, v)) = new_big_int_inner().parse(s) {
-            Ok((len, BigIntValue(v)))
-        } else {
-            Err(())
-        }
+    fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ParseError>) {
+        let ((len, v)) = new_big_int_inner().parse(s)?;
+        Ok((len, BigIntValue(v)))
     }
 
-    fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, ()>) {
+    fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, SerializeError>) {
         new_big_int_inner().serialize(v.0, data, pos)
     }
 }

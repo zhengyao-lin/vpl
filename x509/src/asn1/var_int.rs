@@ -263,9 +263,9 @@ impl Combinator for VarUInt {
         true
     }
 
-    fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ()>) {
+    fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ParseError>) {
         if self.0 > s.len() || self.0 > uint_size!() {
-            return Err(());
+            return Err(ParseError::SizeOverflow);
         }
 
         proof {
@@ -325,21 +325,21 @@ impl Combinator for VarUInt {
         Ok((len, res))
     }
 
-    fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, ()>) {
+    fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, SerializeError>) {
         let len = self.0;
 
         if len > uint_size!() {
-            return Err(());
+            return Err(SerializeError::SizeOverflow);
         }
 
         // Size overflow or not enough space to store results
         if pos > usize::MAX - uint_size!() || data.len() < pos + len {
-            return Err(());
+            return Err(SerializeError::InsufficientBuffer);
         }
 
         // v is too large (phrased this way to avoid shift underflow)
         if (len > 0 && v > n_byte_max_unsigned!(len)) || (len == 0 && v != 0) {
-            return Err(());
+            return Err(SerializeError::SizeOverflow);
         }
 
         let ghost original_data = data@;
@@ -533,9 +533,9 @@ impl Combinator for VarInt {
         true
     }
 
-    fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ()>) {
+    fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ParseError>) {
         if self.0 > uint_size!() {
-            return Err(());
+            return Err(ParseError::SizeOverflow);
         }
 
         if self.0 > 0 {
@@ -560,13 +560,13 @@ impl Combinator for VarInt {
         }
     }
 
-    fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, ()>) {
+    fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, SerializeError>) {
         if self.0 > uint_size!() {
-            return Err(());
+            return Err(SerializeError::SizeOverflow);
         }
 
         if pos > usize::MAX - uint_size!() || data.len() < pos + self.0 {
-            return Err(());
+            return Err(SerializeError::InsufficientBuffer);
         }
 
         if self.0 == 0 {
@@ -580,13 +580,13 @@ impl Combinator for VarInt {
                 }
                 return Ok(0);
             } else {
-                return Err(());
+                return Err(SerializeError::Other("Invalid zero encoding".to_string()));
             }
         }
 
         // Check if v is within bounds
         if v < n_byte_min_signed!(self.0) || v > n_byte_max_signed!(self.0) {
-            return Err(());
+            return Err(SerializeError::SizeOverflow);
         }
 
         VarUInt(self.0).serialize((v as VarUIntResult) & n_byte_max_unsigned!(self.0), data, pos)

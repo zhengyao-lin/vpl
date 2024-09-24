@@ -136,9 +136,9 @@ impl Combinator for Length {
         true
     }
 
-    fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ()>) {
+    fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ParseError>) {
         if s.len() == 0 {
-            return Err(());
+            return Err(ParseError::UnexpectedEndOfInput);
         }
 
         if s[0] < 0x80 {
@@ -153,18 +153,18 @@ impl Combinator for Length {
         if bytes > 0 && !fits_n_bytes_unsigned!(v, bytes - 1) && v > 0x7f {
             Ok(((len + 1) as usize, v))
         } else {
-            Err(())
+            Err(ParseError::Other("Invalid length encoding".to_string()))
         }
     }
 
-    fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, ()>) {
+    fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, SerializeError>) {
         if v < 0x80 {
             if pos < data.len() {
                 data.set(pos, v as u8);
                 assert(data@ =~= seq_splice(old(data)@, pos, seq![v as u8]));
                 return Ok(1);
             } else {
-                return Err(());
+                return Err(SerializeError::InsufficientBuffer);
             }
         }
 
@@ -172,7 +172,7 @@ impl Combinator for Length {
 
         // Check if out of bound
         if pos >= data.len() || pos > usize::MAX - 1 {
-            return Err(());
+            return Err(SerializeError::InsufficientBuffer);
         }
 
         data.set(pos, (0x80 + bytes) as u8);
@@ -197,10 +197,11 @@ mod test {
     fn parse() {
         assert_eq!(Length.parse(&[ 0x0 ]).unwrap(), (1, 0));
         assert_eq!(Length.parse(&[ 0x7f ]).unwrap(), (1, 0x7f));
-        assert_eq!(Length.parse(&[ 0x80 ]), Err(()));
         assert_eq!(Length.parse(&[ 0x81, 0x80 ]).unwrap(), (2, 0x80));
-        assert_eq!(Length.parse(&[ 0x81, 0x7f ]), Err(()));
-        assert_eq!(Length.parse(&[ 0x82, 0x00, 0xff ]), Err(()));
         assert_eq!(Length.parse(&[ 0x82, 0x0f, 0xff ]).unwrap(), (3, 0x0fff));
+
+        assert!(Length.parse(&[ 0x80 ]).is_err());
+        assert!(Length.parse(&[ 0x81, 0x7f ]).is_err());
+        assert!(Length.parse(&[ 0x82, 0x00, 0xff ]).is_err());
     }
 }

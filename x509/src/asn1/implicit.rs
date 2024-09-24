@@ -80,7 +80,7 @@ impl<T: ASN1Tagged + Combinator> Combinator for ImplicitTag<T> where
         self.1.parse_requires()
     }
 
-    fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ()>) {
+    fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ParseError>) {
         self.1.parse(s)
     }
 
@@ -88,7 +88,7 @@ impl<T: ASN1Tagged + Combinator> Combinator for ImplicitTag<T> where
         self.1.serialize_requires()
     }
 
-    fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, ()>) {
+    fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, SerializeError>) {
         self.1.serialize(v, data, pos)
     }
 }
