@@ -153,12 +153,12 @@ macro_rules! wrap_combinator {
 
                 #[verifier::external_body]
                 fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ParseError>) {
-                    // println_join!("Parsing ", stringify!($name));
-                    // let res = $inner_expr.parse(s)?;
-                    // println_join!("Parsing ", stringify!($name), ": success");
-                    // Ok(res)
-
-                    $inner_expr.parse(s)
+                    let res = $inner_expr.parse(s);
+                    #[cfg(parser_trace)] {
+                        use polyfill::*;
+                        println_join!("[", stringify!($name), "] ", format_dbg(&res));
+                    }
+                    res
                 }
 
                 #[verifier::external_body]
