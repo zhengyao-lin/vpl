@@ -84,7 +84,8 @@ mapper! {
     }
 }
 
-
+/// Parse an optional boolean field ("critical")
+/// before the actual extension parameter
 #[derive(Debug, View)]
 pub struct ExtensionCont;
 

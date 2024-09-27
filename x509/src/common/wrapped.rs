@@ -148,7 +148,19 @@ macro_rules! wrap_combinator_impls {
                 /// Since we can't exactly specify the inner combinator in SpecCombinator,
                 /// we need to separately check that it is a valid Combinator
                 fn check_valid_inner_combinator() {
+                    // Type check
+                    // TODO: remove this once the Verus issue is fixed
+                    let _: $inner_type = $inner_expr;
+
+                    // Check that $inner_expr is a Combinator
                     let _ = $inner_expr.length();
+
+                    // The inner combinator has to be prefix secure
+                    assert(<<$inner_type as View>::V as SecureSpecCombinator>::spec_is_prefix_secure());
+
+                    // Check that parse_requires and serialize_requires are satisfied
+                    assert($inner_expr.parse_requires());
+                    assert($inner_expr.serialize_requires());
                 }
             }
 
@@ -158,10 +170,9 @@ macro_rules! wrap_combinator_impls {
                 // $inner_expr.view().spec_parse(s)
                 closed spec fn spec_parse(&self, s: Seq<u8>) -> Result<(usize, Self::SpecResult), ()>;
 
+                // $inner_expr.view().spec_parse_wf(s)
                 #[verifier::external_body]
-                proof fn spec_parse_wf(&self, s: Seq<u8>) {
-                    // $inner_expr.view().spec_parse_wf(s)
-                }
+                proof fn spec_parse_wf(&self, s: Seq<u8>) {}
 
                 // $inner_expr.view().spec_serialize(v)
                 closed spec fn spec_serialize(&self, v: Self::SpecResult) -> Result<Seq<u8>, ()>;
@@ -169,7 +180,9 @@ macro_rules! wrap_combinator_impls {
 
             impl SecureSpecCombinator for $name {
                 // $inner_type::spec_is_prefix_secure()
-                closed spec fn spec_is_prefix_secure() -> bool;
+                open spec fn spec_is_prefix_secure() -> bool {
+                    true
+                }
 
                 #[verifier::external_body]
                 proof fn theorem_serialize_parse_roundtrip(&self, v: Self::SpecResult) {
@@ -198,17 +211,13 @@ macro_rules! wrap_combinator_impls {
                 #[verifier::external_body]
                 fn length(&self) -> Option<usize> {
                     $(let $field_name: $field_type = self.$field_name;)*
-
-                    // Type check
-                    // TODO: remove this once the Verus issue is fixed
-                    let _: $inner_type = $inner_expr;
-
                     $inner_expr.length()
                 }
 
-                #[verifier::external_body]
-                fn exec_is_prefix_secure() -> bool {
-                    $inner_type::exec_is_prefix_secure()
+                fn exec_is_prefix_secure() -> bool { true }
+
+                open spec fn parse_requires(&self) -> bool {
+                    true
                 }
 
                 #[verifier::external_body]
@@ -220,6 +229,10 @@ macro_rules! wrap_combinator_impls {
                         println_join!("[", stringify!($name), "] ", format_dbg(&res));
                     }
                     res
+                }
+
+                open spec fn serialize_requires(&self) -> bool {
+                    true
                 }
 
                 #[verifier::external_body]

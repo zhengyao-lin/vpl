@@ -6,10 +6,6 @@ use crate::common::*;
 
 verus! {
 
-// pub type SpecExtensionParamValue = ExtensionParamPoly<Seq<u8>, Seq<u8>>;
-// pub type ExtensionParamValue<'a> = ExtensionParamPoly<&'a [u8], &'a [u8]>;
-// pub type ExtensionParamValueOwned = ExtensionParamPoly<Vec<u8>, Vec<u8>>;
-
 #[derive(Debug, View)]
 pub struct ExtensionParamCont;
 
