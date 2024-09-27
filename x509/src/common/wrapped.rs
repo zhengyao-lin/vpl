@@ -11,6 +11,15 @@ verus! {
 /// works better
 pub type Wrapped<C> = Mapped<C, IdentityMapper<C>>;
 
+pub open spec fn spec_new_wrapped<C: Combinator>(c: C) -> Wrapped<C> where
+    C::V: SecureSpecCombinator<SpecResult = <C::Owned as View>::V>,
+{
+    Mapped {
+        inner: c,
+        mapper: IdentityMapper(PhantomData),
+    }
+}
+
 pub fn new_wrapped<C: Combinator>(c: C) -> Wrapped<C> where
     C::V: SecureSpecCombinator<SpecResult = <C::Owned as View>::V>,
 {

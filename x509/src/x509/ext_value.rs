@@ -1,75 +1,85 @@
 use vstd::prelude::*;
 
 use crate::asn1::*;
-use crate::asn1::Boolean;
 
 use crate::common::*;
 
 verus! {
 
-// pub type ExtensionParamInner = ord_choice_type!(Cond<ASN1<OctetString>>, Cond<ASN1<OctetString>>);
+// pub type SpecExtensionParamValue = ExtensionParamPoly<Seq<u8>, Seq<u8>>;
+// pub type ExtensionParamValue<'a> = ExtensionParamPoly<&'a [u8], &'a [u8]>;
+// pub type ExtensionParamValueOwned = ExtensionParamPoly<Vec<u8>, Vec<u8>>;
 
-// wrap_combinator! {
-//     pub struct ExtensionParam {
-//         pub oid: ObjectIdentifierValue,
-//     }: ExtensionParamInner = ord_choice!(
-//         Cond { cond: oid.is(&[ 2, 5, 29, 35 ]), inner: ASN1(OctetString) },
-//         Cond { cond: !oid.is(&[ 2, 5, 29, 35 ]), inner: ASN1(OctetString) },
-//     );
-// }
+#[derive(Debug, View)]
+pub struct ExtensionParamCont;
 
-// #[derive(Debug, View)]
-// pub struct ExtensionParam {
-//     pub oid: ObjectIdentifierValue,
-// }
+impl ExtensionParamCont {
+    pub open spec fn spec_apply(i: SpecObjectIdentifierValue) -> <ExtensionParamCont as Continuation>::Output {
+        let c1 = (i =~= seq![ 2 as UInt, 5, 29, 35 ]);
+        let c2 = !(i =~= seq![ 2 as UInt, 5, 29, 35 ]);
+        Mapped {
+            inner: ord_choice!(
+                Cond { cond: c1, inner: ASN1(OctetString) },
+                Cond { cond: c2, inner: ASN1(OctetString) },
+            ),
+            mapper: ExtensionParamMapper,
+        }
+    }
+}
 
-// pub type ExtensionParamInner = ASN1<OctetString>;
+impl Continuation for ExtensionParamCont {
+    type Input<'a> = ObjectIdentifierValue;
+    type Output = Mapped<ord_choice_type!(
+        Cond<ASN1<OctetString>>,
+        Cond<ASN1<OctetString>>,
+    ), ExtensionParamMapper>;
 
-// #[derive(Debug, View)]
-// pub struct ExtensionParam;
+    fn apply<'a>(&self, i: Self::Input<'a>) -> (o: Self::Output) {
+        Mapped {
+            inner: ord_choice!(
+                Cond { cond: i.is(&[ 2, 5, 29, 35 ]), inner: ASN1(OctetString) },
+                Cond { cond: !i.is(&[ 2, 5, 29, 35 ]), inner: ASN1(OctetString) },
+            ),
+            mapper: ExtensionParamMapper,
+        }
+    }
 
-// impl SpecCombinator for ExtensionParam {
-//     type SpecResult = <<ExtensionParamInner as View>::V as SpecCombinator>::SpecResult;
+    open spec fn requires<'a>(&self, i: Self::Input<'a>) -> bool {
+        true
+    }
 
-//     closed spec fn spec_parse(&self, s: Seq<u8>) -> Result<(usize, Self::SpecResult), ()>;
+    open spec fn ensures<'a>(&self, i: Self::Input<'a>, o: Self::Output) -> bool {
+        o@ == Self::spec_apply(i@)
+    }
+}
 
-//     #[verifier::external_body]
-//     proof fn spec_parse_wf(&self, s: Seq<u8>) {
-//         // $inner_expr.view().spec_parse_wf(s)
-//     }
+mapper! {
+    pub struct ExtensionParamMapper;
 
-//     closed spec fn spec_serialize(&self, v: Self::SpecResult) -> Result<Seq<u8>, ()>;
-// }
+    for <AKI, Other>
+    from ExtensionParamFrom where type ExtensionParamFrom<AKI, Other> = ord_choice_result!(AKI, Other);
+    to ExtensionParamPoly where pub enum ExtensionParamPoly<AKI, Other> {
+        AuthorityKeyIdentifier(AKI),
+        Other(Other),
+    }
 
-// impl SecureSpecCombinator for ExtensionParam {}
+    spec SpecExtensionParamValue with <Seq<u8>, Seq<u8>>;
+    exec ExtensionParamValue<'a> with <&'a [u8], &'a [u8]>;
+    owned ExtensionParamValueOwned with <Vec<u8>, Vec<u8>>;
 
-// impl Combinator for ExtensionParam {
-//     type Result<'a> = <ExtensionParamInner as Combinator>::Result<'a>;
-//     type Owned = <ExtensionParamInner as Combinator>::Owned;
-//     fn length(&self) -> Option<usize> {
-//         let _: ExtensionParamInner = (ASN1(OctetString));
-//         (ASN1(OctetString)).length()
-//     }
-//     fn exec_is_prefix_secure() -> bool {
-//         ExtensionParamInner::exec_is_prefix_secure()
-//     }
-//     fn parse<'a>(&self, s: &'a [u8]) -> Result<(usize, Self::Result<'a>), ParseError> {
-//         let res = (ASN1(OctetString)).parse(s);
-//         #[cfg(parser_trace)]
-//         {
-//             use polyfill::*;
-//             println_join!("[", stringify!(ExtensionParam), "] ", format_dbg(&res));
-//         }
-//         res
-//     }
-//     fn serialize(
-//         &self,
-//         v: Self::Result<'_>,
-//         data: &mut Vec<u8>,
-//         pos: usize,
-//     ) -> Result<usize, SerializeError> {
-//         (ASN1(OctetString)).serialize(v, data, pos)
-//     }
-// }
+    forward(x) {
+        match x {
+            inj_ord_choice_pat!(p, *) => ExtensionParamPoly::AuthorityKeyIdentifier(p),
+            inj_ord_choice_pat!(*, p) => ExtensionParamPoly::Other(p),
+        }
+    }
+
+    backward(y) {
+        match y {
+            ExtensionParamPoly::AuthorityKeyIdentifier(p) => inj_ord_choice_result!(p, *),
+            ExtensionParamPoly::Other(p) => inj_ord_choice_result!(*, p),
+        }
+    }
+}
 
 }

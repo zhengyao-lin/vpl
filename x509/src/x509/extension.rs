@@ -4,6 +4,7 @@ use crate::asn1::*;
 use crate::asn1::Boolean;
 
 use crate::common::*;
+use super::ext_value::*;
 
 verus! {
 
@@ -58,80 +59,47 @@ asn1_tagged!(Extensions, TagValue {
 mapper! {
     pub struct ExtensionMapper;
 
-    for <Id, AKI, Other>
-    from ExtensionFrom where type ExtensionFrom<Id, AKI, Other> =
-        (Id, PairValue<OptionDeep<bool>, ord_choice_result!(AKI, Other)>);
-    to ExtensionPoly where pub struct ExtensionPoly<Id, AKI, Other> {
+    for <Id, Param>
+    from ExtensionFrom where type ExtensionFrom<Id, Param> = (Id, PairValue<OptionDeep<bool>, Param>);
+    to ExtensionPoly where pub struct ExtensionPoly<Id, Param> {
         pub id: Id,
         pub critical: OptionDeep<bool>,
-        pub param: ExtensionParamPoly<AKI, Other>,
+        pub param: Param,
     }
 
-    spec SpecExtensionValue with <SpecObjectIdentifierValue, Seq<u8>, Seq<u8>>;
-    exec ExtensionValue<'a> with <ObjectIdentifierValue, &'a [u8], &'a [u8]>;
-    owned ExtensionValueOwned with <ObjectIdentifierValueOwned, Vec<u8>, Vec<u8>>;
+    spec SpecExtensionValue with <SpecObjectIdentifierValue, SpecExtensionParamValue>;
+    exec ExtensionValue<'a> with <ObjectIdentifierValue, ExtensionParamValue<'a>>;
+    owned ExtensionValueOwned with <ObjectIdentifierValueOwned, ExtensionParamValueOwned>;
 
     forward(x) {
         ExtensionPoly {
             id: x.0,
             critical: x.1.0,
-            param: match x.1.1 {
-                inj_ord_choice_pat!(p, *) => ExtensionParamPoly::AuthorityKeyIdentifier(p),
-                inj_ord_choice_pat!(*, p) => ExtensionParamPoly::Other(p),
-            },
+            param: x.1.1,
         }
     }
 
     backward(y) {
-        (y.id, PairValue(y.critical, match y.param {
-            ExtensionParamPoly::AuthorityKeyIdentifier(p) => inj_ord_choice_result!(p, *),
-            ExtensionParamPoly::Other(p) => inj_ord_choice_result!(*, p),
-        }))
+        (y.id, PairValue(y.critical, y.param))
     }
 }
 
-#[derive(Debug, View, PolyfillClone)]
-pub enum ExtensionParamPoly<AKI, Other> {
-    AuthorityKeyIdentifier(AKI),
-    Other(Other),
-}
-
-// pub type SpecExtensionParamValue = ExtensionParamPoly<Seq<u8>, Seq<u8>>;
-// pub type ExtensionParamValue<'a> = ExtensionParamPoly<&'a [u8], &'a [u8]>;
-// pub type ExtensionParamValueOwned = ExtensionParamPoly<Vec<u8>, Vec<u8>>;
 
 #[derive(Debug, View)]
 pub struct ExtensionCont;
 
 impl ExtensionCont {
     pub open spec fn spec_apply(i: SpecObjectIdentifierValue) -> <ExtensionCont as Continuation>::Output {
-        let c1 = (i =~= seq![ 2 as UInt, 5, 29, 35 ]);
-        let c2 = !(i =~= seq![ 2 as UInt, 5, 29, 35 ]);
-        Optional(
-            ASN1(Boolean),
-            ord_choice!(
-                Cond { cond: c1, inner: ASN1(OctetString) },
-                Cond { cond: c2, inner: ASN1(OctetString) },
-            ),
-        )
+        Optional(spec_new_wrapped(ASN1(Boolean)), ExtensionParamCont::spec_apply(i))
     }
 }
 
 impl Continuation for ExtensionCont {
     type Input<'a> = ObjectIdentifierValue;
-    type Output = Optional<ASN1<Boolean>, ord_choice_type!(
-        Cond<ASN1<OctetString>>,
-        Cond<ASN1<OctetString>>,
-    )>;
+    type Output = Optional<Wrapped<ASN1<Boolean>>, <ExtensionParamCont as Continuation>::Output>;
 
     fn apply<'a>(&self, i: Self::Input<'a>) -> (o: Self::Output) {
-        Optional(
-            ASN1(Boolean),
-            ord_choice!(
-                Cond { cond: i.is(&[ 2, 5, 29, 35 ]), inner: ASN1(OctetString) },
-                Cond { cond: !i.is(&[ 2, 5, 29, 35 ]), inner: ASN1(OctetString) },
-            ),
-        )
+        Optional(new_wrapped(ASN1(Boolean)), ExtensionParamCont.apply(i))
     }
 
     open spec fn requires<'a>(&self, i: Self::Input<'a>) -> bool {
