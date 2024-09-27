@@ -4,56 +4,18 @@ use crate::asn1::*;
 use crate::common::*;
 
 use super::alg_id::*;
+use super::macros::*;
 
 verus! {
 
-/// SubjectPublicKeyInfo  ::=  SEQUENCE  {
-///     algorithm            AlgorithmIdentifier,
-///     subjectPublicKey     BIT STRING
-/// }
-pub type PublicKeyInfoInner = Mapped<LengthWrapped<(ASN1<AlgorithmIdentifier>, ASN1<BitString>)>, PublicKeyInfoMapper>;
-
-wrap_combinator! {
-    pub struct PublicKeyInfo: PublicKeyInfoInner =>
-        spec SpecPublicKeyInfoValue,
-        exec<'a> PublicKeyInfoValue<'a>,
-        owned PublicKeyInfoValueOwned,
-    =
-        Mapped {
-            inner: LengthWrapped((ASN1(AlgorithmIdentifier), ASN1(BitString))),
-            mapper: PublicKeyInfoMapper,
-        };
-}
-
-asn1_tagged!(PublicKeyInfo, TagValue {
-    class: TagClass::Universal,
-    form: TagForm::Constructed,
-    num: 0x10,
-});
-
-mapper! {
-    pub struct PublicKeyInfoMapper;
-
-    for <Alg, PubKey>
-    from PublicKeyInfoFrom where type PublicKeyInfoFrom<Alg, PubKey> = (Alg, PubKey);
-    to PublicKeyInfoPoly where pub struct PublicKeyInfoPoly<Alg, PubKey> {
-        pub alg: Alg,
-        pub pub_key: PubKey,
-    }
-
-    spec SpecPublicKeyInfoValue with <SpecAlgorithmIdentifierValue, SpecBitStringValue>;
-    exec PublicKeyInfoValue<'a> with <AlgorithmIdentifierValue<'a>, BitStringValue<'a>>;
-    owned PublicKeyInfoValueOwned with <AlgorithmIdentifierValueOwned, BitStringValueOwned>;
-
-    forward(x) {
-        PublicKeyInfoPoly {
-            alg: x.0,
-            pub_key: x.1,
-        }
-    }
-
-    backward(y) {
-        (y.alg, y.pub_key)
+// SubjectPublicKeyInfo  ::=  SEQUENCE  {
+//     algorithm            AlgorithmIdentifier,
+//     subjectPublicKey     BIT STRING
+// }
+asn1_sequence! {
+    seq PublicKeyInfo {
+        alg: ASN1<AlgorithmIdentifier> = ASN1(AlgorithmIdentifier),
+        pub_key: ASN1<BitString> = ASN1(BitString),
     }
 }
 

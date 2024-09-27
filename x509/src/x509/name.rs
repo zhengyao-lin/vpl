@@ -4,6 +4,7 @@ use crate::asn1::*;
 use crate::common::*;
 
 use super::rdn::*;
+use super::macros::*;
 
 verus! {
 

@@ -4,57 +4,19 @@ use crate::asn1::*;
 use crate::common::*;
 
 use super::time::*;
+use super::macros::*;
 
 verus! {
 
-/// In X.509:
-/// Validity ::= SEQUENCE {
-///     notBefore      Time,
-///     notAfter       Time,
-/// }
-pub type ValidityInner = Mapped<LengthWrapped<(Time, Time)>, ValidityMapper>;
-
-wrap_combinator! {
-    pub struct Validity: ValidityInner =>
-        spec SpecValidityValue,
-        exec<'a> ValidityValue<'a>,
-        owned ValidityValueOwned,
-    =
-        Mapped {
-            inner: LengthWrapped((Time, Time)),
-            mapper: ValidityMapper,
-        };
-}
-
-asn1_tagged!(Validity, TagValue {
-    class: TagClass::Universal,
-    form: TagForm::Constructed,
-    num: 0x10,
-});
-
-mapper! {
-    pub struct ValidityMapper;
-
-    for <NA, NB>
-    from ValidityFrom where type ValidityFrom<NA, NB> = (NB, NA);
-    to ValidityPoly where pub struct ValidityPoly<NA, NB> {
-        pub not_before: NB,
-        pub not_after: NA,
-    }
-
-    spec SpecValidityValue with <SpecTimeValue, SpecTimeValue>;
-    exec ValidityValue<'a> with <TimeValue<'a>, TimeValue<'a>>;
-    owned ValidityValueOwned with <TimeValueOwned, TimeValueOwned>;
-
-    forward(x) {
-        ValidityPoly {
-            not_before: x.0,
-            not_after: x.1,
-        }
-    }
-
-    backward(y) {
-        (y.not_before, y.not_after)
+// In X.509:
+// Validity ::= SEQUENCE {
+//     notBefore      Time,
+//     notAfter       Time,
+// }
+asn1_sequence! {
+    seq Validity {
+        not_before: Time = Time,
+        not_after: Time = Time,
     }
 }
 

@@ -4,62 +4,24 @@ use crate::asn1::*;
 use crate::common::*;
 
 use super::dir_string::*;
-use crate::common::SpecFrom;
+use super::macros::*;
 
 verus! {
 
-/// AttributeTypeAndValue in X.509:
-/// AttributeTypeAndValue ::= SEQUENCE {
-///     type     AttributeType,
-///     value    AttributeValue
-/// }
-///
-/// AttributeType ::= OBJECT IDENTIFIER
-/// AttributeValue ::= ANY DEFINED BY AttributeType
-///
-/// where "in general AttributeValue will be a DirectoryString" (4.1.2.4, RFC 2459)
-pub type AttributeTypeAndValueInner = Mapped<LengthWrapped<(ASN1<ObjectIdentifier>, DirectoryString)>, AttributeTypeAndValueMapper>;
-
-wrap_combinator! {
-    pub struct AttributeTypeAndValue: AttributeTypeAndValueInner =>
-        spec SpecAttributeTypeAndValueValue,
-        exec<'a> AttributeTypeAndValueValue<'a>,
-        owned AttributeTypeAndValueValueOwned,
-    = Mapped {
-            inner: LengthWrapped((ASN1(ObjectIdentifier), DirectoryString)),
-            mapper: AttributeTypeAndValueMapper,
-        };
-}
-
-asn1_tagged!(AttributeTypeAndValue, TagValue {
-    class: TagClass::Universal,
-    form: TagForm::Constructed,
-    num: 0x10,
-});
-
-mapper! {
-    pub struct AttributeTypeAndValueMapper;
-
-    for <Typ, Value>
-    from AttributeTypeAndValueFrom where type AttributeTypeAndValueFrom<Typ, Value> = (Typ, Value);
-    to AttributeTypeAndValuePoly where pub struct AttributeTypeAndValuePoly<Typ, Value> {
-        pub typ: Typ,
-        pub value: Value,
-    }
-
-    spec SpecAttributeTypeAndValueValue with <SpecObjectIdentifierValue, SpecDirectoryStringValue>;
-    exec AttributeTypeAndValueValue<'a> with <ObjectIdentifierValue, DirectoryStringValue<'a>>;
-    owned AttributeTypeAndValueValueOwned with <ObjectIdentifierValueOwned, DirectoryStringValueOwned>;
-
-    forward(x) {
-        AttributeTypeAndValuePoly {
-            typ: x.0,
-            value: x.1,
-        }
-    }
-
-    backward(y) {
-        (y.typ, y.value)
+// AttributeTypeAndValue in X.509:
+// AttributeTypeAndValue ::= SEQUENCE {
+//     type     AttributeType,
+//     value    AttributeValue
+// }
+//
+// AttributeType ::= OBJECT IDENTIFIER
+// AttributeValue ::= ANY DEFINED BY AttributeType
+//
+// where "in general AttributeValue will be a DirectoryString" (4.1.2.4, RFC 2459)
+asn1_sequence! {
+    seq AttributeTypeAndValue {
+        typ: ASN1<ObjectIdentifier> = ASN1(ObjectIdentifier),
+        value: DirectoryString = DirectoryString,
     }
 }
 

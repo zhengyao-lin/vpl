@@ -6,66 +6,16 @@ use super::*;
 
 verus! {
 
-/// Certificate  ::=  SEQUENCE  {
-///     tbsCertificate       TBSCertificate,
-///     signatureAlgorithm   AlgorithmIdentifier,
-///     signatureValue       BIT STRING
-/// }
-pub type CertificateInner = Mapped<
-    LengthWrapped<
-        Pair<ASN1<TBSCertificate>,
-        Pair<ASN1<AlgorithmIdentifier>,
-        ASN1<BitString>,
-    >>>,
-    CertificateMapper>;
-
-wrap_combinator! {
-    pub struct Certificate: CertificateInner =>
-        spec SpecCertificateValue,
-        exec<'a> CertificateValue<'a>,
-        owned CertificateValueOwned,
-    =
-        Mapped {
-            inner: LengthWrapped(
-                Pair(ASN1(TBSCertificate),
-                Pair(ASN1(AlgorithmIdentifier),
-                ASN1(BitString)),
-            )),
-            mapper: CertificateMapper,
-        };
-}
-
-asn1_tagged!(Certificate, TagValue {
-    class: TagClass::Universal,
-    form: TagForm::Constructed,
-    num: 0x10,
-});
-
-mapper! {
-    pub struct CertificateMapper;
-
-    for <Cert, Alg, Signature>
-    from CertificateFrom where type CertificateFrom<Cert, Alg, Signature> = PairValue<Cert, PairValue<Alg, Signature>>;
-    to CertificatePoly where pub struct CertificatePoly<Cert, Alg, Signature> {
-        pub cert: Cert,
-        pub alg: Alg,
-        pub signature: Signature,
-    }
-
-    spec SpecCertificateValue with <SpecTBSCertificateValue, SpecAlgorithmIdentifierValue, SpecBitStringValue>;
-    exec CertificateValue<'a> with <TBSCertificateValue<'a>, AlgorithmIdentifierValue<'a>, BitStringValue<'a>>;
-    owned CertificateValueOwned with <TBSCertificateValueOwned, AlgorithmIdentifierValueOwned, BitStringValueOwned>;
-
-    forward(x) {
-        CertificatePoly {
-            cert: x.0,
-            alg: x.1.0,
-            signature: x.1.1,
-        }
-    }
-
-    backward(y) {
-        PairValue(y.cert, PairValue(y.alg, y.signature))
+// Certificate  ::=  SEQUENCE  {
+//     tbsCertificate       TBSCertificate,
+//     signatureAlgorithm   AlgorithmIdentifier,
+//     signatureValue       BIT STRING
+// }
+asn1_sequence! {
+    seq Certificate {
+        tbs_certificate: ASN1<TBSCertificate> = ASN1(TBSCertificate),
+        signature_algorithm: ASN1<AlgorithmIdentifier> = ASN1(AlgorithmIdentifier),
+        signature: ASN1<BitString> = ASN1(BitString),
     }
 }
 
