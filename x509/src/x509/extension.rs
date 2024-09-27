@@ -12,10 +12,15 @@ verus! {
 ///     critical    BOOLEAN DEFAULT FALSE,
 ///     extnValue   OCTET STRING
 /// }
-pub type ExtensionInner = Mapped<LengthWrapped<Pair<
-    ASN1<ObjectIdentifier>,
-    Optional<ASN1<Boolean>, ASN1<OctetString>>,
->>, ExtensionMapper>;
+pub type ExtensionInner = Mapped<
+    LengthWrapped<
+        Depend<
+            ASN1<ObjectIdentifier>,
+            <ExtensionCont as Continuation>::Output,
+            ExtensionCont,
+        >,
+    >,
+    ExtensionMapper>;
 
 pub type ExtensionsInner = SequenceOf<ASN1<Extension>>;
 
@@ -25,13 +30,11 @@ wrap_combinator! {
         exec<'a> ExtensionValue<'a>,
         owned ExtensionValueOwned,
     = Mapped {
-            inner: LengthWrapped(Pair(
-                ASN1(ObjectIdentifier),
-                Optional(
-                    ASN1(Boolean),
-                    ASN1(OctetString),
-                ),
-            )),
+            inner: LengthWrapped(Depend {
+                fst: ASN1(ObjectIdentifier),
+                snd: ExtensionCont,
+                spec_snd: Ghost(|i| ExtensionCont::spec_apply(i)),
+            }),
             mapper: ExtensionMapper,
         };
 }
@@ -55,28 +58,88 @@ asn1_tagged!(Extensions, TagValue {
 mapper! {
     pub struct ExtensionMapper;
 
-    for <Id, Value>
-    from ExtensionFrom where type ExtensionFrom<Id, Value> = PairValue<Id, PairValue<OptionDeep<bool>, Value>>;
-    to ExtensionPoly where pub struct ExtensionPoly<Id, Value> {
+    for <Id, AKI, Other>
+    from ExtensionFrom where type ExtensionFrom<Id, AKI, Other> =
+        (Id, PairValue<OptionDeep<bool>, ord_choice_result!(AKI, Other)>);
+    to ExtensionPoly where pub struct ExtensionPoly<Id, AKI, Other> {
         pub id: Id,
         pub critical: OptionDeep<bool>,
-        pub value: Value,
+        pub param: ExtensionParamPoly<AKI, Other>,
     }
 
-    spec SpecExtensionValue with <SpecObjectIdentifierValue, Seq<u8>>;
-    exec ExtensionValue<'a> with <ObjectIdentifierValue, &'a [u8]>;
-    owned ExtensionValueOwned with <ObjectIdentifierValueOwned, Vec<u8>>;
+    spec SpecExtensionValue with <SpecObjectIdentifierValue, Seq<u8>, Seq<u8>>;
+    exec ExtensionValue<'a> with <ObjectIdentifierValue, &'a [u8], &'a [u8]>;
+    owned ExtensionValueOwned with <ObjectIdentifierValueOwned, Vec<u8>, Vec<u8>>;
 
     forward(x) {
         ExtensionPoly {
             id: x.0,
             critical: x.1.0,
-            value: x.1.1,
+            param: match x.1.1 {
+                inj_ord_choice_pat!(p, *) => ExtensionParamPoly::AuthorityKeyIdentifier(p),
+                inj_ord_choice_pat!(*, p) => ExtensionParamPoly::Other(p),
+            },
         }
     }
 
     backward(y) {
-        PairValue(y.id, PairValue(y.critical, y.value))
+        (y.id, PairValue(y.critical, match y.param {
+            ExtensionParamPoly::AuthorityKeyIdentifier(p) => inj_ord_choice_result!(p, *),
+            ExtensionParamPoly::Other(p) => inj_ord_choice_result!(*, p),
+        }))
+    }
+}
+
+#[derive(Debug, View, PolyfillClone)]
+pub enum ExtensionParamPoly<AKI, Other> {
+    AuthorityKeyIdentifier(AKI),
+    Other(Other),
+}
+
+// pub type SpecExtensionParamValue = ExtensionParamPoly<Seq<u8>, Seq<u8>>;
+// pub type ExtensionParamValue<'a> = ExtensionParamPoly<&'a [u8], &'a [u8]>;
+// pub type ExtensionParamValueOwned = ExtensionParamPoly<Vec<u8>, Vec<u8>>;
+
+#[derive(Debug, View)]
+pub struct ExtensionCont;
+
+impl ExtensionCont {
+    pub open spec fn spec_apply(i: SpecObjectIdentifierValue) -> <ExtensionCont as Continuation>::Output {
+        let c1 = (i =~= seq![ 2 as UInt, 5, 29, 35 ]);
+        let c2 = !(i =~= seq![ 2 as UInt, 5, 29, 35 ]);
+        Optional(
+            ASN1(Boolean),
+            ord_choice!(
+                Cond { cond: c1, inner: ASN1(OctetString) },
+                Cond { cond: c2, inner: ASN1(OctetString) },
+            ),
+        )
+    }
+}
+
+impl Continuation for ExtensionCont {
+    type Input<'a> = ObjectIdentifierValue;
+    type Output = Optional<ASN1<Boolean>, ord_choice_type!(
+        Cond<ASN1<OctetString>>,
+        Cond<ASN1<OctetString>>,
+    )>;
+
+    fn apply<'a>(&self, i: Self::Input<'a>) -> (o: Self::Output) {
+        Optional(
+            ASN1(Boolean),
+            ord_choice!(
+                Cond { cond: i.is(&[ 2, 5, 29, 35 ]), inner: ASN1(OctetString) },
+                Cond { cond: !i.is(&[ 2, 5, 29, 35 ]), inner: ASN1(OctetString) },
+            ),
+        )
+    }
+
+    open spec fn requires<'a>(&self, i: Self::Input<'a>) -> bool {
+        true
+    }
+
+    open spec fn ensures<'a>(&self, i: Self::Input<'a>, o: Self::Output) -> bool {
+        o@ == Self::spec_apply(i@)
     }
 }
 

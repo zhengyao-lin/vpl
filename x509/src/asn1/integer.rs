@@ -33,7 +33,7 @@ impl SpecCombinator for Integer {
     open spec fn spec_parse(&self, s: Seq<u8>) -> Result<(usize, Self::SpecResult), ()> {
         match new_spec_integer_inner().spec_parse(s) {
             Ok((len, (n, v))) => {
-                if is_min_num_bytes_signed(v, n) {
+                if is_min_num_bytes_signed(v, n as VarUIntResult) {
                     Ok((len, v))
                 } else {
                     Err(())
@@ -46,7 +46,7 @@ impl SpecCombinator for Integer {
     proof fn spec_parse_wf(&self, s: Seq<u8>) {}
 
     open spec fn spec_serialize(&self, v: Self::SpecResult) -> Result<Seq<u8>, ()> {
-        new_spec_integer_inner().spec_serialize((min_num_bytes_signed(v), v))
+        new_spec_integer_inner().spec_serialize((min_num_bytes_signed(v) as LengthValue, v))
     }
 }
 
@@ -56,7 +56,7 @@ impl SecureSpecCombinator for Integer {
     }
 
     proof fn theorem_serialize_parse_roundtrip(&self, v: Self::SpecResult) {
-        new_spec_integer_inner().theorem_serialize_parse_roundtrip((min_num_bytes_signed(v), v));
+        new_spec_integer_inner().theorem_serialize_parse_roundtrip((min_num_bytes_signed(v) as LengthValue, v));
         lemma_min_num_bytes_signed(v);
     }
 
@@ -92,7 +92,7 @@ impl Combinator for Integer {
     fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ParseError>) {
         let (len, (n, v)) = new_integer_inner().parse(s)?;
 
-        if is_min_num_bytes_signed_exec(v, n) {
+        if is_min_num_bytes_signed_exec(v, n as VarUIntResult) {
             Ok((len, v))
         } else {
             Err(ParseError::Other("Non-minimal integer encoding".to_string()))
@@ -103,7 +103,7 @@ impl Combinator for Integer {
         proof {
             lemma_min_num_bytes_signed(v);
         }
-        new_integer_inner().serialize((min_num_bytes_signed_exec(v), v), data, pos)
+        new_integer_inner().serialize((min_num_bytes_signed_exec(v) as LengthValue, v), data, pos)
     }
 }
 
@@ -112,7 +112,7 @@ impl Combinator for Integer {
 struct IntegerCont;
 
 impl Continuation for IntegerCont {
-    type Input<'a> = VarUIntResult;
+    type Input<'a> = LengthValue;
     type Output = VarInt;
 
     fn apply<'a>(&self, i: Self::Input<'a>) -> (o: Self::Output) {

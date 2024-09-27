@@ -14,13 +14,15 @@ verus! {
 ///     ia5String               IA5String (SIZE (1..MAX))
 /// }
 pub type DirectoryStringInner = Mapped<
-        OrdChoice<ASN1<PrintableString>,
-        OrdChoice<ASN1<UTF8String>,
-        OrdChoice<ASN1<IA5String>,
-        OrdChoice<ASN1<ImplicitTag<OctetString>>,
-        OrdChoice<ASN1<ImplicitTag<OctetString>>,
+    ord_choice_type!(
+        ASN1<PrintableString>,
+        ASN1<UTF8String>,
+        ASN1<IA5String>,
         ASN1<ImplicitTag<OctetString>>,
-    >>>>>, DirectoryStringMapper>;
+        ASN1<ImplicitTag<OctetString>>,
+        ASN1<ImplicitTag<OctetString>>,
+    ),
+    DirectoryStringMapper>;
 
 wrap_combinator! {
     pub struct DirectoryString: DirectoryStringInner =>
@@ -28,16 +30,16 @@ wrap_combinator! {
         exec<'a> DirectoryStringValue<'a>,
         owned DirectoryStringValueOwned,
     = Mapped {
-            inner:
-                OrdChoice(ASN1(PrintableString),
-                OrdChoice(ASN1(UTF8String),
-                OrdChoice(ASN1(IA5String),
-                OrdChoice(ASN1(ImplicitTag(TagValue {
+            inner: ord_choice!(
+                ASN1(PrintableString),
+                ASN1(UTF8String),
+                ASN1(IA5String),
+                ASN1(ImplicitTag(TagValue {
                     class: TagClass::Universal,
                     form: TagForm::Primitive,
                     num: 0x14, // TeletexString
                 }, OctetString)),
-                OrdChoice(ASN1(ImplicitTag(TagValue {
+                ASN1(ImplicitTag(TagValue {
                     class: TagClass::Universal,
                     form: TagForm::Primitive,
                     num: 0x1c, // UniversalString
@@ -47,7 +49,7 @@ wrap_combinator! {
                     form: TagForm::Primitive,
                     num: 0x1e, // BMPString
                 }, OctetString)),
-                ))))),
+            ),
             mapper: DirectoryStringMapper,
         };
 }
@@ -77,23 +79,23 @@ mapper! {
 
     forward(x) {
         match x {
-            Either::Left(s) => DirectoryStringPoly::PrintableString(s),
-            Either::Right(Either::Left(s)) => DirectoryStringPoly::UTF8String(s),
-            Either::Right(Either::Right(Either::Left(s))) => DirectoryStringPoly::IA5String(s),
-            Either::Right(Either::Right(Either::Right(Either::Left(s)))) => DirectoryStringPoly::TeletexString(s),
-            Either::Right(Either::Right(Either::Right(Either::Right(Either::Left(s))))) => DirectoryStringPoly::UniversalString(s),
-            Either::Right(Either::Right(Either::Right(Either::Right(Either::Right(s))))) => DirectoryStringPoly::BMPString(s),
+            inj_ord_choice_pat!(s, *, *, *, *, *) => DirectoryStringPoly::PrintableString(s),
+            inj_ord_choice_pat!(*, s, *, *, *, *) => DirectoryStringPoly::UTF8String(s),
+            inj_ord_choice_pat!(*, *, s, *, *, *) => DirectoryStringPoly::IA5String(s),
+            inj_ord_choice_pat!(*, *, *, s, *, *) => DirectoryStringPoly::TeletexString(s),
+            inj_ord_choice_pat!(*, *, *, *, s, *) => DirectoryStringPoly::UniversalString(s),
+            inj_ord_choice_pat!(*, *, *, *, *, s) => DirectoryStringPoly::BMPString(s),
         }
     }
 
     backward(y) {
         match y {
-            DirectoryStringPoly::PrintableString(s) => Either::Left(s),
-            DirectoryStringPoly::UTF8String(s) => Either::Right(Either::Left(s)),
-            DirectoryStringPoly::IA5String(s) => Either::Right(Either::Right(Either::Left(s))),
-            DirectoryStringPoly::TeletexString(s) => Either::Right(Either::Right(Either::Right(Either::Left(s)))),
-            DirectoryStringPoly::UniversalString(s) => Either::Right(Either::Right(Either::Right(Either::Right(Either::Left(s))))),
-            DirectoryStringPoly::BMPString(s) => Either::Right(Either::Right(Either::Right(Either::Right(Either::Right(s))))),
+            DirectoryStringPoly::PrintableString(s) => inj_ord_choice_result!(s, *, *, *, *, *),
+            DirectoryStringPoly::UTF8String(s) => inj_ord_choice_result!(*, s, *, *, *, *),
+            DirectoryStringPoly::IA5String(s) => inj_ord_choice_result!(*, *, s, *, *, *),
+            DirectoryStringPoly::TeletexString(s) => inj_ord_choice_result!(*, *, *, s, *, *),
+            DirectoryStringPoly::UniversalString(s) => inj_ord_choice_result!(*, *, *, *, s, *),
+            DirectoryStringPoly::BMPString(s) => inj_ord_choice_result!(*, *, *, *, *, s),
         }
     }
 }

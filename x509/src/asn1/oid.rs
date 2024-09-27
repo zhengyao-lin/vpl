@@ -33,6 +33,33 @@ impl View for ObjectIdentifierValue {
     }
 }
 
+impl ObjectIdentifierValue {
+    pub fn is(&self, other: &[UInt]) -> (r: bool)
+        ensures r <==> self@ =~= other@
+    {
+        if self.0.len() != other.len() {
+            return false;
+        }
+
+        let mut i = 0;
+
+        while i < self.0.len()
+            invariant
+                0 <= i <= self@.len(),
+                self@.len() == other@.len(),
+                forall |j: int| 0 <= j < i ==> self@[j] == other@[j],
+        {
+            assert(i < self@.len());
+            if self.0.get(i) != &other[i] {
+                return false;
+            }
+            i += 1;
+        }
+
+        return true;
+    }
+}
+
 impl ObjectIdentifier {
     /// First byte of an OID is 40 * arc1 + arc2
     pub open spec fn parse_first_two_arcs(byte: u8) -> Option<(UInt, UInt)> {

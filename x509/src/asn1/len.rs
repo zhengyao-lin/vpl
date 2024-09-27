@@ -13,7 +13,8 @@ verus! {
 #[derive(Debug, View)]
 pub struct Length;
 
-pub type LengthValue = VarUIntResult;
+/// NOTE: this should fit into a VarUIntResult
+pub type LengthValue = usize;
 
 impl SpecCombinator for Length {
     type SpecResult = LengthValue;
@@ -27,14 +28,14 @@ impl SpecCombinator for Length {
             Ok((1, s[0] as LengthValue))
         } else {
             // Multi-byte length
-            let bytes = (s[0] - 0x80) as UInt;
+            let bytes = (s[0] - 0x80) as LengthValue;
             match VarUInt(bytes as usize).spec_parse(s.drop_first()) {
                 Ok((n, v)) => {
                     // Need to check for minimal encoding for non-malleability
                     // For 1-byte length, v > 0x7f
                     // For (2+)-byte length, v can not be represented by fewer bytes
-                    if bytes > 0 && !fits_n_bytes_unsigned!(v, bytes - 1) && v > 0x7f {
-                        Ok(((n + 1) as usize, v))
+                    if bytes > 0 && !fits_n_bytes_unsigned!(v, bytes - 1) && v > 0x7f && v <= LengthValue::MAX {
+                        Ok(((n + 1) as usize, v as LengthValue))
                     } else {
                         Err(())
                     }
@@ -52,9 +53,9 @@ impl SpecCombinator for Length {
             Ok(seq![v as u8])
         } else {
             // Find the minimum number of bytes required to represent v
-            let bytes = min_num_bytes_unsigned(v);
+            let bytes = min_num_bytes_unsigned(v as VarUIntResult);
 
-            match VarUInt(bytes as usize).spec_serialize(v) {
+            match VarUInt(bytes as usize).spec_serialize(v as VarUIntResult) {
                 Ok(buf) => Ok(seq![(0x80 + bytes) as u8] + buf),
                 Err(()) => Err(()),
             }
@@ -70,15 +71,15 @@ impl SecureSpecCombinator for Length {
     proof fn theorem_serialize_parse_roundtrip(&self, v: Self::SpecResult) {
         if let Ok(buf) = self.spec_serialize(v) {
             if v >= 0x80 {
-                let bytes = min_num_bytes_unsigned(v);
+                let bytes = min_num_bytes_unsigned(v as VarUIntResult);
                 let var_uint = VarUInt(bytes as usize);
 
-                lemma_min_num_bytes_unsigned(v);
+                lemma_min_num_bytes_unsigned(v as VarUIntResult);
 
-                var_uint.theorem_serialize_parse_roundtrip(v);
-                var_uint.lemma_serialize_ok_len(v);
+                var_uint.theorem_serialize_parse_roundtrip(v as VarUIntResult);
+                var_uint.lemma_serialize_ok_len(v as VarUIntResult);
 
-                let buf2 = var_uint.spec_serialize(v).unwrap();
+                let buf2 = var_uint.spec_serialize(v as VarUIntResult).unwrap();
                 assert(buf.drop_first() == buf2);
             }
         }
@@ -104,8 +105,8 @@ impl SecureSpecCombinator for Length {
                 lemma_min_num_bytes_unsigned(v2);
 
                 // Some sequence facts
-                assert(var_uint.spec_serialize(v).is_ok());
-                let buf2 = var_uint.spec_serialize(v).unwrap();
+                assert(var_uint.spec_serialize(v as VarUIntResult).is_ok());
+                let buf2 = var_uint.spec_serialize(v as VarUIntResult).unwrap();
                 assert(seq![(0x80 + bytes) as u8] + buf2 == buf.subrange(0, 1 + bytes));
             }
         }
@@ -150,8 +151,8 @@ impl Combinator for Length {
 
         let (len, v) = VarUInt(bytes as usize).parse(slice_drop_first(s))?;
 
-        if bytes > 0 && !fits_n_bytes_unsigned!(v, bytes - 1) && v > 0x7f {
-            Ok(((len + 1) as usize, v))
+        if bytes > 0 && !fits_n_bytes_unsigned!(v, bytes - 1) && v > 0x7f && v <= LengthValue::MAX as VarUIntResult {
+            Ok(((len + 1) as usize, v as LengthValue))
         } else {
             Err(ParseError::Other("Invalid length encoding".to_string()))
         }
@@ -168,7 +169,7 @@ impl Combinator for Length {
             }
         }
 
-        let bytes = min_num_bytes_unsigned_exec(v);
+        let bytes = min_num_bytes_unsigned_exec(v as VarUIntResult);
 
         // Check if out of bound
         if pos >= data.len() || pos > usize::MAX - 1 {
@@ -176,10 +177,10 @@ impl Combinator for Length {
         }
 
         data.set(pos, (0x80 + bytes) as u8);
-        let len = VarUInt(bytes as usize).serialize(v, data, pos + 1)?;
+        let len = VarUInt(bytes as usize).serialize(v as VarUIntResult, data, pos + 1)?;
 
         proof {
-            lemma_min_num_bytes_unsigned(v);
+            lemma_min_num_bytes_unsigned(v as VarUIntResult);
             assert(data@ =~= seq_splice(old(data)@, pos, self@.spec_serialize(v).unwrap()));
         }
 

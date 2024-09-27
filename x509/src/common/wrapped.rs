@@ -76,9 +76,10 @@ impl<C: Combinator> Iso for IdentityMapper<C> where
 /// NOTE: $inner_expr is used both in exec and spec mode
 #[allow(unused_macros)]
 macro_rules! wrap_combinator {
-    ($vis:vis struct $name:ident: $inner_type:ty = $inner_expr:expr ;) => {
+    // NOTE: use the other alternative to reduce type checking time
+    ($vis:vis struct $name:ident $({ $($field_vis:vis $field_name:ident: $field_type:ty),* $(,)? })?: $inner_type:ty = $inner_expr:expr ;) => {
         wrap_combinator! {
-           $vis struct $name: $inner_type =>
+           $vis struct $name $({ $($field_vis $field_name: $field_type),* })?: $inner_type =>
                 spec <<$inner_type as View>::V as SpecCombinator>::SpecResult,
                 exec<'a> <$inner_type as Combinator>::Result<'a>,
                 owned <$inner_type as Combinator>::Owned,
@@ -86,7 +87,6 @@ macro_rules! wrap_combinator {
         }
     };
 
-    // NOTE: use this alternative can reduce type checking time
     ($vis:vis struct $name:ident: $inner_type:ty =>
         spec $spec_result:ty,
         exec<$lt:lifetime> $result:ty,
@@ -96,6 +96,53 @@ macro_rules! wrap_combinator {
             #[derive(Debug, View)]
             $vis struct $name;
 
+            wrap_combinator_impls! {
+                $vis struct $name {} : $inner_type =>
+                    spec $spec_result,
+                    exec<$lt> $result,
+                    owned $owned
+                = $inner_expr;
+            }
+        }
+    };
+
+    ($vis:vis struct $name:ident { $($field_vis:vis $field_name:ident: $field_type:ty),* $(,)? } : $inner_type:ty =>
+        spec $spec_result:ty,
+        exec<$lt:lifetime> $result:ty,
+        owned $owned:ty $(,)?
+        = $inner_expr:expr ;) => {
+        ::builtin_macros::verus! {
+            #[derive(Debug, View)]
+            $vis struct $name { $($field_vis $field_name: $field_type),* }
+
+            wrap_combinator_impls! {
+                $vis struct $name { $($field_vis $field_name: $field_type),* } : $inner_type =>
+                    spec $spec_result,
+                    exec<$lt> $result,
+                    owned $owned
+                = $inner_expr;
+            }
+        }
+    };
+}
+pub(crate) use wrap_combinator;
+
+#[allow(unused_macros)]
+macro_rules! wrap_combinator_impls {
+    ($vis:vis struct $name:ident { $($field_vis:vis $field_name:ident: $field_type:ty),* } : $inner_type:ty =>
+        spec $spec_result:ty,
+        exec<$lt:lifetime> $result:ty,
+        owned $owned:ty $(,)?
+        = $inner_expr:expr ;) => {
+        ::builtin_macros::verus! {
+            impl $name {
+                /// Since we can't exactly specify the inner combinator in SpecCombinator,
+                /// we need to separately check that it is a valid Combinator
+                fn check_valid_inner_combinator() {
+                    let _ = $inner_expr.length();
+                }
+            }
+
             impl SpecCombinator for $name {
                 type SpecResult = $spec_result;
 
@@ -104,8 +151,6 @@ macro_rules! wrap_combinator {
 
                 #[verifier::external_body]
                 proof fn spec_parse_wf(&self, s: Seq<u8>) {
-                    // Type check
-                    let _: $inner_type = $inner_expr;
                     // $inner_expr.view().spec_parse_wf(s)
                 }
 
@@ -143,6 +188,12 @@ macro_rules! wrap_combinator {
 
                 #[verifier::external_body]
                 fn length(&self) -> Option<usize> {
+                    $(let $field_name: $field_type = self.$field_name;)*
+
+                    // Type check
+                    // TODO: remove this once the Verus issue is fixed
+                    let _: $inner_type = $inner_expr;
+
                     $inner_expr.length()
                 }
 
@@ -153,6 +204,7 @@ macro_rules! wrap_combinator {
 
                 #[verifier::external_body]
                 fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ParseError>) {
+                    $(let $field_name: $field_type = self.$field_name;)*
                     let res = $inner_expr.parse(s);
                     #[cfg(parser_trace)] {
                         use polyfill::*;
@@ -163,12 +215,13 @@ macro_rules! wrap_combinator {
 
                 #[verifier::external_body]
                 fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, SerializeError>) {
+                    $(let $field_name: $field_type = self.$field_name;)*
                     $inner_expr.serialize(v, data, pos)
                 }
             }
         }
     };
 }
-pub(crate) use wrap_combinator;
+pub(crate) use wrap_combinator_impls;
 
 }

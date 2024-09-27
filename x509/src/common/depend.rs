@@ -3,7 +3,7 @@
 use vstd::prelude::*;
 use vstd::slice::slice_subrange;
 
-use super::vest::*;
+use super::{vest::*, PolyfillClone};
 
 verus! {
 
@@ -201,7 +201,7 @@ impl<Fst, Snd, C> Combinator for Depend<Fst, Snd, C> where
     Fst::V: SecureSpecCombinator<SpecResult = <Fst::Owned as View>::V>,
     Snd::V: SecureSpecCombinator<SpecResult = <Snd::Owned as View>::V>,
     C: for <'a>Continuation<Input<'a> = Fst::Result<'a>, Output = Snd>,
-    for <'a>Fst::Result<'a>: Copy,
+    for <'a>Fst::Result<'a>: PolyfillClone,
  {
     type Result<'a> = (Fst::Result<'a>, Snd::Result<'a>);
 
@@ -229,7 +229,7 @@ impl<Fst, Snd, C> Combinator for Depend<Fst, Snd, C> where
         if Fst::exec_is_prefix_secure() {
             let (n, v1) = self.fst.parse(s)?;
             let s_ = slice_subrange(s, n, s.len());
-            let snd = self.snd.apply(v1);
+            let snd = self.snd.apply(v1.clone());
             let (m, v2) = snd.parse(s_)?;
             if n <= usize::MAX - m {
                 Ok(((n + m), (v1, v2)))
@@ -252,7 +252,7 @@ impl<Fst, Snd, C> Combinator for Depend<Fst, Snd, C> where
         SerializeError,
     >) {
         if Fst::exec_is_prefix_secure() {
-            let n = self.fst.serialize(v.0, data, pos)?;
+            let n = self.fst.serialize(v.0.clone(), data, pos)?;
             if n <= usize::MAX - pos && n + pos <= data.len() {
                 let snd = self.snd.apply(v.0);
                 let m = snd.serialize(v.1, data, pos + n)?;
