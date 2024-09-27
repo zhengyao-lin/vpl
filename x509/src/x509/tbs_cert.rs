@@ -25,7 +25,7 @@ verus! {
 /// }
 pub type TBSCertificateInner = Mapped<
     LengthWrapped<
-        Optional<ASN1<ExplicitTag<ASN1<Integer>>>,
+        Default<IntegerValue, ASN1<ExplicitTag<ASN1<Integer>>>,
         Pair<ASN1<BigInt>,
         Pair<ASN1<AlgorithmIdentifier>,
         Pair<ASN1<Name>,
@@ -47,7 +47,7 @@ wrap_combinator! {
     =
         Mapped {
             inner: LengthWrapped(
-                Optional(ASN1(ExplicitTag(TagValue {
+                Default(0, ASN1(ExplicitTag(TagValue {
                     class: TagClass::ContextSpecific,
                     form: TagForm::Constructed,
                     num: 0,
@@ -105,7 +105,7 @@ mapper! {
             PubKeyInfo,
             UID,
             Extensions,
-        > = PairValue<OptionDeep<IntegerValue>,
+        > = PairValue<IntegerValue,
             PairValue<Serial,
             PairValue<AlgoId,
             PairValue<Name,
@@ -128,7 +128,7 @@ mapper! {
             UID,
             Extensions,
         > {
-            pub version: OptionDeep<IntegerValue>,
+            pub version: IntegerValue,
             pub serial: Serial,
             pub signature: AlgoId,
             pub issuer: Name,

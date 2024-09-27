@@ -16,15 +16,6 @@ pub struct Optional<C1, C2>(pub C1, pub C2);
 
 pub type OptionalValue<T1, T2> = PairValue<OptionDeep<T1>, T2>;
 
-impl<C1: Combinator, C2: Combinator> Optional<C1, C2> where
-    C1::V: SecureSpecCombinator<SpecResult = <C1::Owned as View>::V>,
-    C2::V: SecureSpecCombinator<SpecResult = <C2::Owned as View>::V> + DisjointFrom<C1::V>,
-{
-    pub fn new(c1: C1, c2: C2) -> Self {
-        Optional(c1, c2)
-    }
-}
-
 impl<C1, C2> SpecCombinator for Optional<C1, C2> where
     C1: SecureSpecCombinator,
     C2: SecureSpecCombinator + DisjointFrom<C1>,

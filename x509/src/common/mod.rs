@@ -13,6 +13,8 @@ mod option_deep;
 mod pair;
 mod wrapped;
 mod mapper;
+mod default;
+mod eq;
 
 pub use depend::*;
 pub use repeat::*;
@@ -25,6 +27,8 @@ pub use option_deep::*;
 pub use pair::*;
 pub use wrapped::*;
 pub use mapper::*;
+pub use default::*;
+pub use eq::*;
 
 pub use macros::View;
 pub use macros::PolyfillClone;

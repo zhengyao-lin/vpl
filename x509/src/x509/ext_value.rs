@@ -12,7 +12,7 @@ pub struct ExtensionParamCont;
 impl ExtensionParamCont {
     pub open spec fn spec_apply(i: SpecObjectIdentifierValue) -> <ExtensionParamCont as Continuation>::Output {
         let c1 = (i =~= seq![ 2 as UInt, 5, 29, 35 ]);
-        let c2 = !(i =~= seq![ 2 as UInt, 5, 29, 35 ]);
+        let c2 = !c1;
         Mapped {
             inner: ord_choice!(
                 Cond { cond: c1, inner: ASN1(OctetString) },
