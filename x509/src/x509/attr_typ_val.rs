@@ -2,6 +2,7 @@ use vstd::prelude::*;
 
 use crate::asn1::*;
 use crate::common::*;
+use crate::asn1::Integer;
 
 use super::dir_string::*;
 use super::macros::*;

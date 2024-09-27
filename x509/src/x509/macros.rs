@@ -7,12 +7,21 @@ use crate::common::*;
 
 verus! {
 
+/// gen_inner_combinator_type!((optional, type1); (, type2); (default(v), type3))
 #[allow(unused_macros)]
 macro_rules! gen_inner_combinator_type {
     () => { End };
 
-    ($first:ty $(, $rest:ty)*) => {
-        Pair<$first, gen_inner_combinator_type!($($rest),*)>
+    ((, $first:ty) $(; ($($modifier:ident $(($modifier_arg:expr))?)?, $rest:ty))*) => {
+        Pair<$first, gen_inner_combinator_type!($(($($modifier $(($modifier_arg))?)?, $rest));*)>
+    };
+
+    ((optional, $first:ty) $(; ($($modifier:ident $(($modifier_arg:expr))?)?, $rest:ty))*) => {
+        Optional<$first, gen_inner_combinator_type!($(($($modifier $(($modifier_arg))?)?, $rest));*)>
+    };
+
+    ((default($_:expr), $first:ty) $(; ($($modifier:ident $(($modifier_arg:expr))?)?, $rest:ty))*) => {
+        Default<<$first as Combinator>::Owned, $first, gen_inner_combinator_type!($(($($modifier $(($modifier_arg))?)?, $rest));*)>
     };
 }
 pub(crate) use gen_inner_combinator_type;
@@ -21,8 +30,16 @@ pub(crate) use gen_inner_combinator_type;
 macro_rules! gen_inner_combinator {
     () => { End };
 
-    ($first:expr $(, $rest:expr)*) => {
-        Pair($first, gen_inner_combinator!($($rest),*))
+    ((, $first:expr) $(; ($($modifier:ident $(($modifier_arg:expr))?)?, $rest:expr))*) => {
+        Pair($first, gen_inner_combinator!($(($($modifier $(($modifier_arg))?)?, $rest));*))
+    };
+
+    ((optional, $first:expr) $(; ($($modifier:ident $(($modifier_arg:expr))?)?, $rest:expr))*) => {
+        Optional($first, gen_inner_combinator!($(($($modifier $(($modifier_arg))?)?, $rest));*))
+    };
+
+    ((default($default:expr), $first:expr) $(; ($($modifier:ident $(($modifier_arg:expr))?)?, $rest:expr))*) => {
+        Default($default, $first, gen_inner_combinator!($(($($modifier $(($modifier_arg))?)?, $rest));*))
     };
 }
 pub(crate) use gen_inner_combinator;
@@ -31,8 +48,16 @@ pub(crate) use gen_inner_combinator;
 macro_rules! gen_inner_combinator_poly_result_type {
     () => { EndValue };
 
-    ($first:ident $(, $rest:ident)*) => {
-        PairValue<$first, gen_inner_combinator_poly_result_type!($($rest),*)>
+    ((, $first:ident) $(; ($($modifier:ident $(($modifier_arg:expr))?)?, $rest:ident))*) => {
+        PairValue<$first, gen_inner_combinator_poly_result_type!($(($($modifier $(($modifier_arg))?)?, $rest));*)>
+    };
+
+    ((optional, $first:ident) $(; ($($modifier:ident $(($modifier_arg:expr))?)?, $rest:ident))*) => {
+        PairValue<OptionDeep<$first>, gen_inner_combinator_poly_result_type!($(($($modifier $(($modifier_arg))?)?, $rest));*)>
+    };
+
+    ((default($_:expr), $first:ident) $(; ($($modifier:ident $(($modifier_arg:expr))?)?, $rest:ident))*) => {
+        PairValue<$first, gen_inner_combinator_poly_result_type!($(($($modifier $(($modifier_arg))?)?, $rest));*)>
     };
 }
 pub(crate) use gen_inner_combinator_poly_result_type;
@@ -73,6 +98,34 @@ macro_rules! get_end_field {
 }
 pub(crate) use get_end_field;
 
+#[allow(unused_macros)]
+macro_rules! gen_field_poly_type {
+    ((, $field:ident)) => {
+        $field
+    };
+
+    ((optional, $field:ident)) => {
+        OptionDeep<$field>
+    };
+
+    ((default($_:expr), $field:ident)) => {
+        $field
+    };
+}
+pub(crate) use gen_field_poly_type;
+
+// #[allow(unused_macros)]
+// macro_rules! normalize_field {
+//     ($field:ident) => {
+//         field($field)
+//     };
+
+//     ([optional] $field:ident) => {
+//         optional($field)
+//     };
+// }
+// pub(crate) use normalize_field;
+
 /// Example:
 /// asn1_sequence! {
 ///     sequence Test<'a> {
@@ -82,12 +135,14 @@ pub(crate) use get_end_field;
 /// }
 ///
 /// NOTE: all sub-combinators have to be prefix secure (for Pair to work)
+/// NOTE: we have the restriction that an OrdChoice combinator cannot
+/// be following an optional or default field.
 #[allow(unused_macros)]
 macro_rules! asn1_sequence {
     (
         seq $combinator_name:ident {
             $(
-                $field_name:ident : $field_combinator_type:ty = $field_combinator:expr
+                $(#[$modifier:ident $(($modifier_arg:expr))?])? $field_name:ident : $field_combinator_type:ty = $field_combinator:expr
             ),*
 
             $(,)?
@@ -96,12 +151,14 @@ macro_rules! asn1_sequence {
         paste! {
             // Wrap the final combinator in a unit struct called $combinator_name
             wrap_combinator! {
-                pub struct $combinator_name: Mapped<LengthWrapped<gen_inner_combinator_type!($($field_combinator_type),*)>, [< internal_ $combinator_name >]::Mapper> =>
+                pub struct $combinator_name: Mapped<LengthWrapped<
+                        gen_inner_combinator_type!($(($($modifier $(($modifier_arg))?)?, $field_combinator_type));*)
+                    >, [< internal_ $combinator_name >]::Mapper> =>
                     spec [< Spec $combinator_name Value >],
                     exec<'a> [< $combinator_name Value >]<'a>,
                     owned [< $combinator_name ValueOwned >],
                 = Mapped {
-                        inner: LengthWrapped(gen_inner_combinator!($($field_combinator),*)),
+                        inner: LengthWrapped(gen_inner_combinator!($(($($modifier $(($modifier_arg))?)?, $field_combinator));*)),
                         mapper: [< internal_ $combinator_name >]::Mapper,
                     };
             }
@@ -127,16 +184,21 @@ macro_rules! asn1_sequence {
 
                 use super::*;
 
+                // Add an indirection here since we can't put it inside the struct definition
+                $(
+                    pub type [<FieldType_ $field_name>]<$field_name> = gen_field_poly_type!(($($modifier $(($modifier_arg))?)?, $field_name));
+                )*
+
                 // Mapper from the inner nested pair type to a struct
                 mapper! {
                     pub struct Mapper;
 
                     for <$($field_name),*>
                     from FromType where
-                        type FromType<$($field_name),*> = gen_inner_combinator_poly_result_type!($($field_name),*);
+                        type FromType<$($field_name),*> = gen_inner_combinator_poly_result_type!($(($($modifier $(($modifier_arg))?)?, $field_name));*);
                     to PolyType where
                         pub struct PolyType<$($field_name),*> {
-                            $(pub $field_name: $field_name),*
+                            $(pub $field_name: [<FieldType_ $field_name>]<$field_name>,)*
                         }
 
                     spec SpecValue with <$(<<$field_combinator_type as View>::V as SpecCombinator>::SpecResult),*>;

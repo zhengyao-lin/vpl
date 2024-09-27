@@ -82,6 +82,26 @@ impl<T1, T2, T3> DisjointFrom<T1> for Optional<T2, T3> where
     }
 }
 
+/// Similar to Optional
+impl<T1, T2, T3> DisjointFrom<T1> for Default<T2::SpecResult, T2, T3> where
+    T1: SecureSpecCombinator,
+    T2: SecureSpecCombinator,
+    T3: SecureSpecCombinator,
+    T2: DisjointFrom<T1>,
+    T3: DisjointFrom<T1>,
+    T3: DisjointFrom<T2>,
+{
+    open spec fn disjoint_from(&self, other: &T1) -> bool {
+        self.1.disjoint_from(other) &&
+        self.2.disjoint_from(other)
+    }
+
+    proof fn parse_disjoint_on(&self, other: &T1, buf: Seq<u8>) {
+        self.1.parse_disjoint_on(other, buf);
+        self.2.parse_disjoint_on(other, buf);
+    }
+}
+
 impl<T> DisjointFrom<ASN1<T>> for End where
     T: ASN1Tagged + SpecCombinator,
 {

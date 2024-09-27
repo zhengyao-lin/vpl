@@ -8,198 +8,38 @@ use super::*;
 
 verus! {
 
-/// TBSCertificate  ::=  SEQUENCE  {
-///     version         [0]  EXPLICIT Version DEFAULT v1,
-///     serialNumber         CertificateSerialNumber,
-///     signature            AlgorithmIdentifier,
-///     issuer               Name,
-///     validity             Validity,
-///     subject              Name,
-///     subjectPublicKeyInfo SubjectPublicKeyInfo,
-///     issuerUniqueID  [1]  IMPLICIT UniqueIdentifier OPTIONAL,
-///                             -- If present, version shall be v2 or v3
-///     subjectUniqueID [2]  IMPLICIT UniqueIdentifier OPTIONAL,
-///                             -- If present, version shall be v2 or v3
-///     extensions      [3]  EXPLICIT Extensions OPTIONAL
-///                             -- If present, version shall be v3
-/// }
-pub type TBSCertificateInner = Mapped<
-    LengthWrapped<
-        Default<IntegerValue, ASN1<ExplicitTag<ASN1<Integer>>>,
-        Pair<ASN1<BigInt>,
-        Pair<ASN1<AlgorithmIdentifier>,
-        Pair<ASN1<Name>,
-        Pair<ASN1<Validity>,
-        Pair<ASN1<Name>,
-        Pair<ASN1<PublicKeyInfo>,
-        Optional<ASN1<ImplicitTag<BitString>>,
-        Optional<ASN1<ImplicitTag<BitString>>,
-        Optional<ASN1<ExplicitTag<ASN1<Extensions>>>,
-        End
-    >>>>>>>>>>>,
-    TBSCertificateMapper>;
+asn1_sequence! {
+    seq TBSCertificate {
+        #[default(0)] version: ASN1<ExplicitTag<ASN1<Integer>>> = ASN1(ExplicitTag(TagValue {
+            class: TagClass::ContextSpecific,
+            form: TagForm::Constructed,
+            num: 0,
+        }, ASN1(Integer))),
 
-wrap_combinator! {
-    pub struct TBSCertificate: TBSCertificateInner =>
-        spec SpecTBSCertificateValue,
-        exec<'a> TBSCertificateValue<'a>,
-        owned TBSCertificateValueOwned,
-    =
-        Mapped {
-            inner: LengthWrapped(
-                Default(0, ASN1(ExplicitTag(TagValue {
-                    class: TagClass::ContextSpecific,
-                    form: TagForm::Constructed,
-                    num: 0,
-                }, ASN1(Integer))), // Version
+        serial: ASN1<BigInt> = ASN1(BigInt),
+        signature: ASN1<AlgorithmIdentifier> = ASN1(AlgorithmIdentifier),
+        issuer: ASN1<Name> = ASN1(Name),
+        validity: ASN1<Validity> = ASN1(Validity),
+        subject: ASN1<Name> = ASN1(Name),
+        subject_key: ASN1<PublicKeyInfo> = ASN1(PublicKeyInfo),
 
-                Pair(ASN1(BigInt), // Serial number
-                Pair(ASN1(AlgorithmIdentifier), // Signature
-                Pair(ASN1(Name), // Issuer
-                Pair(ASN1(Validity), // Validity
-                Pair(ASN1(Name), // Subject
-                Pair(ASN1(PublicKeyInfo), // Subject Public Key Info
+        #[optional] issuer_uid: ASN1<ImplicitTag<BitString>> = ASN1(ImplicitTag(TagValue {
+            class: TagClass::ContextSpecific,
+            form: TagForm::Primitive,
+            num: 1,
+        }, BitString)),
 
-                Optional(ASN1(ImplicitTag(TagValue {
-                    class: TagClass::ContextSpecific,
-                    form: TagForm::Primitive,
-                    num: 1,
-                }, BitString)), // Issuer UID
+        #[optional] subject_uid: ASN1<ImplicitTag<BitString>> = ASN1(ImplicitTag(TagValue {
+            class: TagClass::ContextSpecific,
+            form: TagForm::Primitive,
+            num: 2,
+        }, BitString)),
 
-                Optional(ASN1(ImplicitTag(TagValue {
-                    class: TagClass::ContextSpecific,
-                    form: TagForm::Primitive,
-                    num: 2,
-                }, BitString)), // Subject UID
-
-                Optional(ASN1(ExplicitTag(TagValue {
-                    class: TagClass::ContextSpecific,
-                    form: TagForm::Constructed,
-                    num: 3,
-                }, ASN1(Extensions))), // Extensions
-
-                End,
-                ))))))))))
-            ),
-            mapper: TBSCertificateMapper,
-        };
-}
-
-asn1_tagged!(TBSCertificate, TagValue {
-    class: TagClass::Universal,
-    form: TagForm::Constructed,
-    num: 0x10,
-});
-
-mapper! {
-    pub struct TBSCertificateMapper;
-
-    for <Serial, AlgoId, Name, Validity, PubKeyInfo, UID, Extensions>
-
-    from TBSCertificateFrom where
-        type TBSCertificateFrom<
-            Serial,
-            AlgoId,
-            Name,
-            Validity,
-            PubKeyInfo,
-            UID,
-            Extensions,
-        > = PairValue<IntegerValue,
-            PairValue<Serial,
-            PairValue<AlgoId,
-            PairValue<Name,
-            PairValue<Validity,
-            PairValue<Name,
-            PairValue<PubKeyInfo,
-            PairValue<OptionDeep<UID>,
-            PairValue<OptionDeep<UID>,
-            PairValue<OptionDeep<Extensions>,
-            EndValue,
-            >>>>>>>>>>;
-
-    to TBSCertificatePoly where
-        pub struct TBSCertificatePoly<
-            Serial,
-            AlgoId,
-            Name,
-            Validity,
-            PubKeyInfo,
-            UID,
-            Extensions,
-        > {
-            pub version: IntegerValue,
-            pub serial: Serial,
-            pub signature: AlgoId,
-            pub issuer: Name,
-            pub validity: Validity,
-            pub subject: Name,
-            pub subject_key: PubKeyInfo,
-            pub issuer_uid: OptionDeep<UID>,
-            pub subject_uid: OptionDeep<UID>,
-            pub extensions: OptionDeep<Extensions>,
-        }
-
-    spec SpecTBSCertificateValue with <
-        SpecBigIntValue,
-        SpecAlgorithmIdentifierValue,
-        SpecNameValue,
-        SpecValidityValue,
-        SpecPublicKeyInfoValue,
-        SpecBitStringValue,
-        Seq<SpecExtensionValue>,
-    >;
-
-    exec TBSCertificateValue<'a> with <
-        BigIntValue<'a>,
-        AlgorithmIdentifierValue<'a>,
-        NameValue<'a>,
-        ValidityValue<'a>,
-        PublicKeyInfoValue<'a>,
-        BitStringValue<'a>,
-        VecDeep<ExtensionValue<'a>>,
-    >;
-
-    owned TBSCertificateValueOwned with <
-        BigIntOwned,
-        AlgorithmIdentifierValueOwned,
-        NameValueOwned,
-        ValidityValueOwned,
-        PublicKeyInfoValueOwned,
-        BitStringValueOwned,
-        VecDeep<ExtensionValueOwned>,
-    >;
-
-    forward(x) {
-        TBSCertificatePoly {
-            version: x.0,
-            serial: x.1.0,
-            signature: x.1.1.0,
-            issuer: x.1.1.1.0,
-            validity: x.1.1.1.1.0,
-            subject: x.1.1.1.1.1.0,
-            subject_key: x.1.1.1.1.1.1.0,
-            issuer_uid: x.1.1.1.1.1.1.1.0,
-            subject_uid: x.1.1.1.1.1.1.1.1.0,
-            extensions: x.1.1.1.1.1.1.1.1.1.0,
-        }
-    } by {
-        assert(x.1.1.1.1.1.1.1.1.1.1 == EndValue);
-    }
-
-    backward(y) {
-        PairValue(y.version,
-        PairValue(y.serial,
-        PairValue(y.signature,
-        PairValue(y.issuer,
-        PairValue(y.validity,
-        PairValue(y.subject,
-        PairValue(y.subject_key,
-        PairValue(y.issuer_uid,
-        PairValue(y.subject_uid,
-        PairValue(y.extensions,
-        EndValue,
-        ))))))))))
+        #[optional] extensions: ASN1<ExplicitTag<ASN1<Extensions>>> = ASN1(ExplicitTag(TagValue {
+            class: TagClass::ContextSpecific,
+            form: TagForm::Constructed,
+            num: 3,
+        }, ASN1(Extensions))),
     }
 }
 
