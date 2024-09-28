@@ -4,8 +4,11 @@ use crate::asn1::*;
 use crate::common::*;
 
 use super::macros::*;
+use super::alg_param::*;
 
 verus! {
+
+broadcast use AlgorithmParamCont::lemma_disjoint_oids;
 
 // In X.509:
 // AlgorithmIdentifier  ::=  SEQUENCE  {
@@ -66,13 +69,6 @@ mapper! {
 
     backward(y) {
         (y.id, y.param)
-    }
-}
-
-// TODO: right now parameters are parsed as a byte sequence
-oid_match_continuation! {
-    continuation AlgorithmParam {
-        _ => Other(Tail): Tail,
     }
 }
 

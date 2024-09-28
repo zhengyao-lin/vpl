@@ -19,6 +19,7 @@ mod seq_of;
 mod boolean;
 mod len_wrapped;
 mod disjoint;
+mod null;
 
 pub use bounds::UInt;
 pub use var_int::*;
@@ -39,3 +40,4 @@ pub use seq_of::*;
 pub use boolean::*;
 pub use len_wrapped::*;
 pub use disjoint::*;
+pub use null::*;

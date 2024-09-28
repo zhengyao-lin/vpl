@@ -261,11 +261,16 @@ macro_rules! gen_field_poly_type {
 }
 pub(crate) use gen_field_poly_type;
 
-/// Generate a continuation that
-/// matches the input against a set of values
-/// and for each value, the result is parsed with
-/// different a combinator and stored in the suitable
-/// variant
+/// Generate a continuation that matches the input
+/// against a set of values and for each value,
+/// the result is parsed with different a combinator
+/// and stored in the suitable variant.
+///
+/// This generates the following types:
+/// - [< $name Cont >]: a continuation struct to be used in Depend
+/// - [< Spec $name Value >]: the spec result enum
+/// - [< $name Value >]: the normal result enum
+/// - [< $name ValueOwned >]: the owned result enum
 ///
 /// Example:
 /// match_continuation! {
@@ -307,6 +312,12 @@ macro_rules! match_continuation {
                             Cond<$combinator_type>,
                         )*
                         Cond<$last_combinator_type>,
+
+                        // Since we can't generate match arms with macros
+                        // the gen_* macros are using a sequence of if let's
+                        // and Rust doesn't know that the if let's are exhaustive
+                        // so we have a "wildcard" case in the end that should
+                        // never be reached
                         Unreachable,
                     ), [< internal_ $name >]::Mapper>;
 
@@ -321,7 +332,7 @@ macro_rules! match_continuation {
                     }
 
                     open spec fn ensures<'a>(&self, i: Self::Input<'a>, o: Self::Output) -> bool {
-                        o@ == Self::spec_apply(i@)
+                        &&& o@ == Self::spec_apply(i@)
                     }
                 }
 
@@ -386,12 +397,18 @@ macro_rules! match_continuation {
 pub(crate) use match_continuation;
 
 /// Special case for matching against OIDs
+///
+/// In addition to match_continuation, this macro also generates
+/// a lemma that the OIDs are disjoint.
+///
+/// NOTE: the provided OIDs are assumed to be disjoint,
+/// otherwise we may have a soundness issue
 #[allow(unused_macros)]
 macro_rules! oid_match_continuation {
     (
         continuation $name:ident {
             $(
-                oid($($arc:literal),*) => $variant:ident($combinator:expr): $combinator_type:ty,
+                oid($($arc:literal),+) => $variant:ident($combinator:expr): $combinator_type:ty,
             )*
 
             _ => $last_variant:ident($last_combinator:expr): $last_combinator_type:ty,
@@ -402,15 +419,62 @@ macro_rules! oid_match_continuation {
         match_continuation! {
             continuation $name<'a>(ObjectIdentifierValue, spec SpecObjectIdentifierValue) {
                 $(
-                    oid!($($arc),*), spec (seq![$($arc),* as UInt]) => $variant, $combinator_type, $combinator,
+                    oid!($($arc),+), spec (seq![$($arc),+ as UInt]) => $variant, $combinator_type, $combinator,
                 )*
 
                 _ => $last_variant, $last_combinator_type, $last_combinator,
             }
         }
+
+        paste! {
+            ::builtin_macros::verus! {
+                impl [< $name Cont >] {
+                    // Without explicit trigger terms, Verus is unable to
+                    // check that two sequence literals are disjoint.
+                    // So we generate a disjointness lemmas here
+                    gen_lemma_disjoint! {
+                        lemma_disjoint_oids {
+                            $(seq![$($arc),+ as UInt]),*
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 pub(crate) use oid_match_continuation;
+
+/// Used to suppress Verus warning about broadcast missing triggers
+pub closed spec fn lemma_disjoint_trigger() -> bool;
+
+/// Macro to generate a lemma that states the disjointness of a list of spec terms
+/// NOTE: the disjointness of the provided terms are trusted
+/// incorrect calls to this might lead to unsoundness
+#[allow(unused_macros)]
+macro_rules! gen_lemma_disjoint {
+    ($name:ident { $($term:expr),* $(,)? }) => {
+        ::builtin_macros::verus! {
+            pub broadcast proof fn $name()
+                ensures
+                    (false ==> #[trigger] lemma_disjoint_trigger()),
+                    gen_lemma_disjoint_helper! {; $($term),* }
+            {
+                admit();
+            }
+        }
+    };
+}
+pub(crate) use gen_lemma_disjoint;
+
+#[allow(unused_macros)]
+macro_rules! gen_lemma_disjoint_helper {
+    ($($term:expr),* ; ) => { true };
+
+    ($($prev_term:expr),* ; $term:expr $(, $rest_term:expr)*) => {
+        $(!ext_equal($prev_term, $term) &&)* true && gen_lemma_disjoint_helper!($($prev_term,)* $term ; $($rest_term),*)
+    };
+}
+pub(crate) use gen_lemma_disjoint_helper;
 
 #[allow(unused_macros)]
 macro_rules! gen_match_continuation_spec_apply_helper {
@@ -476,15 +540,6 @@ macro_rules! gen_match_continuation_apply {
                     inner: gen_match_continuation_apply_helper!(i, other; $(($value, $combinator),)* (, $last_combinator)),
                     mapper: $mapper,
                 }
-                // ord_choice!(
-                //     $(Cond { cond: $input.polyfill_eq($value), inner: $combinator }),*
-                //     Cond { cond: other, inner: $last_combinator }
-                // )
-
-                // Assert the correspondence between exec and spec values
-                // $({ let v = $value; assert(ext_equal(v.view(), $spec_value)); })*
-
-                // gen_match_continuation_apply_helper!($mapper_name, i, other; $(($value, $combinator),)* (, $last_combinator))
             }
         }
     };
@@ -494,8 +549,6 @@ pub(crate) use gen_match_continuation_apply;
 #[allow(unused_macros)]
 macro_rules! gen_match_continuation_forward_branches {
     ($src:expr, ($($stars:tt,)*); ; $last_variant:ident) => {
-        // inj_ord_choice_pat!($($stars,)* p) => PolyType::$last_variant(p),
-
         if let inj_ord_choice_pat!($($stars,)* p, *) = $src {
             PolyType::$last_variant(p)
         } else {
@@ -533,7 +586,7 @@ macro_rules! gen_match_continuation_last_field_pat {
     };
 
     ($pat:pat, ($($stars:tt,)*); $_:ident $(, $rest:ident)*) => {
-        gen_match_continuation_last_field_pat!($pat, ($($stars,)* *,); $($rest,)*)
+        gen_match_continuation_last_field_pat!($pat, ($($stars,)* *,); $($rest),*)
     };
 }
 pub(crate) use gen_match_continuation_last_field_pat;

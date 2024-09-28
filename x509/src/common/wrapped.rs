@@ -150,7 +150,7 @@ macro_rules! wrap_combinator_impls {
                 fn check_valid_inner_combinator() {
                     // Type check
                     // TODO: remove this once the Verus issue is fixed
-                    let _: $inner_type = $inner_expr;
+                    let c: $inner_type = $inner_expr;
 
                     // For future compatibility, check that $inner_expr is also a valid spec expr
                     let ghost _ = $inner_expr;
@@ -162,8 +162,8 @@ macro_rules! wrap_combinator_impls {
                     assert(<<$inner_type as View>::V as SecureSpecCombinator>::is_prefix_secure());
 
                     // Check that parse_requires and serialize_requires are satisfied
-                    assert($inner_expr.parse_requires());
-                    assert($inner_expr.serialize_requires());
+                    assert(c.parse_requires());
+                    assert(c.serialize_requires());
                 }
             }
 

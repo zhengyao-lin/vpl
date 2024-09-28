@@ -90,7 +90,9 @@ impl Continuation for BytesCont {
     }
 
     open spec fn ensures<'a>(&self, i: Self::Input<'a>, o: Self::Output) -> bool {
-        o == Bytes(i as usize)
+        &&& o == Bytes(i as usize)
+        &&& o.parse_requires()
+        &&& o.serialize_requires()
     }
 }
 
@@ -106,8 +108,21 @@ pub open spec fn new_spec_octet_string_inner() -> SpecOctetStringInner {
     }
 }
 
+closed spec fn spec_new_octet_string_inner() -> OctetStringInner
+{
+    Depend {
+        fst: Length,
+        snd: BytesCont,
+        spec_snd: Ghost(|l| {
+            Bytes(l as usize)
+        }),
+    }
+}
+
 fn new_octet_string_inner() -> (res: OctetStringInner)
-    ensures res@ == new_spec_octet_string_inner()
+    ensures
+        res@ == new_spec_octet_string_inner(),
+        res == spec_new_octet_string_inner(),
 {
     Depend {
         fst: Length,
