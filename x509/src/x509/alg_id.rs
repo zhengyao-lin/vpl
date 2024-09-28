@@ -3,57 +3,21 @@ use vstd::prelude::*;
 use crate::asn1::*;
 use crate::common::*;
 
+use super::macros::*;
+
 verus! {
 
-/// In X.509:
-/// AlgorithmIdentifier  ::=  SEQUENCE  {
-///     algorithm               OBJECT IDENTIFIER,
-///     parameters              ANY DEFINED BY algorithm OPTIONAL
-/// }
-///
-/// TODO: right now parameters are parsed as a byte sequence
-pub type AlgorithmIdentifierInner = Mapped<LengthWrapped<(ASN1<ObjectIdentifier>, Tail)>, AlgorithmIdentifierMapper>;
-
-wrap_combinator! {
-    pub struct AlgorithmIdentifier: AlgorithmIdentifierInner =>
-        spec SpecAlgorithmIdentifierValue,
-        exec<'a> AlgorithmIdentifierValue<'a>,
-        owned AlgorithmIdentifierValueOwned,
-    = Mapped {
-            inner: LengthWrapped((ASN1(ObjectIdentifier), Tail)),
-            mapper: AlgorithmIdentifierMapper,
-        };
-}
-
-asn1_tagged!(AlgorithmIdentifier, TagValue {
-    class: TagClass::Universal,
-    form: TagForm::Constructed,
-    num: 0x10,
-});
-
-mapper! {
-    pub struct AlgorithmIdentifierMapper;
-
-    for <Alg, Params>
-    from AlgorithmIdentifierFrom where type AlgorithmIdentifierFrom<Alg, Params> = (Alg, Params);
-    to AlgorithmIdentifierPoly where pub struct AlgorithmIdentifierPoly<Alg, Params> {
-        pub alg: Alg,
-        pub params: Params,
-    }
-
-    spec SpecAlgorithmIdentifierValue with <SpecObjectIdentifierValue, Seq<u8>>;
-    exec AlgorithmIdentifierValue<'a> with <ObjectIdentifierValue, &'a [u8]>;
-    owned AlgorithmIdentifierValueOwned with <ObjectIdentifierValueOwned, Vec<u8>>;
-
-    forward(x) {
-        AlgorithmIdentifierPoly {
-            alg: x.0,
-            params: x.1,
-        }
-    }
-
-    backward(y) {
-        (y.alg, y.params)
+// In X.509:
+// AlgorithmIdentifier  ::=  SEQUENCE  {
+//     algorithm               OBJECT IDENTIFIER,
+//     parameters              ANY DEFINED BY algorithm OPTIONAL
+// }
+//
+// TODO: right now parameters are parsed as a byte sequence
+asn1_sequence! {
+    seq AlgorithmIdentifier {
+        alg: ASN1<ObjectIdentifier> = ASN1(ObjectIdentifier),
+        #[tail] params: Tail = Tail,
     }
 }
 

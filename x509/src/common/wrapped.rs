@@ -181,7 +181,7 @@ macro_rules! wrap_combinator_impls {
             impl SecureSpecCombinator for $name {
                 // $inner_type::is_prefix_secure()
                 open spec fn is_prefix_secure() -> bool {
-                    true
+                    true // sound since it's checked in check_valid_inner_combinator
                 }
 
                 #[verifier::external_body]
@@ -204,8 +204,6 @@ macro_rules! wrap_combinator_impls {
                 type Result<$lt> = $result;
                 type Owned =  $owned;
 
-                /// TODO: using spec_algorithm_identifier() here
-                /// would cause irrelevant proofs to fail
                 closed spec fn spec_length(&self) -> Option<usize>;
 
                 #[verifier::external_body]
@@ -215,7 +213,7 @@ macro_rules! wrap_combinator_impls {
                 }
 
                 open spec fn parse_requires(&self) -> bool {
-                    true
+                    true // sound since it's checked in check_valid_inner_combinator
                 }
 
                 #[verifier::external_body]
@@ -230,7 +228,7 @@ macro_rules! wrap_combinator_impls {
                 }
 
                 open spec fn serialize_requires(&self) -> bool {
-                    true
+                    true // sound since it's checked in check_valid_inner_combinator
                 }
 
                 #[verifier::external_body]

@@ -8,7 +8,7 @@ verus! {
 #[derive(Debug, View)]
 pub struct End;
 
-#[derive(Debug, View, PolyfillClone)]
+#[derive(Debug, View, PolyfillClone, Eq, PartialEq)]
 pub struct EndValue;
 
 impl SpecCombinator for End {
