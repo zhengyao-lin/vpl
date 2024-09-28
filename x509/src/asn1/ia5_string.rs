@@ -108,7 +108,7 @@ impl SpecCombinator for IA5String {
 }
 
 impl SecureSpecCombinator for IA5String {
-    open spec fn spec_is_prefix_secure() -> bool {
+    open spec fn is_prefix_secure() -> bool {
         true
     }
 
@@ -135,10 +135,6 @@ impl Combinator for IA5String {
 
     fn length(&self) -> Option<usize> {
         None
-    }
-
-    fn exec_is_prefix_secure() -> bool {
-        true
     }
 
     fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ParseError>) {

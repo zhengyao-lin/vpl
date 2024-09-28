@@ -44,7 +44,7 @@ impl<T: SpecCombinator> SpecCombinator for ExplicitTag<T> {
 }
 
 impl<T: SecureSpecCombinator> SecureSpecCombinator for ExplicitTag<T> {
-    open spec fn spec_is_prefix_secure() -> bool {
+    open spec fn is_prefix_secure() -> bool {
         true
     }
 
@@ -74,10 +74,6 @@ impl<T: Combinator> Combinator for ExplicitTag<T> where
 
     fn length(&self) -> Option<usize> {
         None
-    }
-
-    fn exec_is_prefix_secure() -> bool {
-        true
     }
 
     open spec fn parse_requires(&self) -> bool {

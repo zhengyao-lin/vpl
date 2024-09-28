@@ -22,7 +22,7 @@ impl<Fst, Snd> SpecCombinator for SpecDepend<Fst, Snd> where
     type SpecResult = (Fst::SpecResult, Snd::SpecResult);
 
     open spec fn spec_parse(&self, s: Seq<u8>) -> Result<(usize, Self::SpecResult), ()> {
-        if Fst::spec_is_prefix_secure() {
+        if Fst::is_prefix_secure() {
             if let Ok((n, v1)) = self.fst.spec_parse(s) {
                 let snd = (self.snd)(v1);
                 if let Ok((m, v2)) = snd.spec_parse(s.subrange(n as int, s.len() as int)) {
@@ -53,7 +53,7 @@ impl<Fst, Snd> SpecCombinator for SpecDepend<Fst, Snd> where
     }
 
     open spec fn spec_serialize(&self, v: Self::SpecResult) -> Result<Seq<u8>, ()> {
-        if Fst::spec_is_prefix_secure() {
+        if Fst::is_prefix_secure() {
             if let Ok(buf1) = self.fst.spec_serialize(v.0) {
                 let snd = (self.snd)(v.0);
                 if let Ok(buf2) = snd.spec_serialize(v.1) {
@@ -106,12 +106,12 @@ impl<Fst, Snd> SecureSpecCombinator for SpecDepend<Fst, Snd> where
         }
     }
 
-    open spec fn spec_is_prefix_secure() -> bool {
-        Fst::spec_is_prefix_secure() && Snd::spec_is_prefix_secure()
+    open spec fn is_prefix_secure() -> bool {
+        Fst::is_prefix_secure() && Snd::is_prefix_secure()
     }
 
     proof fn lemma_prefix_secure(&self, buf: Seq<u8>, s2: Seq<u8>) {
-        if Fst::spec_is_prefix_secure() && Snd::spec_is_prefix_secure() {
+        if Fst::is_prefix_secure() && Snd::is_prefix_secure() {
             if let Ok((nm, (v0, v1))) = self.spec_parse(buf) {
                 let (n, _) = self.fst.spec_parse(buf).unwrap();
                 self.fst.spec_parse_wf(buf);
@@ -215,29 +215,22 @@ impl<Fst, Snd, C> Combinator for Depend<Fst, Snd, C> where
         None
     }
 
-    fn exec_is_prefix_secure() -> bool {
-        Fst::exec_is_prefix_secure() && Snd::exec_is_prefix_secure()
-    }
-
     open spec fn parse_requires(&self) -> bool {
         &&& self.wf()
         &&& self.fst.parse_requires()
         &&& forall |i, snd| self.snd.ensures(i, snd) ==> snd.parse_requires()
+        &&& Fst::V::is_prefix_secure()
     }
 
     fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ParseError>) {
-        if Fst::exec_is_prefix_secure() {
-            let (n, v1) = self.fst.parse(s)?;
-            let s_ = slice_subrange(s, n, s.len());
-            let snd = self.snd.apply(v1.clone());
-            let (m, v2) = snd.parse(s_)?;
-            if n <= usize::MAX - m {
-                Ok(((n + m), (v1, v2)))
-            } else {
-                Err(ParseError::SizeOverflow)
-            }
+        let (n, v1) = self.fst.parse(s)?;
+        let s_ = slice_subrange(s, n, s.len());
+        let snd = self.snd.apply(v1.clone());
+        let (m, v2) = snd.parse(s_)?;
+        if n <= usize::MAX - m {
+            Ok(((n + m), (v1, v2)))
         } else {
-            Err(ParseError::DependFstNotPrefixSecure)
+            Err(ParseError::SizeOverflow)
         }
     }
 
@@ -245,31 +238,28 @@ impl<Fst, Snd, C> Combinator for Depend<Fst, Snd, C> where
         &&& self.wf()
         &&& self.fst.serialize_requires()
         &&& forall |i, snd| self.snd.ensures(i, snd) ==> snd.serialize_requires()
+        &&& Fst::V::is_prefix_secure()
     }
 
     fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<
         usize,
         SerializeError,
     >) {
-        if Fst::exec_is_prefix_secure() {
-            let n = self.fst.serialize(v.0.clone(), data, pos)?;
-            if n <= usize::MAX - pos && n + pos <= data.len() {
-                let snd = self.snd.apply(v.0);
-                let m = snd.serialize(v.1, data, pos + n)?;
-                if m <= usize::MAX - n {
-                    assert(data@.subrange(pos as int, pos + n + m as int) == self@.spec_serialize(
-                        v@,
-                    ).unwrap());
-                    assert(data@ == seq_splice(old(data)@, pos, self@.spec_serialize(v@).unwrap()));
-                    Ok(n + m)
-                } else {
-                    Err(SerializeError::SizeOverflow)
-                }
+        let n = self.fst.serialize(v.0.clone(), data, pos)?;
+        if n <= usize::MAX - pos && n + pos <= data.len() {
+            let snd = self.snd.apply(v.0);
+            let m = snd.serialize(v.1, data, pos + n)?;
+            if m <= usize::MAX - n {
+                assert(data@.subrange(pos as int, pos + n + m as int) == self@.spec_serialize(
+                    v@,
+                ).unwrap());
+                assert(data@ == seq_splice(old(data)@, pos, self@.spec_serialize(v@).unwrap()));
+                Ok(n + m)
             } else {
-                Err(SerializeError::InsufficientBuffer)
+                Err(SerializeError::SizeOverflow)
             }
         } else {
-            Err(SerializeError::DependFstNotPrefixSecure)
+            Err(SerializeError::InsufficientBuffer)
         }
     }
 }

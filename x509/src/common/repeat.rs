@@ -29,7 +29,7 @@ impl<C: SpecCombinator + SecureSpecCombinator> SpecCombinator for Repeat<C> {
     open spec fn spec_parse(&self, s: Seq<u8>) -> Result<(usize, Self::SpecResult), ()>
         decreases s.len()
     {
-        if !C::spec_is_prefix_secure() {
+        if !C::is_prefix_secure() {
             Err(())
         } else if s.len() == 0 {
             Ok((0, seq![]))
@@ -54,7 +54,7 @@ impl<C: SpecCombinator + SecureSpecCombinator> SpecCombinator for Repeat<C> {
     open spec fn spec_serialize(&self, v: Self::SpecResult) -> Result<Seq<u8>, ()>
         decreases v.len()
     {
-        if !C::spec_is_prefix_secure() {
+        if !C::is_prefix_secure() {
             Err(())
         } else if v.len() == 0 {
             Ok(seq![])
@@ -83,7 +83,7 @@ impl<C: SpecCombinator + SecureSpecCombinator> SpecCombinator for Repeat<C> {
 impl<C: SecureSpecCombinator> SecureSpecCombinator for Repeat<C> {
     /// Prepending bytes to the buffer may result in more items parsed
     /// so Repeat is not prefix secure
-    open spec fn spec_is_prefix_secure() -> bool {
+    open spec fn is_prefix_secure() -> bool {
         false
     }
 
@@ -102,7 +102,7 @@ impl<C: SecureSpecCombinator> SecureSpecCombinator for Repeat<C> {
 
                 // Some technical assumptions (e.g. C should not parse a different
                 // value when the buffer is extended with more bytes)
-                if C::spec_is_prefix_secure() && s.len() + rest.len() <= usize::MAX {
+                if C::is_prefix_secure() && s.len() + rest.len() <= usize::MAX {
                     self.0.lemma_prefix_secure(s, rest);
                     let (n, _) = self.0.spec_parse(s + rest).unwrap();
                     self.0.spec_parse_wf(s + rest);
@@ -128,7 +128,7 @@ impl<C: SecureSpecCombinator> SecureSpecCombinator for Repeat<C> {
                 self.theorem_parse_serialize_roundtrip(buf.skip(n1 as int));
                 self.0.theorem_parse_serialize_roundtrip(buf);
 
-                if C::spec_is_prefix_secure() {
+                if C::is_prefix_secure() {
                     assert(v2 == v.drop_first());
                     assert(buf.subrange(0, n1 as int) + buf.skip(n1 as int).subrange(0, n2 as int) == buf.subrange(0, n as int));
                 }
@@ -151,7 +151,7 @@ impl<C: Combinator> Repeat<C> where
     fn parse_helper<'a>(&self, s: &'a [u8], res: &mut VecDeep<C::Result<'a>>) -> (r: Result<(), ParseError>)
         requires
             self.0.parse_requires(),
-            <C as View>::V::spec_is_prefix_secure(),
+            <C as View>::V::is_prefix_secure(),
 
         ensures
             r is Ok ==> {
@@ -179,7 +179,7 @@ impl<C: Combinator> Repeat<C> where
         -> (res: Result<usize, SerializeError>)
         requires
             self.0.serialize_requires(),
-            <C as View>::V::spec_is_prefix_secure(),
+            <C as View>::V::is_prefix_secure(),
 
         ensures
             data@.len() == old(data)@.len(),
@@ -228,12 +228,8 @@ impl<C: Combinator> Combinator for Repeat<C> where
         None
     }
 
-    fn exec_is_prefix_secure() -> bool {
-        false
-    }
-
     open spec fn parse_requires(&self) -> bool {
-        &&& <C as View>::V::spec_is_prefix_secure()
+        &&& <C as View>::V::is_prefix_secure()
         &&& self.0.parse_requires()
     }
 
@@ -244,7 +240,7 @@ impl<C: Combinator> Combinator for Repeat<C> where
     }
 
     open spec fn serialize_requires(&self) -> bool {
-        &&& <C as View>::V::spec_is_prefix_secure()
+        &&& <C as View>::V::is_prefix_secure()
         &&& self.0.serialize_requires()
     }
 

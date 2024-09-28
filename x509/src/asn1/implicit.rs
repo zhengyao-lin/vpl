@@ -40,8 +40,8 @@ impl<T: SpecCombinator> SpecCombinator for ImplicitTag<T> {
 }
 
 impl<T: SecureSpecCombinator> SecureSpecCombinator for ImplicitTag<T> {
-    open spec fn spec_is_prefix_secure() -> bool {
-        T::spec_is_prefix_secure()
+    open spec fn is_prefix_secure() -> bool {
+        T::is_prefix_secure()
     }
 
     proof fn theorem_serialize_parse_roundtrip(&self, v: Self::SpecResult) {
@@ -70,10 +70,6 @@ impl<T: ASN1Tagged + Combinator> Combinator for ImplicitTag<T> where
 
     fn length(&self) -> Option<usize> {
         None
-    }
-
-    fn exec_is_prefix_secure() -> bool {
-        T::exec_is_prefix_secure()
     }
 
     open spec fn parse_requires(&self) -> bool {

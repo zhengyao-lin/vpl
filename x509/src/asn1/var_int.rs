@@ -129,7 +129,7 @@ impl VarUInt {
 }
 
 impl SecureSpecCombinator for VarUInt {
-    open spec fn spec_is_prefix_secure() -> bool {
+    open spec fn is_prefix_secure() -> bool {
         true
     }
 
@@ -257,10 +257,6 @@ impl Combinator for VarUInt {
 
     fn length(&self) -> Option<usize> {
         Some(self.0)
-    }
-
-    fn exec_is_prefix_secure() -> bool {
-        true
     }
 
     fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ParseError>) {
@@ -475,7 +471,7 @@ impl SpecCombinator for VarInt {
 }
 
 impl SecureSpecCombinator for VarInt {
-    open spec fn spec_is_prefix_secure() -> bool {
+    open spec fn is_prefix_secure() -> bool {
         true
     }
 
@@ -527,10 +523,6 @@ impl Combinator for VarInt {
 
     fn length(&self) -> Option<usize> {
         Some(self.0)
-    }
-
-    fn exec_is_prefix_secure() -> bool {
-        true
     }
 
     fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ParseError>) {

@@ -30,7 +30,7 @@ impl SpecCombinator for End {
 }
 
 impl SecureSpecCombinator for End {
-    open spec fn spec_is_prefix_secure() -> bool {
+    open spec fn is_prefix_secure() -> bool {
         false
     }
 
@@ -54,10 +54,6 @@ impl Combinator for End {
 
     fn length(&self) -> Option<usize> {
         Some(0)
-    }
-
-    fn exec_is_prefix_secure() -> bool {
-        false
     }
 
     fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ParseError>) {

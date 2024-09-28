@@ -52,7 +52,7 @@ impl<C: SecureSpecCombinator + SpecCombinator> SpecCombinator for SequenceOf<C> 
 }
 
 impl<C: SecureSpecCombinator + SpecCombinator> SecureSpecCombinator for SequenceOf<C> {
-    open spec fn spec_is_prefix_secure() -> bool {
+    open spec fn is_prefix_secure() -> bool {
         true
     }
 
@@ -84,12 +84,8 @@ impl<C: Combinator> Combinator for SequenceOf<C> where
         None
     }
 
-    fn exec_is_prefix_secure() -> bool {
-        true
-    }
-
     open spec fn parse_requires(&self) -> bool {
-        &&& <C as View>::V::spec_is_prefix_secure()
+        &&& <C as View>::V::is_prefix_secure()
         &&& self.0.parse_requires()
     }
 
@@ -98,7 +94,7 @@ impl<C: Combinator> Combinator for SequenceOf<C> where
     }
 
     open spec fn serialize_requires(&self) -> bool {
-        &&& <C as View>::V::spec_is_prefix_secure()
+        &&& <C as View>::V::is_prefix_secure()
         &&& self.0.serialize_requires()
     }
 

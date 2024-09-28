@@ -37,8 +37,8 @@ impl<C1, C2> SecureSpecCombinator for Pair<C1, C2> where
     C1: SecureSpecCombinator,
     C2: SecureSpecCombinator,
 {
-    open spec fn spec_is_prefix_secure() -> bool {
-        C1::spec_is_prefix_secure() && C2::spec_is_prefix_secure()
+    open spec fn is_prefix_secure() -> bool {
+        C1::is_prefix_secure() && C2::is_prefix_secure()
     }
 
     proof fn theorem_serialize_parse_roundtrip(&self, v: Self::SpecResult) {
@@ -71,13 +71,10 @@ impl<C1, C2> Combinator for Pair<C1, C2> where
         Some(0)
     }
 
-    fn exec_is_prefix_secure() -> bool {
-        C1::exec_is_prefix_secure() && C2::exec_is_prefix_secure()
-    }
-
     open spec fn parse_requires(&self) -> bool {
         &&& self.0.parse_requires()
         &&& self.1.parse_requires()
+        &&& C1::V::is_prefix_secure()
     }
 
     fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ParseError>) {
@@ -88,6 +85,7 @@ impl<C1, C2> Combinator for Pair<C1, C2> where
     open spec fn serialize_requires(&self) -> bool {
         &&& self.0.serialize_requires()
         &&& self.1.serialize_requires()
+        &&& C1::V::is_prefix_secure()
     }
 
     fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, SerializeError>) {

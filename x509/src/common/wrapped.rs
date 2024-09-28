@@ -156,7 +156,7 @@ macro_rules! wrap_combinator_impls {
                     let _ = $inner_expr.length();
 
                     // The inner combinator has to be prefix secure
-                    assert(<<$inner_type as View>::V as SecureSpecCombinator>::spec_is_prefix_secure());
+                    assert(<<$inner_type as View>::V as SecureSpecCombinator>::is_prefix_secure());
 
                     // Check that parse_requires and serialize_requires are satisfied
                     assert($inner_expr.parse_requires());
@@ -179,8 +179,8 @@ macro_rules! wrap_combinator_impls {
             }
 
             impl SecureSpecCombinator for $name {
-                // $inner_type::spec_is_prefix_secure()
-                open spec fn spec_is_prefix_secure() -> bool {
+                // $inner_type::is_prefix_secure()
+                open spec fn is_prefix_secure() -> bool {
                     true
                 }
 
@@ -213,8 +213,6 @@ macro_rules! wrap_combinator_impls {
                     $(let $field_name: $field_type = self.$field_name;)*
                     $inner_expr.length()
                 }
-
-                fn exec_is_prefix_secure() -> bool { true }
 
                 open spec fn parse_requires(&self) -> bool {
                     true

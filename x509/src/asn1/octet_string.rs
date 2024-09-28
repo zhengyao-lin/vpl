@@ -35,7 +35,7 @@ impl SpecCombinator for OctetString {
 }
 
 impl SecureSpecCombinator for OctetString {
-    open spec fn spec_is_prefix_secure() -> bool {
+    open spec fn is_prefix_secure() -> bool {
         true
     }
 
@@ -62,10 +62,6 @@ impl Combinator for OctetString {
 
     fn length(&self) -> Option<usize> {
         None
-    }
-
-    fn exec_is_prefix_secure() -> bool {
-        true
     }
 
     fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ParseError>) {

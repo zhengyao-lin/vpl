@@ -13,9 +13,6 @@ pub enum ParseError {
     UnexpectedEndOfInput,
     OrdChoiceNoMatch,
     CondFailed,
-    DependFstNotPrefixSecure,
-    PairFstNotPrefixSecure,
-    PrecededFstNotPrefixSecure,
     SizeOverflow,
     TryMapFailed,
     RefinedPredicateFailed,
@@ -29,9 +26,6 @@ pub enum SerializeError {
     InsufficientBuffer,
     AndThenUnusedBytes,
     CondFailed,
-    DependFstNotPrefixSecure,
-    PairFstNotPrefixSecure,
-    PrecededFstNotPrefixSecure,
     SizeOverflow,
     TryMapFailed,
     RefinedPredicateFailed,
@@ -44,7 +38,6 @@ pub enum SerializeError {
 pub enum Error {
     /// Parser error
     Parse(ParseError),
-
     /// Serializer error
     Serialize(SerializeError),
 }
@@ -61,6 +54,4 @@ impl std::convert::From<SerializeError> for Error {
     }
 }
 
-}
-
-
+} // verus!

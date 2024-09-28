@@ -136,7 +136,7 @@ impl SpecCombinator for ASN1Tag {
 }
 
 impl SecureSpecCombinator for ASN1Tag {
-    open spec fn spec_is_prefix_secure() -> bool {
+    open spec fn is_prefix_secure() -> bool {
         true
     }
 
@@ -199,10 +199,6 @@ impl Combinator for ASN1Tag {
 
     fn length(&self) -> Option<usize> {
         Some(1)
-    }
-
-    fn exec_is_prefix_secure() -> bool {
-        true
     }
 
     fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ParseError>) {
@@ -339,8 +335,8 @@ impl<T: ASN1Tagged + SpecCombinator> SpecCombinator for ASN1<T> {
 }
 
 impl<T: ASN1Tagged + SecureSpecCombinator> SecureSpecCombinator for ASN1<T> {
-    open spec fn spec_is_prefix_secure() -> bool {
-        T::spec_is_prefix_secure()
+    open spec fn is_prefix_secure() -> bool {
+        T::is_prefix_secure()
     }
 
     proof fn theorem_serialize_parse_roundtrip(&self, v: Self::SpecResult) {
@@ -377,10 +373,6 @@ impl<T: ASN1Tagged + Combinator> Combinator for ASN1<T> where
             Some(len) => len.checked_add(1),
             None => None,
         }
-    }
-
-    fn exec_is_prefix_secure() -> bool {
-        T::exec_is_prefix_secure()
     }
 
     open spec fn parse_requires(&self) -> bool {
