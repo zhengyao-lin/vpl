@@ -152,6 +152,9 @@ macro_rules! wrap_combinator_impls {
                     // TODO: remove this once the Verus issue is fixed
                     let _: $inner_type = $inner_expr;
 
+                    // For future compatibility, check that $inner_expr is also a valid spec expr
+                    let ghost _ = $inner_expr;
+
                     // Check that $inner_expr is a Combinator
                     let _ = $inner_expr.length();
 

@@ -7,9 +7,11 @@ use crate::common::*;
 
 verus! {
 
-/// Example:
+/// Generate a combinator for an ASN.1 SEQUENCE (with default or optional fields)
+///
+/// For example
 /// asn1_sequence! {
-///     sequence Test<'a> {
+///     sequence Test {
 ///         typ: ASN1<ObjectIdentifier> = ASN1(ObjectIdentifier),
 ///         value: DirectoryString = DirectoryString,
 ///     }
@@ -259,45 +261,286 @@ macro_rules! gen_field_poly_type {
 }
 pub(crate) use gen_field_poly_type;
 
-// #[allow(unused_macros)]
-// macro_rules! continuation {
-//     (
-//         $vis:vis struct $name:ident $(;)? as
-//         <$lt:lifetime> |$input:ident : $input_type:ty| -> $output_type:ty {
+/// Generate a continuation that
+/// matches the input against a set of values
+/// and for each value, the result is parsed with
+/// different a combinator and stored in the suitable
+/// variant
+///
+/// Example:
+/// match_continuation! {
+///     continuation ExtensionParam<'a>(ObjectIdentifierValue, spec SpecObjectIdentifierValue) {
+///         oid!(2, 5, 29, 35), spec seq![ 2 as UInt, 5, 29, 35 ] => AuthorityKeyIdentifier, ASN1<OctetString>, ASN1(OctetString),
+///         _ => Other, ASN1<OctetString>, ASN1(OctetString),
+///     }
+/// }
+#[allow(unused_macros)]
+macro_rules! match_continuation {
+    (
+        continuation $name:ident<$lt:lifetime>($input_type:ty, spec $spec_input_type:ty) {
+            $(
+                $value:expr, spec $spec_value:expr => $variant:ident, $combinator_type:ty, $combinator:expr,
+            )*
 
-//         }
-//     ) => {
-//         $field
-//     };
-// }
-// pub(crate) use continuation;
+            _ => $last_variant:ident, $last_combinator_type:ty, $last_combinator:expr,
 
-// /// Parse an optional boolean field ("critical") (default to bool)
-// /// before the actual extension parameter
-// #[derive(Debug, View)]
-// pub struct ExtensionCont;
+            $(,)?
+        }
+    ) => {
+        paste! {
+            ::builtin_macros::verus! {
+                #[derive(Debug, View)]
+                pub struct [< $name Cont >];
 
-// impl ExtensionCont {
-//     pub open spec fn spec_apply(i: SpecObjectIdentifierValue) -> <ExtensionCont as Continuation>::Output {
-//         Default(false, spec_new_wrapped(ASN1(Boolean)), ExtensionParamCont::spec_apply(i))
-//     }
-// }
+                impl [< $name Cont >] {
+                    gen_match_continuation_spec_apply! {
+                        [< internal_ $name >]::Mapper, [< $name Cont >], $spec_input_type;
+                        $(($spec_value, $combinator),)*
+                        (, $last_combinator)
+                    }
+                }
 
-// impl Continuation for ExtensionCont {
-//     type Input<'a> = ObjectIdentifierValue;
-//     type Output = Default<bool, Wrapped<ASN1<Boolean>>, <ExtensionParamCont as Continuation>::Output>;
+                impl Continuation for [< $name Cont >] {
+                    type Input<$lt> = $input_type;
+                    type Output = Mapped<ord_choice_type!(
+                        $(
+                            Cond<$combinator_type>,
+                        )*
+                        Cond<$last_combinator_type>,
+                        Unreachable,
+                    ), [< internal_ $name >]::Mapper>;
 
-//     fn apply<'a>(&self, i: Self::Input<'a>) -> (o: Self::Output) {
-//         Default(false, new_wrapped(ASN1(Boolean)), ExtensionParamCont.apply(i))
-//     }
+                    gen_match_continuation_apply! {
+                        [< internal_ $name >]::Mapper;
+                        $(($value, $spec_value, $combinator),)*
+                        (, $last_combinator)
+                    }
 
-//     open spec fn requires<'a>(&self, i: Self::Input<'a>) -> bool {
-//         true
-//     }
+                    open spec fn requires<'a>(&self, i: Self::Input<'a>) -> bool {
+                        true
+                    }
 
-//     open spec fn ensures<'a>(&self, i: Self::Input<'a>, o: Self::Output) -> bool {
-//         o@ == Self::spec_apply(i@)
-//     }
-// }
+                    open spec fn ensures<'a>(&self, i: Self::Input<'a>, o: Self::Output) -> bool {
+                        o@ == Self::spec_apply(i@)
+                    }
+                }
+
+                // Declare the spec/normal/owned result types
+                pub type [< Spec $name Value >] = [< internal_ $name >]::SpecValue;
+                pub type [< $name Value >]<'a> = [< internal_ $name >]::Value<'a>;
+                pub type [< $name ValueOwned >] = [< internal_ $name >]::ValueOwned;
+
+                mod [< internal_ $name >] {
+                    #![allow(non_camel_case_types)]
+                    #![allow(non_snake_case)]
+
+                    use super::*;
+
+                    mapper! {
+                        pub struct Mapper;
+
+                        for <$($variant,)* $last_variant>
+                        from FromType where type FromType<$($variant,)* $last_variant> = ord_choice_result!($($variant,)* $last_variant, ());
+                        to PolyType where pub enum PolyType<$($variant,)* $last_variant> {
+                            $($variant($variant),)*
+                            $last_variant($last_variant),
+                            Unreachable,
+                        }
+
+                        spec SpecValue with <
+                            $(<<$combinator_type as View>::V as SpecCombinator>::SpecResult,)*
+                            <<$last_combinator_type as View>::V as SpecCombinator>::SpecResult
+                        >;
+                        exec Value<'a> with <
+                            $(<$combinator_type as Combinator>::Result<'a>,)*
+                            <$last_combinator_type as Combinator>::Result<'a>
+                        >;
+                        owned ValueOwned with <
+                            $(<$combinator_type as Combinator>::Owned,)*
+                            <$last_combinator_type as Combinator>::Owned
+                        >;
+
+                        forward(x) {
+                            gen_match_continuation_forward! {
+                                x;
+                                $($variant,)* ; $last_variant
+                            }
+                        } by {
+                            if let gen_match_continuation_last_field_pat!(p, (); $($variant),*) = x {
+                                assert(p == ());
+                            }
+                        }
+
+                        backward(y) {
+                            gen_match_continuation_backward! {
+                                y;
+                                $($variant,)* ; $last_variant
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    };
+}
+pub(crate) use match_continuation;
+
+#[allow(unused_macros)]
+macro_rules! gen_match_continuation_spec_apply_helper {
+    ($input:expr, $last_cond:expr; (, $last_combinator:expr)) => {
+        OrdChoice(
+            Cond { cond: $last_cond, inner: $last_combinator },
+            Unreachable,
+        )
+    };
+
+    ($input:expr, $last_cond:expr; ($first_spec_value:expr, $first_combinator:expr), $(($rest_spec_value:expr, $rest_combinator:expr),)* (, $last_combinator:expr)) => {
+        OrdChoice(
+            Cond { cond: ext_equal($input, $first_spec_value), inner: $first_combinator },
+            gen_match_continuation_spec_apply_helper!($input, $last_cond; $(($rest_spec_value, $rest_combinator),)* (, $last_combinator))
+        )
+    };
+}
+pub(crate) use gen_match_continuation_spec_apply_helper;
+
+#[allow(unused_macros)]
+macro_rules! gen_match_continuation_spec_apply {
+    ($mapper:expr, $cont_name:ident, $spec_input_type:ty; $(($spec_value:expr, $combinator:expr),)* (, $last_combinator:expr)) => {
+        ::builtin_macros::verus! {
+            pub open spec fn spec_apply(i: $spec_input_type) -> <$cont_name as Continuation>::Output {
+                let other = $(!ext_equal(i, $spec_value) &&)* true;
+                Mapped {
+                    inner: gen_match_continuation_spec_apply_helper!(i, other; $(($spec_value, $combinator),)* (, $last_combinator)),
+                    mapper: $mapper,
+                }
+            }
+        }
+    };
+}
+pub(crate) use gen_match_continuation_spec_apply;
+
+#[allow(unused_macros)]
+macro_rules! gen_match_continuation_apply_helper {
+    ($input:expr, $last_cond:expr; (, $last_combinator:expr)) => {
+        OrdChoice(
+            Cond { cond: $last_cond, inner: $last_combinator },
+            Unreachable,
+        )
+    };
+
+    ($input:expr, $last_cond:expr; ($first_value:expr, $first_combinator:expr), $(($rest_value:expr, $rest_combinator:expr),)* (, $last_combinator:expr)) => {
+        OrdChoice(
+            Cond { cond: $input.polyfill_eq(&$first_value), inner: $first_combinator },
+            gen_match_continuation_apply_helper!($input, $last_cond; $(($rest_value, $rest_combinator),)* (, $last_combinator))
+        )
+    };
+}
+pub(crate) use gen_match_continuation_apply_helper;
+
+#[allow(unused_macros)]
+macro_rules! gen_match_continuation_apply {
+    ($mapper:expr; $(($value:expr, $spec_value:expr, $combinator:expr),)* (, $last_combinator:expr)) => {
+        ::builtin_macros::verus! {
+            fn apply<'a>(&self, i: Self::Input<'a>) -> (o: Self::Output) {
+                let other = $(!i.polyfill_eq(&$value) &&)* true;
+                $({ let v = $value; assert(ext_equal(v.view(), $spec_value)); })*
+
+                Mapped {
+                    inner: gen_match_continuation_apply_helper!(i, other; $(($value, $combinator),)* (, $last_combinator)),
+                    mapper: $mapper,
+                }
+                // ord_choice!(
+                //     $(Cond { cond: $input.polyfill_eq($value), inner: $combinator }),*
+                //     Cond { cond: other, inner: $last_combinator }
+                // )
+
+                // Assert the correspondence between exec and spec values
+                // $({ let v = $value; assert(ext_equal(v.view(), $spec_value)); })*
+
+                // gen_match_continuation_apply_helper!($mapper_name, i, other; $(($value, $combinator),)* (, $last_combinator))
+            }
+        }
+    };
+}
+pub(crate) use gen_match_continuation_apply;
+
+#[allow(unused_macros)]
+macro_rules! gen_match_continuation_forward_branches {
+    ($src:expr, ($($stars:tt,)*); ; $last_variant:ident) => {
+        // inj_ord_choice_pat!($($stars,)* p) => PolyType::$last_variant(p),
+
+        if let inj_ord_choice_pat!($($stars,)* p, *) = $src {
+            PolyType::$last_variant(p)
+        } else {
+            PolyType::Unreachable
+        }
+    };
+
+    ($src:expr, ($($stars:tt,)*); $first_variant:ident, $($rest_variant:ident,)* ; $last_variant:ident) => {
+        if let inj_ord_choice_pat!($($stars,)* p, *) = $src {
+            PolyType::$first_variant(p)
+        } else {
+            gen_match_continuation_forward_branches! {
+                $src, ($($stars,)* *,); $($rest_variant,)* ; $last_variant
+            }
+        }
+    };
+}
+pub(crate) use gen_match_continuation_forward_branches;
+
+#[allow(unused_macros)]
+macro_rules! gen_match_continuation_forward {
+    ($src:expr; $($variant:ident,)* ; $last_variant:ident) => {
+        gen_match_continuation_forward_branches! {
+            $src, (); $($variant,)* ; $last_variant
+        }
+    };
+}
+pub(crate) use gen_match_continuation_forward;
+
+/// Generate inj_ord_choice_pat!(*, ..., *, p) with |$variant| + 1 stars before p
+#[allow(unused_macros)]
+macro_rules! gen_match_continuation_last_field_pat {
+    ($pat:pat, ($($stars:tt,)*);) => {
+        inj_ord_choice_pat!($($stars,)* *, $pat)
+    };
+
+    ($pat:pat, ($($stars:tt,)*); $_:ident $(, $rest:ident)*) => {
+        gen_match_continuation_last_field_pat!($pat, ($($stars,)* *,); $($rest,)*)
+    };
+}
+pub(crate) use gen_match_continuation_last_field_pat;
+
+#[allow(unused_macros)]
+macro_rules! gen_match_continuation_backward_branches {
+    ($src:expr, ($($stars:tt,)*); ; $last_variant:ident) => {
+        if let PolyType::$last_variant(p) = $src {
+            inj_ord_choice_result!($($stars,)* p, *)
+        } else {
+            inj_ord_choice_result!($($stars,)* *, ())
+        }
+    };
+
+    ($src:expr, ($($stars:tt,)*); $first_variant:ident, $($rest_variant:ident,)* ; $last_variant:ident) => {
+        if let PolyType::$first_variant(p) = $src {
+            inj_ord_choice_result!($($stars,)* p, *)
+        } else {
+            gen_match_continuation_backward_branches! {
+                $src, ($($stars,)* *,); $($rest_variant,)* ; $last_variant
+            }
+        }
+    };
+}
+pub(crate) use gen_match_continuation_backward_branches;
+
+#[allow(unused_macros)]
+macro_rules! gen_match_continuation_backward {
+    ($src:expr; $($variant:ident,)* ; $last_variant:ident) => {
+        gen_match_continuation_backward_branches! {
+            $src, (); $($variant,)* ; $last_variant
+        }
+    };
+}
+pub(crate) use gen_match_continuation_backward;
 
 }

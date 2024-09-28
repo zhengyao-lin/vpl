@@ -12,12 +12,67 @@ verus! {
 //     algorithm               OBJECT IDENTIFIER,
 //     parameters              ANY DEFINED BY algorithm OPTIONAL
 // }
-//
+pub type AlgorithmIdentifierInner = Mapped<
+    LengthWrapped<
+        Depend<
+            ASN1<ObjectIdentifier>,
+            <AlgorithmParamCont as Continuation>::Output,
+            AlgorithmParamCont,
+        >,
+    >,
+    AlgorithmIdentifierMapper>;
+
+wrap_combinator! {
+    pub struct AlgorithmIdentifier: AlgorithmIdentifierInner =>
+        spec SpecAlgorithmIdentifierValue,
+        exec<'a> AlgorithmIdentifierValue<'a>,
+        owned AlgorithmIdentifierValueOwned,
+    = Mapped {
+            inner: LengthWrapped(Depend {
+                fst: ASN1(ObjectIdentifier),
+                snd: AlgorithmParamCont,
+                spec_snd: Ghost(|i| AlgorithmParamCont::spec_apply(i)),
+            }),
+            mapper: AlgorithmIdentifierMapper,
+        };
+}
+
+asn1_tagged!(AlgorithmIdentifier, TagValue {
+    class: TagClass::Universal,
+    form: TagForm::Constructed,
+    num: 0x10,
+});
+
+mapper! {
+    pub struct AlgorithmIdentifierMapper;
+
+    for <Id, Param>
+    from AlgorithmIdentifierFrom where type AlgorithmIdentifierFrom<Id, Param> = (Id, Param);
+    to AlgorithmIdentifierPoly where pub struct AlgorithmIdentifierPoly<Id, Param> {
+        pub id: Id,
+        pub param: Param,
+    }
+
+    spec SpecAlgorithmIdentifierValue with <SpecObjectIdentifierValue, SpecAlgorithmParamValue>;
+    exec AlgorithmIdentifierValue<'a> with <ObjectIdentifierValue, AlgorithmParamValue<'a>>;
+    owned AlgorithmIdentifierValueOwned with <ObjectIdentifierValueOwned, AlgorithmParamValueOwned>;
+
+    forward(x) {
+        AlgorithmIdentifierPoly {
+            id: x.0,
+            param: x.1,
+        }
+    }
+
+    backward(y) {
+        (y.id, y.param)
+    }
+}
+
 // TODO: right now parameters are parsed as a byte sequence
-asn1_sequence! {
-    seq AlgorithmIdentifier {
-        alg: ASN1<ObjectIdentifier> = ASN1(ObjectIdentifier),
-        #[tail] params: Tail = Tail,
+match_continuation! {
+    continuation AlgorithmParam<'a>(ObjectIdentifierValue, spec SpecObjectIdentifierValue) {
+        _ => Other, Tail, Tail,
     }
 }
 

@@ -113,4 +113,13 @@ impl<T: View> VecDeep<T> {
     }
 }
 
+#[allow(unused_macros)]
+#[macro_export]
+macro_rules! vec_deep {
+    ($($x:tt)*) => {
+        VecDeep::from_vec(vec![$($x)*])
+    };
+}
+pub use vec_deep;
+
 }

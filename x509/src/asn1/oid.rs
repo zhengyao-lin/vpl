@@ -33,11 +33,20 @@ impl View for ObjectIdentifierValue {
     }
 }
 
-impl ObjectIdentifierValue {
-    pub fn is(&self, other: &[UInt]) -> (r: bool)
-        ensures r <==> self@ =~= other@
+/// Macro for constructing an OID
+#[allow(unused_macros)]
+#[macro_export]
+macro_rules! oid {
+    ($($x:literal),+) => {
+        ObjectIdentifierValue(vec_deep![$($x),+])
+    };
+}
+pub use oid;
+
+impl PolyfillEq for ObjectIdentifierValue {
+    fn polyfill_eq(&self, other: &ObjectIdentifierValue) -> bool
     {
-        if self.0.len() != other.len() {
+        if self.0.len() != other.0.len() {
             return false;
         }
 
@@ -50,11 +59,13 @@ impl ObjectIdentifierValue {
                 forall |j: int| 0 <= j < i ==> self@[j] == other@[j],
         {
             assert(i < self@.len());
-            if self.0.get(i) != &other[i] {
+            if self.0.get(i) != other.0.get(i) {
                 return false;
             }
             i += 1;
         }
+
+        assert(self@ =~= other@);
 
         return true;
     }

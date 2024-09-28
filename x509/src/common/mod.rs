@@ -15,6 +15,7 @@ mod wrapped;
 mod mapper;
 mod default;
 mod eq;
+mod unreachable;
 
 pub use depend::*;
 pub use repeat::*;
@@ -29,6 +30,7 @@ pub use wrapped::*;
 pub use mapper::*;
 pub use default::*;
 pub use eq::*;
+pub use unreachable::*;
 
 pub use macros::View;
 pub use macros::PolyfillClone;
