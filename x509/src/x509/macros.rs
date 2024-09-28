@@ -401,8 +401,9 @@ pub(crate) use match_continuation;
 /// In addition to match_continuation, this macro also generates
 /// a lemma that the OIDs are disjoint.
 ///
-/// NOTE: the provided OIDs are assumed to be disjoint,
-/// otherwise we may have a soundness issue
+/// NOTE: the provided OIDs are assumed to be disjoint (due to
+/// the missing proof in gen_lemma_disjoint), otherwise we may
+/// have a soundness issue
 #[allow(unused_macros)]
 macro_rules! oid_match_continuation {
     (

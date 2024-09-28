@@ -8,6 +8,8 @@ use super::ext_value::*;
 
 verus! {
 
+broadcast use ExtensionParamCont::lemma_disjoint_oids;
+
 /// Extension  ::=  SEQUENCE  {
 ///     extnID      OBJECT IDENTIFIER,
 ///     critical    BOOLEAN DEFAULT FALSE,
