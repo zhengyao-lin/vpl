@@ -385,6 +385,33 @@ macro_rules! match_continuation {
 }
 pub(crate) use match_continuation;
 
+/// Special case for matching against OIDs
+#[allow(unused_macros)]
+macro_rules! oid_match_continuation {
+    (
+        continuation $name:ident {
+            $(
+                oid($($arc:literal),*) => $variant:ident($combinator:expr): $combinator_type:ty,
+            )*
+
+            _ => $last_variant:ident($last_combinator:expr): $last_combinator_type:ty,
+
+            $(,)?
+        }
+    ) => {
+        match_continuation! {
+            continuation $name<'a>(ObjectIdentifierValue, spec SpecObjectIdentifierValue) {
+                $(
+                    oid!($($arc),*), spec (seq![$($arc),* as UInt]) => $variant, $combinator_type, $combinator,
+                )*
+
+                _ => $last_variant, $last_combinator_type, $last_combinator,
+            }
+        }
+    }
+}
+pub(crate) use oid_match_continuation;
+
 #[allow(unused_macros)]
 macro_rules! gen_match_continuation_spec_apply_helper {
     ($input:expr, $last_cond:expr; (, $last_combinator:expr)) => {

@@ -70,9 +70,9 @@ mapper! {
 }
 
 // TODO: right now parameters are parsed as a byte sequence
-match_continuation! {
-    continuation AlgorithmParam<'a>(ObjectIdentifierValue, spec SpecObjectIdentifierValue) {
-        _ => Other, Tail, Tail,
+oid_match_continuation! {
+    continuation AlgorithmParam {
+        _ => Other(Tail): Tail,
     }
 }
 
