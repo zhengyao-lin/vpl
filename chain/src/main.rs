@@ -1,15 +1,20 @@
-use std::{io::{self, Read}, process::exit};
+use vstd::prelude::*;
 
+use std::{io::{self, Read}, process::exit};
 use base64::Engine;
 
 use parser::asn1::*;
 use parser::common::*;
 use parser::x509;
 
-/// TODO: due to a Verus export bug, we can't use this in verus! block yet
-fn parse_x509_bytes(bytes: &[u8]) -> Result<x509::CertificateValue, ParseError> {
-    let (_, cert) = ASN1(x509::Certificate).parse(bytes)?;
-    Ok(cert)
+pub use vest::properties::*;
+pub use vest::properties::SpecCombinator;
+
+verus! {
+    fn parse_x509_bytes(bytes: &[u8]) -> Result<x509::CertificateValue, ParseError> {
+        let (_, cert) = ASN1(x509::Certificate).parse(bytes)?;
+        Ok(cert)
+    }
 }
 
 fn hexdump(data: &[u8]) {
