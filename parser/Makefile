@@ -1,6 +1,5 @@
 NAME = parser
 TARGET = libparser.rlib
-SOURCE = $(wildcard src/*.rs) $(wildcard src/common/*.rs) $(wildcard src/asn1/*.rs) $(wildcard src/x509/*.rs)
 MAIN = src/lib.rs
 
 CARGO_DEPS = der base64 paste macros

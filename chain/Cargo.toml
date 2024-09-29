@@ -9,5 +9,6 @@ builtin = { git = "https://github.com/verus-lang/verus", branch = "main" }
 vstd = { git = "https://github.com/verus-lang/verus", branch = "main" }
 vest = { path = "../vest" }
 polyfill = { path = "../polyfill" }
+macros = { path = "../macros" }
 parser = { path = "../parser" }
 base64 = "0.22.1"

@@ -452,7 +452,7 @@ macro_rules! gen_lemma_disjoint {
         ::builtin_macros::verus! {
             pub broadcast proof fn $name()
                 ensures
-                    (false ==> #[trigger] lemma_disjoint_trigger()),
+                    (true || #[trigger] lemma_disjoint_trigger()),
                     gen_lemma_disjoint_helper! {; $($term),* }
             {
                 admit();

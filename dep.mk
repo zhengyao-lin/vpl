@@ -11,6 +11,13 @@
 #   VERUS_DEPS = Verus dependency paths (e.g. vest). For each dep in VERUS_DEPS, we expect $(dep).rlib and $(dep).verusdata to exist
 #   TEST_TARGETS = List of custom test targets
 
+# Recursive wildcard from https://stackoverflow.com/questions/2483182/recursive-wildcards-in-gnu-make/18258352#18258352
+rwildcard=$(foreach d,$(wildcard $(1:=/*)),$(call rwildcard,$d,$2) $(filter $(subst *,%,$2),$d))
+
+SOURCE = $(call rwildcard,src,*.rs)
+# Append sources of VERUS_DEPS to SOURCE
+SOURCE += $(foreach dep,$(VERUS_DEPS),$(call rwildcard,../$(dep)/src,*.rs))
+
 # If $(TARGET) ends in rlib, pass some additional flags to Verus
 ifeq ($(suffix $(TARGET)),.rlib)
 	LIB_FLAGS = --crate-type=lib

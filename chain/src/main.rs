@@ -4,7 +4,6 @@ use std::{io::{self, Read}, process::exit};
 use base64::Engine;
 
 use parser::asn1::*;
-use parser::common::*;
 use parser::x509;
 
 pub use vest::properties::*;

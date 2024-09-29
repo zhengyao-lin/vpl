@@ -33,6 +33,7 @@ dependencies = [
  "base64",
  "builtin",
  "builtin_macros",
+ "macros",
  "parser",
  "polyfill",
  "vest",
