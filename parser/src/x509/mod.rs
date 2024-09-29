@@ -14,6 +14,7 @@ mod ext_value;
 mod tbs_cert;
 mod cert;
 mod macros;
+mod display;
 
 pub use name::*;
 pub use rdn::*;
@@ -29,3 +30,4 @@ pub use ext_value::*;
 pub use tbs_cert::*;
 pub use cert::*;
 pub use macros::*;
+pub use display::*;

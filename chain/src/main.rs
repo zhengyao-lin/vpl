@@ -1,67 +1,91 @@
+mod error;
+
 use vstd::prelude::*;
 
-use std::{io::{self, Read}, process::exit};
+use std::process::ExitCode;
 use base64::Engine;
 
-use parser::asn1::*;
+use clap::{command, Parser};
+
+use parser::common::ParseError;
+use parser::common::Combinator;
+use parser::asn1;
 use parser::x509;
 
-pub use vest::properties::*;
-pub use vest::properties::SpecCombinator;
+use error::Error;
 
 verus! {
-    fn parse_x509_bytes(bytes: &[u8]) -> Result<x509::CertificateValue, ParseError> {
-        let (_, cert) = ASN1(x509::Certificate).parse(bytes)?;
+    fn parse_x509_bytes<'a>(bytes: &'a [u8]) -> Result<x509::CertificateValue<'a>, ParseError> {
+        let (_, cert) = asn1::ASN1(x509::Certificate).parse(bytes)?;
         Ok(cert)
     }
 }
 
-fn hexdump(data: &[u8]) {
-    for chunk in data.chunks(16) {
-        for byte in chunk {
-            print!("{:02x} ", byte);
-        }
-        println!();
-    }
+#[derive(Parser, Debug)]
+#[command(long_about = None)]
+struct Args {
+    /// File containing the trusted root certificates
+    roots: String,
+
+    /// The certificate chain to verify
+    chain: String,
 }
 
-fn parse_cert(src: &str) -> Result<(), String>
-{
-    let cert_base64 = src.split_whitespace().collect::<String>();
-    let cert_bytes = base64::prelude::BASE64_STANDARD.decode(cert_base64)
-        .map_err(|e| format!("Failed to decode Base64: {}", e))?;
-
-    let cert = parse_x509_bytes(&cert_bytes)
-        .map_err(|e| format!("Failed to parse certificate: {:?}", e))?;
-
-    println!("Certificate: {:?}", cert);
-
-    Ok(())
-}
-
-pub fn main() {
-    // Create a new string to store the input
-    let mut input = String::new();
-
-    // Read everything from stdin into the string
-    io::stdin().read_to_string(&mut input).expect("Failed to read from stdin");
+/// Read the given PEM file and return a vector of Vec<u8>'s
+/// such that each correspond to one certificate
+fn read_pem_file_as_bytes(path: &str) -> Result<Vec<Vec<u8>>, Error> {
+    let src = std::fs::read_to_string(path)?;
+    let mut certs = vec![];
 
     const PREFIX: &'static str = "-----BEGIN CERTIFICATE-----";
     const SUFFIX: &'static str = "-----END CERTIFICATE-----";
 
-    // Parse all certificates provided
-    input.split(PREFIX).skip(1).for_each(|cert_enc| {
-        match cert_enc.split(SUFFIX).next() {
-            Some(cert_enc) => {
-                match parse_cert(cert_enc) {
-                    Ok(..) => {}
-                    Err(e) => {
-                        println!("Error: {}", e);
-                        exit(1);
-                    },
-                }
-            }
-            None => {}
+    for chunk in src.split(PREFIX).skip(1) {
+        let Some(cert_src) = chunk.split(SUFFIX).next() else {
+            return Err(Error::Other("BEGIN CERTIFICATE without matching END CERTIFICATE".to_string()));
+        };
+
+        let cert_base64 = cert_src.split_whitespace().collect::<String>();
+        let cert_bytes = base64::prelude::BASE64_STANDARD.decode(cert_base64)
+            .map_err(|e| Error::Other(format!("Failed to decode Base64: {}", e)))?;
+
+        certs.push(cert_bytes);
+    }
+
+    Ok(certs)
+}
+
+fn main_args(args: Args) -> Result<(), Error> {
+    // Parse roots and chain PEM files
+    let roots_bytes = read_pem_file_as_bytes(&args.roots)?;
+    let chain_bytes = read_pem_file_as_bytes(&args.chain)?;
+
+    let roots = roots_bytes.iter().map(|cert_bytes| {
+        parse_x509_bytes(cert_bytes)
+    }).collect::<Result<Vec<_>, _>>()?;
+
+    let chain = chain_bytes.iter().map(|cert_bytes| {
+        parse_x509_bytes(cert_bytes)
+    }).collect::<Result<Vec<_>, _>>()?;
+
+    println!("{} root certificate(s)", roots.len());
+    println!("{} certificate(s) in the chain", chain.len());
+
+    for (i, cert) in chain.iter().enumerate() {
+        println!("cert {}:", i);
+        println!("  issuer: {}", cert.tbs_certificate.issuer);
+        println!("  subject: {}", cert.tbs_certificate.subject);
+    }
+
+    Ok(())
+}
+
+pub fn main() -> ExitCode {
+    match main_args(Args::parse()) {
+        Ok(..) => ExitCode::from(0),
+        Err(err) => {
+            eprintln!("{}", err);
+            ExitCode::from(1)
         }
-    });
+    }
 }
