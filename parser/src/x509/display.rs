@@ -9,9 +9,9 @@ use super::*;
 impl<'a> Display for DirectoryStringValue<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            DirectoryStringValue::PrintableString(s) => write!(f, "{}", s.to_string().ok_or(fmt::Error)?),
+            DirectoryStringValue::PrintableString(s) => write!(f, "{}", s),
             DirectoryStringValue::UTF8String(s) => write!(f, "{}", s),
-            DirectoryStringValue::IA5String(s) => write!(f, "{}", s.to_string().ok_or(fmt::Error)?),
+            DirectoryStringValue::IA5String(s) => write!(f, "{}", s),
             DirectoryStringValue::TeletexString(..) => write!(f, "<TeletexString>"),
             DirectoryStringValue::UniversalString(..) => write!(f, "<UniversalString>"),
             DirectoryStringValue::BMPString(..) => write!(f, "<BMPString>"),

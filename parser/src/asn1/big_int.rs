@@ -123,17 +123,10 @@ impl Combinator for BigInt {
 }
 
 /// A condition that the minimal encoding is used
-pub struct MinimalBigInt;
+#[derive(View)]
+pub struct MinimalBigIntPred;
 
-impl View for MinimalBigInt {
-    type V = MinimalBigInt;
-
-    open spec fn view(&self) -> Self::V {
-        *self
-    }
-}
-
-impl SpecPred for MinimalBigInt {
+impl SpecPred for MinimalBigIntPred {
     type Input = Seq<u8>;
 
     open spec fn spec_apply(&self, i: &Self::Input) -> bool {
@@ -141,7 +134,7 @@ impl SpecPred for MinimalBigInt {
     }
 }
 
-impl Pred for MinimalBigInt {
+impl Pred for MinimalBigIntPred {
     type Input<'a> = &'a [u8];
     type InputOwned = Vec<u8>;
 
@@ -151,13 +144,13 @@ impl Pred for MinimalBigInt {
     }
 }
 
-type BigIntInner = Refined<OctetString, MinimalBigInt>;
+type BigIntInner = Refined<OctetString, MinimalBigIntPred>;
 
 pub open spec fn new_spec_big_int_inner() -> BigIntInner
 {
     Refined {
         inner: OctetString,
-        predicate: MinimalBigInt,
+        predicate: MinimalBigIntPred,
     }
 }
 
@@ -166,7 +159,7 @@ fn new_big_int_inner() -> (res: BigIntInner)
 {
     Refined {
         inner: OctetString,
-        predicate: MinimalBigInt,
+        predicate: MinimalBigIntPred,
     }
 }
 

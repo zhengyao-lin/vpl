@@ -7,7 +7,7 @@ use polyfill::*;
 
 use crate::common::*;
 
-use super::octet_string::*;
+use super::utf8_string::*;
 use super::tag::*;
 
 verus! {
@@ -20,114 +20,32 @@ pub struct PrintableString;
 
 asn1_tagged!(PrintableString, tag_of!(PRINTABLE_STRING));
 
-#[derive(View, PolyfillClone, Eq, PartialEq)]
-pub struct PrintableStringPoly<T>(pub T);
-
-pub type SpecPrintableStringValue = PrintableStringPoly<Seq<u8>>;
-pub type PrintableStringValue<'a> = PrintableStringPoly<&'a [u8]>;
-pub type PrintableStringValueOwned = PrintableStringPoly<Vec<u8>>;
-
-impl SpecPrintableStringValue {
-    pub open spec fn wf(&self) -> bool {
-        forall |i| 0 <= i < self.0.len() ==> #[trigger] Self::wf_byte(self.0[i])
-    }
-
-    pub open spec fn wf_byte(c: u8) -> bool {
-        // https://en.wikipedia.org/wiki/PrintableString
-        ||| 65 <= c && c <= 90 // A - Z
-        ||| 97 <= c && c <= 122 // a - z
-        ||| 48 <= c && c <= 57 // 0 - 9
-        ||| c == 32 // space
-        ||| 39 <= c && c <= 41 // '()
-        ||| 43 <= c && c <= 47 // +,-./
-        ||| c == 58 // :
-        ||| c == 61 // =
-        ||| c == 63 // ?
-    }
-}
-
-impl<'a> PrintableStringValue<'a> {
-    pub fn new(s: &'a [u8]) -> (res: Option<PrintableStringValue<'a>>)
-        ensures
-            res matches Some(res) ==> res@.wf(),
-            res is None ==> !PrintableStringPoly(s@).wf(),
-    {
-        let res = PrintableStringPoly(s);
-
-        if res.wf() {
-            Some(res)
-        } else {
-            None
-        }
-    }
-
-    pub fn as_bytes(&self) -> &'a [u8] {
-        self.0
-    }
-
-    pub fn to_string(&self) -> Option<String> {
-        match utf8_to_str(&self.0) {
-            Some(s) => Some(s.to_string()),
-            None => None,
-        }
-    }
-
-    pub fn wf(&self) -> (res: bool)
-        ensures res == self@.wf()
-    {
-        let len = self.0.len();
-        for i in 0..len
-            invariant
-                len == self@.0.len(),
-                forall |j| 0 <= j < i ==> #[trigger] SpecPrintableStringValue::wf_byte(self.0[j]),
-        {
-            if !Self::wf_byte(self.0[i]) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    pub fn wf_byte(c: u8) -> (res: bool)
-        ensures
-            res == SpecPrintableStringValue::wf_byte(c)
-    {
-        (65 <= c && c <= 90) || // A - Z
-        (97 <= c && c <= 122) || // a - z
-        (48 <= c && c <= 57) || // 0 - 9
-        c == 32 || // space
-        39 <= c && c <= 41 || // '()
-        43 <= c && c <= 47 || // +,-./
-        c == 58 || // :
-        c == 61 || // =
-        c == 63 // ?
-    }
-}
+pub type SpecPrintableStringValue = Seq<char>;
+pub type PrintableStringValue<'a> = &'a str;
+pub type PrintableStringValueOwned = String;
 
 impl SpecCombinator for PrintableString {
     type SpecResult = SpecPrintableStringValue;
 
     open spec fn spec_parse(&self, s: Seq<u8>) -> Result<(usize, Self::SpecResult), ()> {
-        match OctetString.spec_parse(s) {
-            Ok((len, v)) =>
-                if PrintableStringPoly(v).wf() {
-                    Ok((len, PrintableStringPoly(v)))
-                } else {
-                    Err(())
-                }
-            Err(..) => Err(()),
-        }
+        Refined {
+            inner: UTF8String,
+            predicate: PrintableStringPred,
+        }.spec_parse(s)
     }
 
-    proof fn spec_parse_wf(&self, s: Seq<u8>) {}
+    proof fn spec_parse_wf(&self, s: Seq<u8>) {
+        Refined {
+            inner: UTF8String,
+            predicate: PrintableStringPred,
+        }.spec_parse_wf(s)
+    }
 
     open spec fn spec_serialize(&self, v: Self::SpecResult) -> Result<Seq<u8>, ()> {
-        if v.wf() {
-            OctetString.spec_serialize(v.0)
-        } else {
-            Err(())
-        }
-
+        Refined {
+            inner: UTF8String,
+            predicate: PrintableStringPred,
+        }.spec_serialize(v)
     }
 }
 
@@ -137,15 +55,24 @@ impl SecureSpecCombinator for PrintableString {
     }
 
     proof fn theorem_serialize_parse_roundtrip(&self, v: Self::SpecResult) {
-        OctetString.theorem_serialize_parse_roundtrip(v.0);
+        Refined {
+            inner: UTF8String,
+            predicate: PrintableStringPred,
+        }.theorem_serialize_parse_roundtrip(v);
     }
 
     proof fn theorem_parse_serialize_roundtrip(&self, buf: Seq<u8>) {
-        OctetString.theorem_parse_serialize_roundtrip(buf);
+        Refined {
+            inner: UTF8String,
+            predicate: PrintableStringPred,
+        }.theorem_parse_serialize_roundtrip(buf);
     }
 
     proof fn lemma_prefix_secure(&self, s1: Seq<u8>, s2: Seq<u8>) {
-        OctetString.lemma_prefix_secure(s1, s2);
+        Refined {
+            inner: UTF8String,
+            predicate: PrintableStringPred,
+        }.lemma_prefix_secure(s1, s2);
     }
 }
 
@@ -162,31 +89,79 @@ impl Combinator for PrintableString {
     }
 
     fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ParseError>) {
-        let (len, v) = OctetString.parse(s)?;
-
-        if PrintableStringPoly(v).wf() {
-            Ok((len, PrintableStringPoly(v)))
-        } else {
-            Err(ParseError::Other("Ill-formed printable string".to_string()))
-        }
+        Refined {
+            inner: UTF8String,
+            predicate: PrintableStringPred,
+        }.parse(s)
     }
 
     fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, SerializeError>) {
-        if v.wf() {
-            OctetString.serialize(v.0, data, pos)
-        } else {
-            Err(SerializeError::Other("Ill-formed printable string".to_string()))
-        }
+        Refined {
+            inner: UTF8String,
+            predicate: PrintableStringPred,
+        }.serialize(v, data, pos)
     }
 }
 
+/// A condition that the minimal encoding is used
+#[derive(View)]
+pub struct PrintableStringPred;
+
+impl PrintableStringPred {
+    pub open spec fn wf_char(c: char) -> bool {
+        // https://en.wikipedia.org/wiki/PrintableString
+        ||| ('A' <= c && c <= 'Z')
+        ||| ('a' <= c && c <= 'z')
+        ||| ('0' <= c && c <= '9')
+        ||| c == ' '
+        ||| ('\'' <= c && c <= ')')
+        ||| ('+' <= c && c <= '/')
+        ||| c == ':'
+        ||| c == '='
+        ||| c == '?'
+    }
+
+    fn exec_wf_char(c: char) -> (res: bool)
+        ensures res == Self::wf_char(c)
+    {
+        ('A' <= c && c <= 'Z') ||
+        ('a' <= c && c <= 'z') ||
+        ('0' <= c && c <= '9') ||
+        c == ' ' ||
+        ('\'' <= c && c <= ')') ||
+        ('+' <= c && c <= '/') ||
+        c == ':' ||
+        c == '=' ||
+        c == '?'
+    }
 }
 
-impl<'a> Debug for PrintableStringValue<'a> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match self.to_string() {
-            Some(s) => write!(f, "PrintableStringValue({:?})", s),
-            None => write!(f, "PrintableStringValue({:?})", self.0),
-        }
+impl SpecPred for PrintableStringPred {
+    type Input = Seq<char>;
+
+    open spec fn spec_apply(&self, s: &Self::Input) -> bool {
+        forall |i| 0 <= i < s.len() ==> #[trigger] Self::wf_char(s[i])
     }
+}
+
+impl Pred for PrintableStringPred {
+    type Input<'a> = &'a str;
+    type InputOwned = String;
+
+    fn apply(&self, s: &Self::Input<'_>) -> (res: bool)
+    {
+        let len = s.unicode_len();
+        for i in 0..len
+            invariant
+                len == s@.len(),
+                forall |j| 0 <= j < i ==> #[trigger] Self::wf_char(s@[j]),
+        {
+            if !Self::exec_wf_char(s.get_char(i)) {
+                return false;
+            }
+        }
+        return true;
+    }
+}
+
 }

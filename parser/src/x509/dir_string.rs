@@ -117,7 +117,7 @@ mod test {
 
         match parsed {
             DirectoryStringPoly::IA5String(s) => {
-                assert_eq!(s.to_string(), Some("ruby-lang".to_string()));
+                assert_eq!(s, "ruby-lang");
             }
             _ => panic!("{:?}", parsed),
         }
@@ -131,7 +131,7 @@ mod test {
 
         match parsed {
             DirectoryStringPoly::PrintableString(s) => {
-                assert_eq!(s.to_string(), Some("Google Trust Services LLC".to_string()));
+                assert_eq!(s, "Google Trust Services LLC");
             }
             _ => panic!("{:?}", parsed),
         }
