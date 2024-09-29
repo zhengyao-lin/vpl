@@ -1,5 +1,5 @@
 # In topological order of dependencies
-PROJECTS = vest polyfill x509 vpl
+PROJECTS = polyfill parser vpl chain
 
 .PHONY: debug
 debug:

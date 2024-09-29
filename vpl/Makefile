@@ -2,6 +2,7 @@
 ### Makefile to compile Verus project with external cargo dependencies ###
 ##########################################################################
 
+NAME = vpl
 TARGET = vpl
 SOURCE = $(wildcard src/*.rs) $(wildcard src/*.pl)
 MAIN = src/main.rs

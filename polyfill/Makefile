@@ -1,3 +1,4 @@
+NAME = polyfill
 TARGET = libpolyfill.rlib
 SOURCE = $(wildcard src/*.rs)
 MAIN = src/lib.rs

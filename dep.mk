@@ -3,7 +3,8 @@
 ##########################################################################
 
 # Uses these variables (for example):
-#   TARGET = Target executable name (e.g. vpl)
+#   NAME = Name of the crate (e.g. vpl, parser)
+#   TARGET = Target executable name (e.g. vpl, libparser.rlib)
 #   SOURCE = All source files used for monitoring changes (e.g. $(wildcard src/*.rs) $(wildcard src/*.pl))
 #   MAIN = Main file passed to Verus (e.g. src/main.rs)
 #   CARGO_DEPS = Rust dependencies added with `cargo add` (e.g. peg clap thiserror tempfile)
@@ -50,8 +51,11 @@ verus-deps-%:
 #     --extern <dep>=../<dep>/target/<release/debug>/lib<dep>.rlib
 #     --import <dep>=../<dep>/target/<release/debug>/lib<dep>.rlib.verusdata
 VERUS_COMMAND = \
-	verus $(MAIN) $(LIB_FLAGS) -L dependency=target/$*/deps \
+	verus $(MAIN) $(LIB_FLAGS) --crate-name $(NAME) \
+		-L dependency=target/$*/deps \
 		$(foreach dep,$(CARGO_DEPS),--extern $(dep)=$(firstword $(wildcard target/$*/deps/lib$(dep)-*.rlib) $(wildcard target/$*/deps/lib$(dep)-*.dylib))) \
+		$(foreach dep,$(VERUS_DEPS),-L dependency=../$(dep)/target/$*/deps) \
+		$(foreach dep,$(VERUS_DEPS),-L dependency=../$(dep)/target/$*) \
 		$(foreach dep,$(VERUS_DEPS),--extern $(dep)=../$(dep)/target/$*/lib$(dep).rlib --import $(dep)=../$(dep)/target/$*/lib$(dep).rlib.verusdata) \
 		--compile $(if $(filter release,$*),-C opt-level=3) \
 		-o $@ --export $@.verusdata \
