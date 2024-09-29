@@ -42,21 +42,13 @@ wrap_combinator! {
         };
 }
 
-asn1_tagged!(Extension, TagValue {
-    class: TagClass::Universal,
-    form: TagForm::Constructed,
-    num: 0x10,
-});
+asn1_tagged!(Extension, tag_of!(SEQUENCE));
 
 wrap_combinator! {
     pub struct Extensions: ExtensionsInner = SequenceOf(ASN1(Extension));
 }
 
-asn1_tagged!(Extensions, TagValue {
-    class: TagClass::Universal,
-    form: TagForm::Constructed,
-    num: 0x10,
-});
+asn1_tagged!(Extensions, tag_of!(SEQUENCE));
 
 mapper! {
     pub struct ExtensionMapper;

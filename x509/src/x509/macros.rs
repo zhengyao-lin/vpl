@@ -64,12 +64,7 @@ macro_rules! asn1_sequence {
                         };
                 }
 
-                // Tag of SEQUENCE
-                asn1_tagged!($combinator_name, TagValue {
-                    class: TagClass::Universal,
-                    form: TagForm::Constructed,
-                    num: 0x10,
-                });
+                asn1_tagged!($combinator_name, tag_of!(SEQUENCE));
 
                 // Declare the spec/normal/owned result types
                 pub type [< Spec $combinator_name Value >] = [< internal_ $combinator_name >]::SpecValue;

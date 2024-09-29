@@ -20,11 +20,7 @@ wrap_combinator! {
 }
 
 // Override the tag to SET OF
-asn1_tagged!(RDN, TagValue {
-    class: TagClass::Universal,
-    form: TagForm::Constructed,
-    num: 0x11,
-});
+asn1_tagged!(RDN, tag_of!(SET));
 
 pub type SpecRDNValue = Seq<SpecAttributeTypeAndValueValue>;
 pub type RDNValue<'a> = VecDeep<AttributeTypeAndValueValue<'a>>;

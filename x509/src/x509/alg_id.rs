@@ -40,11 +40,7 @@ wrap_combinator! {
         };
 }
 
-asn1_tagged!(AlgorithmIdentifier, TagValue {
-    class: TagClass::Universal,
-    form: TagForm::Constructed,
-    num: 0x10,
-});
+asn1_tagged!(AlgorithmIdentifier, tag_of!(SEQUENCE));
 
 mapper! {
     pub struct AlgorithmIdentifierMapper;

@@ -16,11 +16,7 @@ pub struct Null;
 #[derive(Debug, View, PolyfillClone)]
 pub struct NullValue;
 
-asn1_tagged!(Null, TagValue {
-    class: TagClass::Universal,
-    form: TagForm::Primitive,
-    num: 0x05,
-});
+asn1_tagged!(Null, tag_of!(NULL));
 
 impl SpecCombinator for Null {
     type SpecResult = NullValue;

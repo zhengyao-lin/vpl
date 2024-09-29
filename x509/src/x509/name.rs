@@ -19,11 +19,7 @@ wrap_combinator! {
     = SequenceOf(ASN1(RDN));
 }
 
-asn1_tagged!(Name, TagValue {
-    class: TagClass::Universal,
-    form: TagForm::Constructed,
-    num: 0x10,
-});
+asn1_tagged!(Name, tag_of!(SEQUENCE));
 
 pub type SpecNameValue = Seq<SpecRDNValue>;
 pub type NameValue<'a> = VecDeep<RDNValue<'a>>;

@@ -18,11 +18,7 @@ verus! {
 #[derive(Debug, View)]
 pub struct PrintableString;
 
-asn1_tagged!(PrintableString, TagValue {
-    class: TagClass::Universal,
-    form: TagForm::Primitive,
-    num: 0x13,
-});
+asn1_tagged!(PrintableString, tag_of!(PRINTABLE_STRING));
 
 #[derive(View, PolyfillClone, Eq, PartialEq)]
 pub struct PrintableStringPoly<T>(pub T);

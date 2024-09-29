@@ -14,11 +14,7 @@ verus! {
 #[derive(Debug, View)]
 pub struct BigInt;
 
-asn1_tagged!(BigInt, TagValue {
-    class: TagClass::Universal,
-    form: TagForm::Primitive,
-    num: 0x02,
-});
+asn1_tagged!(BigInt, tag_of!(INTEGER));
 
 /// BigInt represents the integer with a sequence of bytes in big-endian order
 /// (same as ASN.1) and the most significant bit of the first byte is the sign bit.

@@ -14,11 +14,7 @@ verus! {
 #[derive(Debug, View)]
 pub struct Boolean;
 
-asn1_tagged!(Boolean, TagValue {
-    class: TagClass::Universal,
-    form: TagForm::Primitive,
-    num: 0x01,
-});
+asn1_tagged!(Boolean, tag_of!(BOOLEAN));
 
 impl SpecCombinator for Boolean {
     type SpecResult = bool;

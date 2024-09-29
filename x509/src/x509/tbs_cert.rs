@@ -10,11 +10,7 @@ verus! {
 
 asn1_sequence! {
     seq TBSCertificate {
-        #[default(0)] version: ASN1<ExplicitTag<ASN1<Integer>>> = ASN1(ExplicitTag(TagValue {
-            class: TagClass::ContextSpecific,
-            form: TagForm::Constructed,
-            num: 0,
-        }, ASN1(Integer))),
+        #[default(0)] version: ASN1<ExplicitTag<ASN1<Integer>>> = ASN1(ExplicitTag(tag_of!(EXPLICIT 0), ASN1(Integer))),
 
         serial: ASN1<BigInt> = ASN1(BigInt),
         signature: ASN1<AlgorithmIdentifier> = ASN1(AlgorithmIdentifier),
@@ -23,23 +19,9 @@ asn1_sequence! {
         subject: ASN1<Name> = ASN1(Name),
         subject_key: ASN1<PublicKeyInfo> = ASN1(PublicKeyInfo),
 
-        #[optional] issuer_uid: ASN1<ImplicitTag<BitString>> = ASN1(ImplicitTag(TagValue {
-            class: TagClass::ContextSpecific,
-            form: TagForm::Primitive,
-            num: 1,
-        }, BitString)),
-
-        #[optional] subject_uid: ASN1<ImplicitTag<BitString>> = ASN1(ImplicitTag(TagValue {
-            class: TagClass::ContextSpecific,
-            form: TagForm::Primitive,
-            num: 2,
-        }, BitString)),
-
-        #[optional] extensions: ASN1<ExplicitTag<ASN1<Extensions>>> = ASN1(ExplicitTag(TagValue {
-            class: TagClass::ContextSpecific,
-            form: TagForm::Constructed,
-            num: 3,
-        }, ASN1(Extensions))),
+        #[optional] issuer_uid: ASN1<ImplicitTag<BitString>> = ASN1(ImplicitTag(tag_of!(IMPLICIT 1), BitString)),
+        #[optional] subject_uid: ASN1<ImplicitTag<BitString>> = ASN1(ImplicitTag(tag_of!(IMPLICIT 2), BitString)),
+        #[optional] extensions: ASN1<ExplicitTag<ASN1<Extensions>>> = ASN1(ExplicitTag(tag_of!(EXPLICIT 3), ASN1(Extensions))),
     }
 }
 

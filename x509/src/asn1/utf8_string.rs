@@ -14,11 +14,7 @@ verus! {
 #[derive(Debug, View)]
 pub struct UTF8String;
 
-asn1_tagged!(UTF8String, TagValue {
-    class: TagClass::Universal,
-    form: TagForm::Primitive,
-    num: 0x0c,
-});
+asn1_tagged!(UTF8String, tag_of!(UTF8_STRING));
 
 pub type SpecUTF8StringValue = Seq<char>;
 pub type UTF8StringValue<'a> = &'a str;

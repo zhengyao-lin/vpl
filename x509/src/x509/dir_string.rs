@@ -18,9 +18,9 @@ pub type DirectoryStringInner = Mapped<
         ASN1<PrintableString>,
         ASN1<UTF8String>,
         ASN1<IA5String>,
-        ASN1<ImplicitTag<OctetString>>,
-        ASN1<ImplicitTag<OctetString>>,
-        ASN1<ImplicitTag<OctetString>>,
+        placeholder_type!(),
+        placeholder_type!(),
+        placeholder_type!(),
     ),
     DirectoryStringMapper>;
 
@@ -34,21 +34,9 @@ wrap_combinator! {
                 ASN1(PrintableString),
                 ASN1(UTF8String),
                 ASN1(IA5String),
-                ASN1(ImplicitTag(TagValue {
-                    class: TagClass::Universal,
-                    form: TagForm::Primitive,
-                    num: 0x14, // TeletexString
-                }, OctetString)),
-                ASN1(ImplicitTag(TagValue {
-                    class: TagClass::Universal,
-                    form: TagForm::Primitive,
-                    num: 0x1c, // UniversalString
-                }, OctetString)),
-                ASN1(ImplicitTag(TagValue {
-                    class: TagClass::Universal,
-                    form: TagForm::Primitive,
-                    num: 0x1e, // BMPString
-                }, OctetString)),
+                placeholder!(TELETEX_STRING),
+                placeholder!(UNIVERSAL_STRING),
+                placeholder!(BMP_STRING),
             ),
             mapper: DirectoryStringMapper,
         };

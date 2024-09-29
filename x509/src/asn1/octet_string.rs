@@ -11,11 +11,7 @@ verus! {
 #[derive(Debug, View)]
 pub struct OctetString;
 
-asn1_tagged!(OctetString, TagValue {
-    class: TagClass::Universal,
-    form: TagForm::Primitive,
-    num: 0x04,
-});
+asn1_tagged!(OctetString, tag_of!(OCTET_STRING));
 
 impl SpecCombinator for OctetString {
     type SpecResult = Seq<u8>;

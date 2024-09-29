@@ -18,11 +18,7 @@ verus! {
 #[derive(Debug, View)]
 pub struct IA5String;
 
-asn1_tagged!(IA5String, TagValue {
-    class: TagClass::Universal,
-    form: TagForm::Primitive,
-    num: 0x16,
-});
+asn1_tagged!(IA5String, tag_of!(IA5_STRING));
 
 #[derive(View, PolyfillClone, Eq, PartialEq)]
 pub struct IA5StringPoly<T>(pub T);

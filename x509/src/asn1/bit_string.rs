@@ -18,11 +18,7 @@ verus! {
 #[derive(Debug, View)]
 pub struct BitString;
 
-asn1_tagged!(BitString, TagValue {
-    class: TagClass::Universal,
-    form: TagForm::Primitive,
-    num: 0x03,
-});
+asn1_tagged!(BitString, tag_of!(BIT_STRING));
 
 #[derive(View, PolyfillClone)]
 pub struct BitStringValuePoly<T>(pub T);

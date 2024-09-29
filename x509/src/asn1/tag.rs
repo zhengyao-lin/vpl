@@ -442,4 +442,193 @@ macro_rules! asn1_tagged {
 }
 pub(crate) use asn1_tagged;
 
+/// Tags of common ASN.1 types
+#[allow(unused_macros)]
+macro_rules! tag_of {
+    (BOOLEAN) => {
+        TagValue {
+            class: TagClass::Universal,
+            form: TagForm::Primitive,
+            num: 0x01,
+        }
+    };
+
+    (INTEGER) => {
+        TagValue {
+            class: TagClass::Universal,
+            form: TagForm::Primitive,
+            num: 0x02,
+        }
+    };
+
+    (BIT_STRING) => {
+        TagValue {
+            class: TagClass::Universal,
+            form: TagForm::Primitive,
+            num: 0x03,
+        }
+    };
+
+    (OCTET_STRING) => {
+        TagValue {
+            class: TagClass::Universal,
+            form: TagForm::Primitive,
+            num: 0x04,
+        }
+    };
+
+    (NULL) => {
+        TagValue {
+            class: TagClass::Universal,
+            form: TagForm::Primitive,
+            num: 0x05,
+        }
+    };
+
+    (OBJECT_IDENTIFIER) => {
+        TagValue {
+            class: TagClass::Universal,
+            form: TagForm::Primitive,
+            num: 0x06,
+        }
+    };
+
+    (SEQUENCE) => {
+        TagValue {
+            class: TagClass::Universal,
+            form: TagForm::Constructed,
+            num: 0x10,
+        }
+    };
+
+    (SET) => {
+        TagValue {
+            class: TagClass::Universal,
+            form: TagForm::Constructed,
+            num: 0x11,
+        }
+    };
+
+    (UTF8_STRING) => {
+        TagValue {
+            class: TagClass::Universal,
+            form: TagForm::Primitive,
+            num: 0x0c,
+        }
+    };
+
+    (PRINTABLE_STRING) => {
+        TagValue {
+            class: TagClass::Universal,
+            form: TagForm::Primitive,
+            num: 0x13,
+        }
+    };
+
+    (TELETEX_STRING) => {
+        TagValue {
+            class: TagClass::Universal,
+            form: TagForm::Primitive,
+            num: 0x14,
+        }
+    };
+
+    (IA5_STRING) => {
+        TagValue {
+            class: TagClass::Universal,
+            form: TagForm::Primitive,
+            num: 0x16,
+        }
+    };
+
+    (UNIVERSAL_STRING) => {
+        TagValue {
+            class: TagClass::Universal,
+            form: TagForm::Primitive,
+            num: 0x1c,
+        }
+    };
+
+    (BMP_STRING) => {
+        TagValue {
+            class: TagClass::Universal,
+            form: TagForm::Primitive,
+            num: 0x1e,
+        }
+    };
+
+    (UTC_TIME) => {
+        TagValue {
+            class: TagClass::Universal,
+            form: TagForm::Primitive,
+            num: 0x17,
+        }
+    };
+
+    (GENERALIZED_TIME) => {
+        TagValue {
+            class: TagClass::Universal,
+            form: TagForm::Primitive,
+            num: 0x18,
+        }
+    };
+
+    (IMPLICIT $num:literal) => {
+        TagValue {
+            class: TagClass::ContextSpecific,
+            form: TagForm::Primitive,
+            num: $num,
+        }
+    };
+
+    (EXPLICIT $num:literal) => {
+        TagValue {
+            class: TagClass::ContextSpecific,
+            form: TagForm::Constructed,
+            num: $num,
+        }
+    };
+}
+pub(crate) use tag_of;
+
+/// Placeholder to parse a TLV tuple as OctetString
+/// with the provided tag
+#[allow(unused_macros)]
+macro_rules! placeholder {
+    ($($tag:tt)*) => {
+        ASN1(ImplicitTag(tag_of!($($tag)*), OctetString))
+    };
+}
+pub(crate) use placeholder;
+
+#[allow(unused_macros)]
+macro_rules! placeholder_type {
+    () => { ASN1<ImplicitTag<OctetString>> };
+}
+pub(crate) use placeholder_type;
+
+// #[allow(unused_macros)]
+// macro_rules! implicit_tag {
+//     ($num:literal, $inner:expr) => {
+//         ImplicitTag(TagValue {
+//             class: TagClass::ContextSpecific,
+//             form: TagForm::Primitive,
+//             num: $num,
+//         }, $inner)
+//     };
+// }
+// pub(crate) use implicit_tag;
+
+// #[allow(unused_macros)]
+// macro_rules! explicit_tag {
+//     ($num:literal, $inner:expr) => {
+//         ExplicitTag(TagValue {
+//             class: TagClass::ContextSpecific,
+//             form: TagForm::Constructed,
+//             num: $num,
+//         }, ASN1($inner))
+//     };
+// }
+// pub(crate) use explicit_tag;
+
 }

@@ -17,11 +17,7 @@ verus! {
 #[derive(Debug, View)]
 pub struct Integer;
 
-asn1_tagged!(Integer, TagValue {
-    class: TagClass::Universal,
-    form: TagForm::Primitive,
-    num: 0x02,
-});
+asn1_tagged!(Integer, tag_of!(INTEGER));
 
 pub type IntegerValue = VarIntResult;
 

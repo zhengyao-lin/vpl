@@ -23,19 +23,8 @@ wrap_combinator! {
     =
         Mapped {
             inner: OrdChoice(
-                // UTCTime, tag 0x17
-                ASN1(ImplicitTag(TagValue {
-                    class: TagClass::Universal,
-                    form: TagForm::Primitive,
-                    num: 0x17,
-                }, UTF8String)),
-
-                // GeneralizedTime, tag 0x18
-                ASN1(ImplicitTag(TagValue {
-                    class: TagClass::Universal,
-                    form: TagForm::Primitive,
-                    num: 0x18,
-                }, UTF8String)),
+                ASN1(ImplicitTag(tag_of!(UTC_TIME), UTF8String)),
+                ASN1(ImplicitTag(tag_of!(GENERALIZED_TIME), UTF8String)),
             ),
             mapper: TimeMapper,
         };

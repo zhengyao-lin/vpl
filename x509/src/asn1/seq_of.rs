@@ -17,19 +17,11 @@ pub type SequenceOfValue<T> = VecDeep<T>;
 
 impl<C> ASN1Tagged for SequenceOf<C> {
     open spec fn spec_tag(&self) -> TagValue {
-        TagValue {
-            class: TagClass::Universal,
-            form: TagForm::Constructed,
-            num: 0x10,
-        }
+        tag_of!(SEQUENCE)
     }
 
     fn tag(&self) -> TagValue {
-        TagValue {
-            class: TagClass::Universal,
-            form: TagForm::Constructed,
-            num: 0x10,
-        }
+        tag_of!(SEQUENCE)
     }
 }
 

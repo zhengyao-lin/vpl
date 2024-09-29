@@ -14,11 +14,7 @@ verus! {
 #[derive(Debug, View)]
 pub struct ObjectIdentifier;
 
-asn1_tagged!(ObjectIdentifier, TagValue {
-    class: TagClass::Universal,
-    form: TagForm::Primitive,
-    num: 0x06,
-});
+asn1_tagged!(ObjectIdentifier, tag_of!(OBJECT_IDENTIFIER));
 
 pub type SpecObjectIdentifierValue = Seq<UInt>;
 #[derive(PolyfillClone)]
