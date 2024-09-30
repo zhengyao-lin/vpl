@@ -1,4 +1,5 @@
 mod error;
+mod specs;
 
 use vstd::prelude::*;
 
@@ -11,6 +12,8 @@ use parser::common::ParseError;
 use parser::common::Combinator;
 use parser::asn1;
 use parser::x509;
+
+use specs::*;
 
 use error::Error;
 
@@ -77,8 +80,31 @@ fn main_args(args: Args) -> Result<(), Error> {
         println!("  subject: {}", cert.tbs_certificate.subject);
     }
 
+    // Check that for each i, cert[i + 1] issued cert[i]
+    for i in 0..chain.len() - 1 {
+        // Issuer of cert[i] is the same as the subject of cert[i + 1]
+        let issuer = &chain[i + 1].tbs_certificate.subject;
+        let subject = &chain[i].tbs_certificate.issuer;
+
+        if same_name(issuer, subject) {
+            println!("cert {} issued by cert {}", i + 1, i);
+        } else {
+            println!("cert {} not issued by cert {}", i + 1, i);
+        }
+    }
+
+    // Find root certificates that issued the last certificate in the chain
+    let issuer = &chain[chain.len() - 1].tbs_certificate.issuer;
+    for (i, root) in roots.iter().enumerate() {
+        if same_name(issuer, &root.tbs_certificate.subject) {
+            println!("last cert issued by root cert {}: {}", i, root.tbs_certificate.subject);
+        }
+    }
+
     Ok(())
 }
+
+// https://github.com/openssl/openssl/blob/ed6862328745c51c2afa2b6485cc3e275d543c4e/crypto/x509/v3_purp.c#L953
 
 pub fn main() -> ExitCode {
     match main_args(Args::parse()) {

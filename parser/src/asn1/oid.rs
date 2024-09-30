@@ -42,28 +42,7 @@ pub use oid;
 impl PolyfillEq for ObjectIdentifierValue {
     fn polyfill_eq(&self, other: &ObjectIdentifierValue) -> bool
     {
-        if self.0.len() != other.0.len() {
-            return false;
-        }
-
-        let mut i = 0;
-
-        while i < self.0.len()
-            invariant
-                0 <= i <= self@.len(),
-                self@.len() == other@.len(),
-                forall |j: int| 0 <= j < i ==> self@[j] == other@[j],
-        {
-            assert(i < self@.len());
-            if self.0.get(i) != other.0.get(i) {
-                return false;
-            }
-            i += 1;
-        }
-
-        assert(self@ =~= other@);
-
-        return true;
+        self.0.polyfill_eq(&other.0)
     }
 }
 
