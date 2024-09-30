@@ -94,17 +94,14 @@ fn main_args(args: Args) -> Result<(), Error> {
     }
 
     // Find root certificates that issued the last certificate in the chain
-    let issuer = &chain[chain.len() - 1].tbs_certificate.issuer;
     for (i, root) in roots.iter().enumerate() {
-        if same_name(issuer, &root.tbs_certificate.subject) {
+        if likely_issued(root, &chain[chain.len() - 1]) {
             println!("last cert issued by root cert {}: {}", i, root.tbs_certificate.subject);
         }
     }
 
     Ok(())
 }
-
-// https://github.com/openssl/openssl/blob/ed6862328745c51c2afa2b6485cc3e275d543c4e/crypto/x509/v3_purp.c#L953
 
 pub fn main() -> ExitCode {
     match main_args(Args::parse()) {

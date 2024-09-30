@@ -30,6 +30,12 @@ impl<'a> View for BigIntValue<'a> {
     }
 }
 
+impl<'a> PolyfillEq for BigIntValue<'a> {
+    fn polyfill_eq(&self, other: &Self) -> bool {
+        self.0.polyfill_eq(&other.0)
+    }
+}
+
 impl View for BigIntOwned {
     type V = Seq<u8>;
 

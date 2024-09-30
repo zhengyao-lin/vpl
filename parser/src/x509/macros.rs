@@ -270,7 +270,7 @@ pub(crate) use gen_field_poly_type;
 /// Example:
 /// match_continuation! {
 ///     continuation ExtensionParam<'a>(ObjectIdentifierValue, spec SpecObjectIdentifierValue) {
-///         oid!(2, 5, 29, 35), spec seq![ 2 as UInt, 5, 29, 35 ] => AuthorityKeyIdentifier, ASN1<OctetString>, ASN1(OctetString),
+///         oid!(2, 5, 29, 35), spec spec_oid!(2, 5, 29, 35) => AuthorityKeyIdentifier, ASN1<OctetString>, ASN1(OctetString),
 ///         _ => Other, ASN1<OctetString>, ASN1(OctetString),
 ///     }
 /// }
@@ -415,7 +415,7 @@ macro_rules! oid_match_continuation {
         match_continuation! {
             continuation $name<'a>(ObjectIdentifierValue, spec SpecObjectIdentifierValue) {
                 $(
-                    oid!($($arc),+), spec (seq![$($arc),+ as UInt]) => $variant, $combinator_type, $combinator,
+                    oid!($($arc),+), spec spec_oid!($($arc),+) => $variant, $combinator_type, $combinator,
                 )*
 
                 _ => $last_variant, $last_combinator_type, $last_combinator,
@@ -430,7 +430,7 @@ macro_rules! oid_match_continuation {
                     // So we generate a disjointness lemmas here
                     gen_lemma_disjoint! {
                         lemma_disjoint_oids {
-                            $(seq![$($arc),+ as UInt]),*
+                            $(spec_oid!($($arc),+)),*
                         }
                     }
                 }

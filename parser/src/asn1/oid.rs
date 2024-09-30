@@ -39,6 +39,15 @@ macro_rules! oid {
 }
 pub use oid;
 
+#[allow(unused_macros)]
+#[macro_export]
+macro_rules! spec_oid {
+    ($($x:literal),+) => {
+        seq![$($x),+ as UInt]
+    };
+}
+pub use spec_oid;
+
 impl PolyfillEq for ObjectIdentifierValue {
     fn polyfill_eq(&self, other: &ObjectIdentifierValue) -> bool
     {

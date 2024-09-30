@@ -13,7 +13,7 @@ asn1_sequence! {
         #[optional] key_id: ASN1<ImplicitTag<OctetString>> = ASN1(ImplicitTag(tag_of!(IMPLICIT 0), OctetString)),
         // TODO: Parsing of GeneralNames is not implemented yet
         #[optional] auth_cert_issuer: placeholder_type!() = placeholder!(EXPLICIT 1),
-        #[optional] auth_cert_serial: ASN1<ImplicitTag<OctetString>> = ASN1(ImplicitTag(tag_of!(IMPLICIT 2), OctetString)),
+        #[optional] auth_cert_serial: ASN1<ImplicitTag<BigInt>> = ASN1(ImplicitTag(tag_of!(IMPLICIT 2), BigInt)),
     }
 }
 
