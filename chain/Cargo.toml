@@ -11,6 +11,7 @@ vest = { path = "../vest" }
 polyfill = { path = "../polyfill" }
 macros = { path = "../macros" }
 parser = { path = "../parser" }
+vpl = { path = "../vpl" }
 base64 = "0.22.1"
 clap = { version = "4.5.4", features = ["derive"] }
 thiserror = "1.0.63"

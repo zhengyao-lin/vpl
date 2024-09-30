@@ -1,7 +1,6 @@
 NAME = polyfill
-TARGET = libpolyfill.rlib
+TARGETS = libpolyfill.rlib
 SOURCE = $(wildcard src/*.rs)
-MAIN = src/lib.rs
 
 CARGO_DEPS =
 VERUS_DEPS =

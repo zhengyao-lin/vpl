@@ -17,7 +17,7 @@ verus! {
 /// Similar to https://github.com/openssl/openssl/blob/ed6862328745c51c2afa2b6485cc3e275d543c4e/crypto/x509/v3_purp.c#L963
 pub open spec fn spec_likely_issued(issuer: SpecCertificateValue, subject: SpecCertificateValue) -> bool
 {
-    &&& spec_same_name(issuer.tbs_certificate.subject, subject.tbs_certificate.issuer)
+    &&& spec_same_name(issuer.cert.subject, subject.cert.issuer)
     &&& spec_check_auth_key_id(issuer, subject)
     // TODO: more conditions
 }
@@ -67,7 +67,7 @@ pub open spec fn spec_check_auth_key_id(issuer: SpecCertificateValue, subject: S
         &&& akid.key_id matches OptionDeep::Some(id)
             ==> spec_get_subject_key_id(issuer) matches Some(skid)
             ==> id =~= skid
-        &&& akid.auth_cert_serial matches OptionDeep::Some(serial) ==> serial =~= issuer.tbs_certificate.serial
+        &&& akid.auth_cert_serial matches OptionDeep::Some(serial) ==> serial =~= issuer.cert.serial
         // TODO auth_cert_issuer
     } else {
         true
@@ -77,7 +77,7 @@ pub open spec fn spec_check_auth_key_id(issuer: SpecCertificateValue, subject: S
 /// Get the first extension with the given OID
 pub open spec fn spec_get_extension_param(cert: SpecCertificateValue, oid: SpecObjectIdentifierValue) -> OptionDeep<SpecExtensionParamValue>
 {
-    if let Some(exts) = cert.tbs_certificate.extensions {
+    if let Some(exts) = cert.cert.extensions {
         spec_get_extension_param_helper(exts, oid)
     } else {
         None
@@ -126,12 +126,21 @@ pub open spec fn spec_get_subject_key_id(cert: SpecCertificateValue) -> OptionDe
     }
 }
 
+/// Verify the subject cert's signature using issuer's public key
+pub open spec fn spec_verify_signature(issuer: SpecCertificateValue, subject: SpecCertificateValue) -> bool
+{
+    // Signature algorithm is consistent in the subject cert
+    &&& subject.sig_alg =~= subject.cert.signature
+
+    // TODO: actually check the signature
+}
+
 //// Implementations of the specs above
 
 pub fn likely_issued(issuer: &CertificateValue, subject: &CertificateValue) -> (res: bool)
     ensures res == spec_likely_issued(issuer@, subject@)
 {
-    same_name(&issuer.tbs_certificate.subject, &subject.tbs_certificate.issuer) &&
+    same_name(&issuer.cert.subject, &subject.cert.issuer) &&
     check_auth_key_id(issuer, subject)
 }
 
@@ -153,7 +162,7 @@ pub fn check_auth_key_id(issuer: &CertificateValue, subject: &CertificateValue) 
 
         // Check serial number
         if let Some(serial) = &akid.auth_cert_serial {
-            if !serial.polyfill_eq(&issuer.tbs_certificate.serial) {
+            if !serial.polyfill_eq(&issuer.cert.serial) {
                 return false;
             }
         }
@@ -167,7 +176,7 @@ pub fn check_auth_key_id(issuer: &CertificateValue, subject: &CertificateValue) 
 pub fn get_extension_param<'a, 'b>(cert: &'b CertificateValue<'a>, oid: &ObjectIdentifierValue) -> (res: OptionDeep<&'b ExtensionParamValue<'a>>)
     ensures res@ == spec_get_extension_param(cert@, oid@)
 {
-    if let Some(exts) = &cert.tbs_certificate.extensions {
+    if let Some(exts) = &cert.cert.extensions {
         let len = exts.len();
 
         assert(exts@.skip(0) == exts@);

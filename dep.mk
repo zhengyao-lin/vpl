@@ -4,12 +4,16 @@
 
 # Uses these variables (for example):
 #   NAME = Name of the crate (e.g. vpl, parser)
-#   TARGET = Target executable name (e.g. vpl, libparser.rlib)
+#   TARGETS = Target executable/library name (e.g. vpl, libparser.rlib), can have multiple targets
 #   SOURCE = All source files used for monitoring changes (e.g. $(wildcard src/*.rs) $(wildcard src/*.pl))
-#   MAIN = Main file passed to Verus (e.g. src/main.rs)
 #   CARGO_DEPS = Rust dependencies added with `cargo add` (e.g. peg clap thiserror tempfile)
 #   VERUS_DEPS = Verus dependency paths (e.g. vest). For each dep in VERUS_DEPS, we expect $(dep).rlib and $(dep).verusdata to exist
 #   TEST_TARGETS = List of custom test targets
+
+EXEC_MAIN = src/main.rs
+LIB_MAIN = src/lib.rs
+
+FIRST_TARGET = $(firstword $(TARGETS))
 
 # Recursive wildcard from https://stackoverflow.com/questions/2483182/recursive-wildcards-in-gnu-make/18258352#18258352
 rwildcard=$(foreach d,$(wildcard $(1:=/*)),$(call rwildcard,$d,$2) $(filter $(subst *,%,$2),$d))
@@ -18,18 +22,11 @@ SOURCE = $(call rwildcard,src,*.rs)
 # Append sources of VERUS_DEPS to SOURCE
 SOURCE += $(foreach dep,$(VERUS_DEPS),$(call rwildcard,../$(dep)/src,*.rs))
 
-# If $(TARGET) ends in rlib, pass some additional flags to Verus
-ifeq ($(suffix $(TARGET)),.rlib)
-	LIB_FLAGS = --crate-type=lib
-else
-	LIB_FLAGS =
-endif
-
 .PHONY: debug
-debug: target/debug/$(TARGET)
+debug: $(foreach target,$(TARGETS),target/debug/$(target))
 
 .PHONY: release
-release: target/release/$(TARGET)
+release: $(foreach target,$(TARGETS),target/release/$(target))
 
 # Build each dependency in CARGO_DEPS
 .PHONY: rust_deps-%
@@ -57,8 +54,12 @@ verus-deps-%:
 # Each dependency <dep> in VERUS_DEPS is mapped to verus argument
 #     --extern <dep>=../<dep>/target/<release/debug>/lib<dep>.rlib
 #     --import <dep>=../<dep>/target/<release/debug>/lib<dep>.rlib.verusdata
+#
+# The entry rs file is fixed: src/main.rs for executables, and src/lib.rs for libraries
 VERUS_COMMAND = \
-	verus $(MAIN) $(LIB_FLAGS) --crate-name $(NAME) \
+	verus $(if $(filter %.rlib,$@),$(LIB_MAIN),$(EXEC_MAIN)) \
+		--crate-name $(NAME) \
+		$(if $(filter %.rlib,$@),--crate-type=lib,) \
 		-L dependency=target/$*/deps \
 		$(foreach dep,$(CARGO_DEPS),--extern $(dep)=$(firstword $(wildcard target/$*/deps/lib$(dep)-*.rlib) $(wildcard target/$*/deps/lib$(dep)-*.dylib))) \
 		$(foreach dep,$(VERUS_DEPS),-L dependency=../$(dep)/target/$*/deps) \
@@ -68,17 +69,20 @@ VERUS_COMMAND = \
 		-o $@ --export $@.verusdata \
 		$(VERUS_FLAGS)
 
-# Build the main target
-target/%/$(TARGET): rust_deps-% verus-deps-% $(SOURCE)
-	$(VERUS_COMMAND)
+# Generate one rule for each target
+define TARGET_TEMPLATE
+target/%/$(1): rust_deps-% verus-deps-% $$(SOURCE)
+	$$(VERUS_COMMAND)
+endef
+$(foreach target,$(TARGETS),$(eval $(call TARGET_TEMPLATE,$(target))))
 
 # Build a test binary
-target/%/test-$(TARGET): rust_deps-% verus-deps-% $(SOURCE)
+target/%/test-$(FIRST_TARGET): rust_deps-% verus-deps-% $(SOURCE)
 	$(VERUS_COMMAND) --test
 
 .PHONY: test
-test: target/debug/test-$(TARGET) $(TEST_TARGETS)
-	target/debug/test-$(TARGET)
+test: target/debug/test-$(FIRST_TARGET) $(TEST_TARGETS)
+	target/debug/test-$(FIRST_TARGET)
 
 # Named this way to avoid overlapping with the main target
 force-target/debug/lib%.rlib: Cargo.toml

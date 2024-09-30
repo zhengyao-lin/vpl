@@ -1,10 +1,5 @@
-##########################################################################
-### Makefile to compile Verus project with external cargo dependencies ###
-##########################################################################
-
 NAME = vpl
-TARGET = vpl
-MAIN = src/main.rs
+TARGETS = vpl libvpl.rlib
 
 CARGO_DEPS = peg clap thiserror tempfile
 VERUS_DEPS = polyfill

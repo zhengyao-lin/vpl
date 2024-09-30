@@ -13,9 +13,9 @@ verus! {
 // }
 asn1_sequence! {
     seq Certificate {
-        tbs_certificate: ASN1<TBSCertificate> = ASN1(TBSCertificate),
-        signature_algorithm: ASN1<AlgorithmIdentifier> = ASN1(AlgorithmIdentifier),
-        signature: ASN1<BitString> = ASN1(BitString),
+        cert: ASN1<TBSCertificate> = ASN1(TBSCertificate),
+        sig_alg: ASN1<AlgorithmIdentifier> = ASN1(AlgorithmIdentifier),
+        sig: ASN1<BitString> = ASN1(BitString),
     }
 }
 

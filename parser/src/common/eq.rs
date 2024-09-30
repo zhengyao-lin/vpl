@@ -2,6 +2,7 @@
 
 use vstd::prelude::*;
 
+use crate::asn1::*;
 use super::*;
 
 verus! {
@@ -100,6 +101,28 @@ impl<T: PolyfillEq> PolyfillEq for VecDeep<T> {
 
         assert(self@ =~= other@);
 
+        true
+    }
+}
+
+impl<U: PolyfillEq, V: PolyfillEq> PolyfillEq for Either<U, V> {
+    fn polyfill_eq(&self, other: &Self) -> (res: bool) {
+        match (self, other) {
+            (Either::Left(a), Either::Left(b)) => a.polyfill_eq(b),
+            (Either::Right(a), Either::Right(b)) => a.polyfill_eq(b),
+            _ => false,
+        }
+    }
+}
+
+impl PolyfillEq for NullValue {
+    fn polyfill_eq(&self, other: &Self) -> (res: bool) {
+        true
+    }
+}
+
+impl PolyfillEq for EndValue {
+    fn polyfill_eq(&self, other: &Self) -> (res: bool) {
         true
     }
 }
