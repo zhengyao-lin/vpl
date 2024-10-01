@@ -1056,11 +1056,11 @@ keyUsageValid(BasicConstraints, KeyUsage) :-
   \+member(keyCertSign, KeyUsage).
 
 checkKeyCertSign(KeyUsage) :-
-  KeyUsage = []; 
+  KeyUsage = [];
   member(keyCertSign, KeyUsage).
 
 extKeyUsageValid(ExtKeyUsage) :-
-  ExtKeyUsage = []; 
+  ExtKeyUsage = [];
   % I'm pretty sure about this one, firefox doesn't allow this
   member(any, ExtKeyUsage);
   member(serverAuth, ExtKeyUsage).
@@ -1305,220 +1305,220 @@ certVerifiedChain(Cert):-
   issuer(Cert, Parent),
   certVerifiedNonLeaf(Parent, CleanSANList, 0, Cert).
 
-go :- certVerifiedChain(cert_0).
+go :- certVerifiedChain(cert(0)).
 
-assertionCarryingCertificateExt(cert_0, false).
-assertionCarryingCertificateExt(cert_1, false).
-assertionCarryingCertificateExt(cert_2, false).
-authorityInfoAccessCritical(cert_0, false). 
-authorityInfoAccessCritical(cert_1, false). 
-authorityInfoAccessExt(cert_0, true).
-authorityInfoAccessExt(cert_1, true).
-authorityInfoAccessExt(cert_2, false).
-authorityInfoAccessLocation(cert_0, "CA Issuers", "http://r10.i.lencr.org/").
-authorityInfoAccessLocation(cert_0, "OCSP", "http://r10.o.lencr.org").
-authorityInfoAccessLocation(cert_1, "CA Issuers", "http://x1.i.lencr.org/").
-basicConstraintsCritical(cert_0, true).
-basicConstraintsCritical(cert_1, true).
-basicConstraintsCritical(cert_2, true).
+assertionCarryingCertificateExt(cert(0), false).
+assertionCarryingCertificateExt(cert(1), false).
+assertionCarryingCertificateExt(cert(2), false).
+authorityInfoAccessCritical(cert(0), false).
+authorityInfoAccessCritical(cert(1), false).
+authorityInfoAccessExt(cert(0), true).
+authorityInfoAccessExt(cert(1), true).
+authorityInfoAccessExt(cert(2), false).
+authorityInfoAccessLocation(cert(0), "CA Issuers", "http://r10.i.lencr.org/").
+authorityInfoAccessLocation(cert(0), "OCSP", "http://r10.o.lencr.org").
+authorityInfoAccessLocation(cert(1), "CA Issuers", "http://x1.i.lencr.org/").
+basicConstraintsCritical(cert(0), true).
+basicConstraintsCritical(cert(1), true).
+basicConstraintsCritical(cert(2), true).
 basicConstraintsCritical(hack, hack).
-basicConstraintsExt(cert_0, true).
-basicConstraintsExt(cert_1, true).
-basicConstraintsExt(cert_2, true).
+basicConstraintsExt(cert(0), true).
+basicConstraintsExt(cert(1), true).
+basicConstraintsExt(cert(2), true).
 basicConstraintsExt(hack, hack).
-cabfOrganizationIdentifierExt(cert_0, false).
-cabfOrganizationIdentifierExt(cert_1, false).
-cabfOrganizationIdentifierExt(cert_2, false).
-certificatePolicies(cert_0, "2.23.140.1.2.1").
-certificatePolicies(cert_1, "2.23.140.1.2.1").
+cabfOrganizationIdentifierExt(cert(0), false).
+cabfOrganizationIdentifierExt(cert(1), false).
+cabfOrganizationIdentifierExt(cert(2), false).
+certificatePolicies(cert(0), "2.23.140.1.2.1").
+certificatePolicies(cert(1), "2.23.140.1.2.1").
 certificatePolicies(hack, hack).
-certificatePoliciesCritical(cert_0, false). 
-certificatePoliciesCritical(cert_1, false). 
+certificatePoliciesCritical(cert(0), false).
+certificatePoliciesCritical(cert(1), false).
 certificatePoliciesCritical(hack, hack).
-certificatePoliciesExt(cert_0, true).
-certificatePoliciesExt(cert_1, true).
-certificatePoliciesExt(cert_2, false).
+certificatePoliciesExt(cert(0), true).
+certificatePoliciesExt(cert(1), true).
+certificatePoliciesExt(cert(2), false).
 certificatePoliciesExt(hack, hack).
-commonName(cert_0, "slack.com").
-commonName(cert_1, "R10").
-commonName(cert_2, "ISRG Root X1").
+commonName(cert(0), "slack.com").
+commonName(cert(1), "R10").
+commonName(cert(2), "ISRG Root X1").
 commonName(hack, hack).
-country(cert_0, "").
-country(cert_1, "US").
-country(cert_2, "US").
-crlDistributionPoint(cert_1, "687474703a2f2f78312e632e6c656e63722e6f72672f").
-crlDistributionPointsCritical(cert_1, false). 
-crlDistributionPointsExt(cert_0, false).
-crlDistributionPointsExt(cert_1, true).
-crlDistributionPointsExt(cert_2, false).
-extendedKeyUsage(cert_0, clientAuth).
-extendedKeyUsage(cert_0, serverAuth).
-extendedKeyUsage(cert_1, clientAuth).
-extendedKeyUsage(cert_1, serverAuth).
+country(cert(0), "").
+country(cert(1), "US").
+country(cert(2), "US").
+crlDistributionPoint(cert(1), "687474703a2f2f78312e632e6c656e63722e6f72672f").
+crlDistributionPointsCritical(cert(1), false).
+crlDistributionPointsExt(cert(0), false).
+crlDistributionPointsExt(cert(1), true).
+crlDistributionPointsExt(cert(2), false).
+extendedKeyUsage(cert(0), clientAuth).
+extendedKeyUsage(cert(0), serverAuth).
+extendedKeyUsage(cert(1), clientAuth).
+extendedKeyUsage(cert(1), serverAuth).
 extendedKeyUsage(hack, hack).
-extendedKeyUsageCritical(cert_0, false).
-extendedKeyUsageCritical(cert_1, false).
+extendedKeyUsageCritical(cert(0), false).
+extendedKeyUsageCritical(cert(1), false).
 extendedKeyUsageCritical(hack, hack).
-extendedKeyUsageExt(cert_0, true).
-extendedKeyUsageExt(cert_1, true).
-extendedKeyUsageExt(cert_2, false).
+extendedKeyUsageExt(cert(0), true).
+extendedKeyUsageExt(cert(1), true).
+extendedKeyUsageExt(cert(2), false).
 extendedKeyUsageExt(hack, hack).
-fingerprint(cert_0, "C25D2C0EE7F1EDEF4E2E59EFA32AC221CD671CFD98592120271DAA3F69C5ABB7").
-fingerprint(cert_1, "9D7C3F1AA6AD2B2EC0D5CF1E246F8D9AE6CBC9FD0755AD37BB974B1F2FB603F3").
-fingerprint(cert_2, "96BCEC06264976F37460779ACF28C5A7CFE8A3C0AAE11A8FFCEE05C0BDDF08C6").
+fingerprint(cert(0), "C25D2C0EE7F1EDEF4E2E59EFA32AC221CD671CFD98592120271DAA3F69C5ABB7").
+fingerprint(cert(1), "9D7C3F1AA6AD2B2EC0D5CF1E246F8D9AE6CBC9FD0755AD37BB974B1F2FB603F3").
+fingerprint(cert(2), "96BCEC06264976F37460779ACF28C5A7CFE8A3C0AAE11A8FFCEE05C0BDDF08C6").
 fingerprint(hack, hack).
-givenName(cert_0, "").
-givenName(cert_1, "").
-givenName(cert_2, "").
-inhibitAnyPolicyExt(cert_0, false).
-inhibitAnyPolicyExt(cert_1, false).
-inhibitAnyPolicyExt(cert_2, false).
+givenName(cert(0), "").
+givenName(cert(1), "").
+givenName(cert(2), "").
+inhibitAnyPolicyExt(cert(0), false).
+inhibitAnyPolicyExt(cert(1), false).
+inhibitAnyPolicyExt(cert(2), false).
 inhibitAnyPolicyExt(hack, hack).
-isCA(cert_0, false).
-isCA(cert_1, true).
-isCA(cert_2, true).
+isCA(cert(0), false).
+isCA(cert(1), true).
+isCA(cert(2), true).
 isCA(hack, hack).
-issuer(cert_0, cert_1).
-issuer(cert_1, cert_2).
-issuer(cert_2, cert_2). % Self-signing root
+issuer(cert(0), cert(1)).
+issuer(cert(1), cert(2)).
+issuer(cert(2), cert(2)). % Self-signing root
 issuer(hack, hack).
-keyAlgorithm(cert_0, "1.2.840.113549.1.1.1").
-keyAlgorithm(cert_1, "1.2.840.113549.1.1.1").
-keyAlgorithm(cert_2, "1.2.840.113549.1.1.1").
+keyAlgorithm(cert(0), "1.2.840.113549.1.1.1").
+keyAlgorithm(cert(1), "1.2.840.113549.1.1.1").
+keyAlgorithm(cert(2), "1.2.840.113549.1.1.1").
 keyAlgorithm(hack, hack).
-keyLen(cert_0, 270).
-keyLen(cert_1, 270).
-keyLen(cert_2, 526).
+keyLen(cert(0), 270).
+keyLen(cert(1), 270).
+keyLen(cert(2), 526).
 keyLen(hack, hack).
-keyUsage(cert_0, digitalSignature).
-keyUsage(cert_0, keyEncipherment).
-keyUsage(cert_1, cRLSign).
-keyUsage(cert_1, digitalSignature).
-keyUsage(cert_1, keyCertSign).
-keyUsage(cert_2, cRLSign).
-keyUsage(cert_2, keyCertSign).
+keyUsage(cert(0), digitalSignature).
+keyUsage(cert(0), keyEncipherment).
+keyUsage(cert(1), cRLSign).
+keyUsage(cert(1), digitalSignature).
+keyUsage(cert(1), keyCertSign).
+keyUsage(cert(2), cRLSign).
+keyUsage(cert(2), keyCertSign).
 keyUsage(hack, hack).
-keyUsageCritical(cert_0, true).
-keyUsageCritical(cert_1, true).
-keyUsageCritical(cert_2, true).
+keyUsageCritical(cert(0), true).
+keyUsageCritical(cert(1), true).
+keyUsageCritical(cert(2), true).
 keyUsageCritical(hack, hack).
-keyUsageExt(cert_0, true).
-keyUsageExt(cert_1, true).
-keyUsageExt(cert_2, true).
+keyUsageExt(cert(0), true).
+keyUsageExt(cert(1), true).
+keyUsageExt(cert(2), true).
 keyUsageExt(hack, hack).
-localityName(cert_0, "").
-localityName(cert_1, "").
-localityName(cert_2, "").
+localityName(cert(0), "").
+localityName(cert(1), "").
+localityName(cert(2), "").
 nameConstraintsCritical(hack, hack).
 nameConstraintsExcluded(hack, hack, hack).
-nameConstraintsExt(cert_0, false).
-nameConstraintsExt(cert_1, false).
-nameConstraintsExt(cert_2, false).
+nameConstraintsExt(cert(0), false).
+nameConstraintsExt(cert(1), false).
+nameConstraintsExt(cert(2), false).
 nameConstraintsExt(hack, hack).
 nameConstraintsPermitted(hack, hack, hack).
-notAfter(cert_0, 1729514856).
-notAfter(cert_1, 1804895999).
-notAfter(cert_2, 2064567878).
+notAfter(cert(0), 1729514856).
+notAfter(cert(1), 1804895999).
+notAfter(cert(2), 2064567878).
 notAfter(hack, hack).
-notBefore(cert_0, 1721738857).
-notBefore(cert_1, 1710288000).
-notBefore(cert_2, 1433415878).
+notBefore(cert(0), 1721738857).
+notBefore(cert(1), 1710288000).
+notBefore(cert(2), 1433415878).
 notBefore(hack, hack).
-ocspResponse(cert_0, []).
-ocspResponse(cert_1, []).
-ocspResponse(cert_2, []).
-ocspResponse(cert_2, []).
+ocspResponse(cert(0), []).
+ocspResponse(cert(1), []).
+ocspResponse(cert(2), []).
+ocspResponse(cert(2), []).
 ocspResponse(hack, hack).
-organizationName(cert_0, "").
-organizationName(cert_1, "Let's Encrypt").
-organizationName(cert_2, "Internet Security Research Group").
-organizationalIdentifier(cert_0, "").
-organizationalIdentifier(cert_1, "").
-organizationalIdentifier(cert_2, "").
-organizationalUnitName(cert_0, "").
-organizationalUnitName(cert_1, "").
-organizationalUnitName(cert_2, "").
-pathLimit(cert_0, none).
-pathLimit(cert_1, 0).
-pathLimit(cert_2, none).
+organizationName(cert(0), "").
+organizationName(cert(1), "Let's Encrypt").
+organizationName(cert(2), "Internet Security Research Group").
+organizationalIdentifier(cert(0), "").
+organizationalIdentifier(cert(1), "").
+organizationalIdentifier(cert(2), "").
+organizationalUnitName(cert(0), "").
+organizationalUnitName(cert(1), "").
+organizationalUnitName(cert(2), "").
+pathLimit(cert(0), none).
+pathLimit(cert(1), 0).
+pathLimit(cert(2), none).
 pathLimit(hack, hack).
 policyConstraintsCritical(hack, hack).
-policyConstraintsExt(cert_0, false).
-policyConstraintsExt(cert_1, false).
-policyConstraintsExt(cert_2, false).
+policyConstraintsExt(cert(0), false).
+policyConstraintsExt(cert(1), false).
+policyConstraintsExt(cert(2), false).
 policyConstraintsExt(hack, hack).
 policyMappings(hack, hack, hack).
-policyMappingsExt(cert_0, false).
-policyMappingsExt(cert_1, false).
-policyMappingsExt(cert_2, false).
+policyMappingsExt(cert(0), false).
+policyMappingsExt(cert(1), false).
+policyMappingsExt(cert(2), false).
 policyMappingsExt(hack, hack, hack).
-postalCode(cert_0, "").
-postalCode(cert_1, "").
-postalCode(cert_2, "").
+postalCode(cert(0), "").
+postalCode(cert(1), "").
+postalCode(cert(2), "").
 requireExplicitPolicy(hack, hack).
-san(cert_0, "*.slack.com").
-san(cert_0, "slack.com").
+san(cert(0), "*.slack.com").
+san(cert(0), "slack.com").
 san(hack, hack).
-sanCritical(cert_0, false).
+sanCritical(cert(0), false).
 sanCritical(hack, hack).
-sanExt(cert_0, true).
-sanExt(cert_1, false).
-sanExt(cert_2, false).
+sanExt(cert(0), true).
+sanExt(cert(1), false).
+sanExt(cert(2), false).
 sanExt(hack, hack).
-serialNumber(cert_0, "268719806233326954095275334352704435004693").
-serialNumber(cert_1, "100566080436859127493189557861323994576").
-serialNumber(cert_2, "172886928669790476064670243504169061120").
+serialNumber(cert(0), "268719806233326954095275334352704435004693").
+serialNumber(cert(1), "100566080436859127493189557861323994576").
+serialNumber(cert(2), "172886928669790476064670243504169061120").
 serialNumber(hack, hack).
-signature(cert_0, "1.2.840.113549.1.1.11", none).
-signature(cert_1, "1.2.840.113549.1.1.11", none).
-signature(cert_2, "1.2.840.113549.1.1.11", none).
+signature(cert(0), "1.2.840.113549.1.1.11", none).
+signature(cert(1), "1.2.840.113549.1.1.11", none).
+signature(cert(2), "1.2.840.113549.1.1.11", none).
 signature(hack, hack, hack).
-signatureAlgorithm(cert_0, "1.2.840.113549.1.1.11", none).
-signatureAlgorithm(cert_1, "1.2.840.113549.1.1.11", none).
-signatureAlgorithm(cert_2, "1.2.840.113549.1.1.11", none).
+signatureAlgorithm(cert(0), "1.2.840.113549.1.1.11", none).
+signatureAlgorithm(cert(1), "1.2.840.113549.1.1.11", none).
+signatureAlgorithm(cert(2), "1.2.840.113549.1.1.11", none).
 signatureAlgorithm(hack, hack, hack).
-spkiDSAParameters(cert_0, na, na, na).
-spkiDSAParameters(cert_1, na, na, na).
-spkiDSAParameters(cert_2, na, na, na).
+spkiDSAParameters(cert(0), na, na, na).
+spkiDSAParameters(cert(1), na, na, na).
+spkiDSAParameters(cert(2), na, na, na).
 spkiDSAParameters(hack, hack, hack, hack).
-spkiRSAExponent(cert_0, 65537).
-spkiRSAExponent(cert_1, 65537).
-spkiRSAExponent(cert_2, 65537).
-spkiRSAModLength(cert_0, 2048).
-spkiRSAModLength(cert_1, 2048).
-spkiRSAModLength(cert_2, 4096).
-stapledResponse(cert_0, []).
-stapledResponse(cert_1, []).
-stapledResponse(cert_2, []).
-stapledResponse(cert_2, []).
+spkiRSAExponent(cert(0), 65537).
+spkiRSAExponent(cert(1), 65537).
+spkiRSAExponent(cert(2), 65537).
+spkiRSAModLength(cert(0), 2048).
+spkiRSAModLength(cert(1), 2048).
+spkiRSAModLength(cert(2), 4096).
+stapledResponse(cert(0), []).
+stapledResponse(cert(1), []).
+stapledResponse(cert(2), []).
+stapledResponse(cert(2), []).
 stapledResponse(hack, hack).
-stateOrProvinceName(cert_0, "").
-stateOrProvinceName(cert_1, "").
-stateOrProvinceName(cert_2, "").
-streetAddress(cert_0, "").
-streetAddress(cert_1, "").
-streetAddress(cert_2, "").
-subject(cert_0, "slack.com", "", "", "", "").
-subject(cert_1, "R10", "US", "", "", "Let's Encrypt").
-subject(cert_2, "ISRG Root X1", "US", "", "", "Internet Security Research Group").
-subjectKeyIdentifier(cert_0, "a9:ca:b4:d8:0f:b0:ab:26:7b:de:aa:c7:2b:0d:63:18:e5:2d:a8:46").
-subjectKeyIdentifier(cert_1, "bb:bc:c3:47:a5:e4:bc:a9:c6:c3:a4:72:0c:10:8d:a2:35:e1:c8:e8").
-subjectKeyIdentifier(cert_2, "79:b4:59:e6:7b:b6:e5:e4:01:73:80:08:88:c8:1a:58:f6:e9:9b:6e").
+stateOrProvinceName(cert(0), "").
+stateOrProvinceName(cert(1), "").
+stateOrProvinceName(cert(2), "").
+streetAddress(cert(0), "").
+streetAddress(cert(1), "").
+streetAddress(cert(2), "").
+subject(cert(0), "slack.com", "", "", "", "").
+subject(cert(1), "R10", "US", "", "", "Let's Encrypt").
+subject(cert(2), "ISRG Root X1", "US", "", "", "Internet Security Research Group").
+subjectKeyIdentifier(cert(0), "a9:ca:b4:d8:0f:b0:ab:26:7b:de:aa:c7:2b:0d:63:18:e5:2d:a8:46").
+subjectKeyIdentifier(cert(1), "bb:bc:c3:47:a5:e4:bc:a9:c6:c3:a4:72:0c:10:8d:a2:35:e1:c8:e8").
+subjectKeyIdentifier(cert(2), "79:b4:59:e6:7b:b6:e5:e4:01:73:80:08:88:c8:1a:58:f6:e9:9b:6e").
 subjectKeyIdentifier(hack, hack).
-subjectKeyIdentifierCritical(cert_0, false).
-subjectKeyIdentifierCritical(cert_1, false).
-subjectKeyIdentifierCritical(cert_2, false).
+subjectKeyIdentifierCritical(cert(0), false).
+subjectKeyIdentifierCritical(cert(1), false).
+subjectKeyIdentifierCritical(cert(2), false).
 subjectKeyIdentifierCritical(hack, hack).
-subjectKeyIdentifierExt(cert_0, true).
-subjectKeyIdentifierExt(cert_1, true).
-subjectKeyIdentifierExt(cert_2, true).
+subjectKeyIdentifierExt(cert(0), true).
+subjectKeyIdentifierExt(cert(1), true).
+subjectKeyIdentifierExt(cert(2), true).
 subjectKeyIdentifierExt(hack, hack).
-surname(cert_0, "").
-surname(cert_1, "").
-surname(cert_2, "").
-version(cert_0, 2).
-version(cert_1, 2).
-version(cert_2, 2).
+surname(cert(0), "").
+surname(cert(1), "").
+surname(cert(2), "").
+version(cert(0), 2).
+version(cert(1), 2).
+version(cert(2), 2).
 version(hack, hack).
 
 envDomain("app.slack.com").

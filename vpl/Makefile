@@ -8,14 +8,14 @@ TEST_TARGETS = test-features test-hammurabi
 include ../dep.mk
 
 .PHONY: test
-test-features: debug
+test-features: target/debug/vpl
 	@for test in tests/*.pl; do \
 		printf "%s: " $$test; \
         target/debug/vpl $$test go || exit 1; \
     done
 
 .PHONY: test-hammurabi
-test-hammurabi: debug
+test-hammurabi: target/debug/vpl
 	@for test in tests/hammurabi/*.pl; do \
 		printf "%s: " $$test; \
         target/debug/vpl $$test go || exit 1; \

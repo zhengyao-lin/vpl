@@ -11,7 +11,115 @@ use parser::x509::*;
 
 use parser::common::OptionDeep::*;
 
+use vpl::proof::*;
+
 verus! {
+
+/// The top-level spec stating when a certificate chain
+/// is considered valid with respect to given policy,
+/// root certificates, and final domain
+pub open spec fn spec_valid_certificate(
+    policy: SpecProgram,
+    roots: Seq<SpecCertificateValue>,
+    chain: Seq<SpecCertificateValue>,
+    domain: SpecStringLiteral,
+) -> bool
+{
+    let leaf = chain[0];
+    let merged_policy = spec_merge_policy_facts(policy, roots, chain, domain);
+
+    &&& chain.len() > 0
+    &&& exists |thm: SpecTheorem| {
+        &&& #[trigger] thm.wf(merged_policy)
+        &&& thm.stmt == SpecTerm::App(
+            SpecFnName::User("certVerifiedChain"@, 1),
+            seq![ spec_cert_id_term(0) ],
+        )
+    }
+}
+
+/// Merge the policy with facts about each certificate,
+/// issuer relation between certificates, and environment
+/// facts such as the domain to be validated
+pub open spec fn spec_merge_policy_facts(
+    policy: SpecProgram,
+    roots: Seq<SpecCertificateValue>,
+    chain: Seq<SpecCertificateValue>,
+    domain: SpecStringLiteral,
+) -> SpecProgram
+{
+    let facts =
+        Seq::new(chain.len(), |i| spec_cert_to_facts(chain[i], i)) +
+        Seq::new(roots.len(), |i| spec_cert_to_facts(roots[i], i + chain.len())) +
+        seq![ seq![ spec_domain_fact(domain) ] ] +
+
+        // Facts about whether any root cert issued any of the chain certs
+        Seq::new(roots.len(),
+            |i| Seq::new(chain.len(), |j|
+                if spec_likely_issued(roots[i], chain[j]) &&
+                    spec_verify_signature(roots[i], chain[j]) {
+                    seq![ spec_issuer_fact(i + chain.len(), j) ]
+                } else {
+                    seq![]
+                }
+            ).flatten()
+        ) +
+
+        // Facts about the chain[i] being issued by chain[i + 1]
+        Seq::new((chain.len() - 1) as nat,
+            |i: int| if spec_likely_issued(chain[i + 1], chain[i]) &&
+                spec_verify_signature(chain[i + 1], chain[i]) {
+                seq![ spec_issuer_fact(i + 1, i) ]
+            } else {
+                seq![]
+            }
+        );
+
+    SpecProgram { rules: policy.rules + facts.flatten() }
+}
+
+/// Construct an issuer fact of the form issuer(cert_i, cert_j)
+/// NOTE: i is the issuer of j
+pub open spec fn spec_issuer_fact(i: int, j: int) -> SpecRule
+{
+    SpecRule {
+        head: SpecTerm::App(
+            SpecFnName::User("issuer"@, 2),
+            seq![ spec_cert_id_term(j), spec_cert_id_term(i) ],
+        ),
+        body: seq![],
+    }
+}
+
+/// Construct envDomain(domain)
+pub open spec fn spec_domain_fact(domain: SpecStringLiteral) -> SpecRule
+{
+    SpecRule {
+        head: SpecTerm::App(
+            SpecFnName::User("envDomain"@, 1),
+            seq![ SpecTerm::Literal(SpecLiteral::String(domain)) ],
+        ),
+        body: seq![],
+    }
+}
+
+/// Construct term cert(i)
+pub open spec fn spec_cert_id_term(i: int) -> SpecTerm
+{
+    // NOTE: instead of doing cert_i as in the original Hammurabi
+    // we use cert(i) to avoid int::to_string in the spec
+    SpecTerm::App(
+        SpecFnName::User("cert"@, 1),
+        seq![ SpecTerm::Literal(SpecLiteral::Int(i)) ],
+    )
+}
+
+/// Specify the facts to be generated from a certificate
+pub open spec fn spec_cert_to_facts(cert: SpecCertificateValue, i: int) -> Seq<SpecRule>
+{
+    // TODO
+    seq![]
+}
 
 /// If the the issuer likely issued the subject.
 /// Similar to https://github.com/openssl/openssl/blob/ed6862328745c51c2afa2b6485cc3e275d543c4e/crypto/x509/v3_purp.c#L963

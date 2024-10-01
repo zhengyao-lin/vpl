@@ -1574,7 +1574,7 @@ nameLabelsPermitted(_, []).
 nameLabelsPermitted([_|_], [""|[]]).
 % Presented: foo.example.com, Permitted: foo.example.com -- valid
 % Presented: foo1.example.com, Permitted: foo.example.com --invalid
-nameLabelsPermitted([NameLabel|NameRest], [PermittedLabel|PermittedRest]) :- 
+nameLabelsPermitted([NameLabel|NameRest], [PermittedLabel|PermittedRest]) :-
   PermittedLabel \= "", % Should be checked earlier
   PermittedLabel = NameLabel,
   nameLabelsPermitted(NameRest, PermittedRest).
@@ -1741,7 +1741,7 @@ internationalInvalidIntermediate(Cert, Domain) :-
 
 isEVChain(Cert) :-
   certificatePoliciesExt(Cert, true),
-  certificatePolicies(Cert, Oid), 
+  certificatePolicies(Cert, Oid),
   evPolicyOid(Oid, _, _, _, _, _),
   issuer(Cert, P),
   isEVIntermediate(P, Oid).
@@ -1810,7 +1810,7 @@ extKeyUsageValid(BasicConstraints, ExtKeyUsage) :-
   isCA(BasicConstraints),
   member(serverAuth, ExtKeyUsage).
 
-% Firefox rejects end-entity certificates 
+% Firefox rejects end-entity certificates
 % (other than delegated OCSP Signing Certs)
 % that have the oCSPSigning EKU
 extKeyUsageValid(BasicConstraints, ExtKeyUsage) :-
@@ -1821,7 +1821,7 @@ extKeyUsageValid(BasicConstraints, ExtKeyUsage) :-
 extKeyUsageValid(_, []).
 
 checkKeyCertSign(KeyUsage) :-
-  KeyUsage = []; 
+  KeyUsage = [];
   member(keyCertSign, KeyUsage).
 
 
@@ -1886,7 +1886,7 @@ pathLengthValid(CertsSoFar, BasicConstraints):-
 pathLengthValid(CertsSoFar, BasicConstraints):-
   CertsSoFar =< 6,            % global max intermediates limit in Firefox
   BasicConstraints = [_, Limit],
-  Limit \= none, 
+  Limit \= none,
   CertsSoFar =< Limit.
 
 verifiedRoot(LeafSANList, Fingerprint, Lower, Upper, BasicConstraints, KeyUsage, ChildFingerprint):-
@@ -1903,7 +1903,7 @@ verifiedRoot(LeafSANList, Fingerprint, Lower, Upper, BasicConstraints, KeyUsage,
   isCA(BasicConstraints),
   checkKeyCertSign(KeyUsage).
 
-verifiedIntermediate(Fingerprint, Lower, Upper, Algorithm, BasicConstraints, KeyUsage, ExtKeyUsage, EVStatus, StapledResponse, OcspResponse):- 
+verifiedIntermediate(Fingerprint, Lower, Upper, Algorithm, BasicConstraints, KeyUsage, ExtKeyUsage, EVStatus, StapledResponse, OcspResponse):-
   isCA(BasicConstraints),
   notCrl(Fingerprint),
   isTimeValid(Lower, Upper),
@@ -1912,7 +1912,7 @@ verifiedIntermediate(Fingerprint, Lower, Upper, Algorithm, BasicConstraints, Key
   extKeyUsageValid(BasicConstraints, ExtKeyUsage),
   notRevoked(Lower, Upper, EVStatus, StapledResponse, OcspResponse).
 
-verifiedLeaf(Fingerprint, SANList, CommonName, Lower, Upper, Algorithm, BasicConstraints, KeyUsage, ExtKeyUsage, EVStatus, StapledResponse, OcspResponse):- 
+verifiedLeaf(Fingerprint, SANList, CommonName, Lower, Upper, Algorithm, BasicConstraints, KeyUsage, ExtKeyUsage, EVStatus, StapledResponse, OcspResponse):-
   \+isCA(BasicConstraints),
   firefoxNameMatches(SANList, CommonName),
   leafDurationValid(EVStatus, Lower, Upper),
@@ -1942,7 +1942,7 @@ certVerifiedNonLeaf(Cert, LeafCommonName, LeafSANList, EVStatus, CertsSoFar, Lea
   pathLengthValid(CertsSoFar, BasicConstraints),
   (
     (
-      verifiedIntermediate(Fingerprint, Lower, Upper, InnerAlgorithm, BasicConstraints, KeyUsage, ExtKeyUsage, EVStatus, StapledResponse, OcspResponse), 
+      verifiedIntermediate(Fingerprint, Lower, Upper, InnerAlgorithm, BasicConstraints, KeyUsage, ExtKeyUsage, EVStatus, StapledResponse, OcspResponse),
       issuer(Cert, Parent),
       Cert \= Parent,
       certVerifiedNonLeaf(Parent, LeafCommonName, LeafSANList, EVStatus, CertsSoFar + 1, Leaf),
@@ -2077,7 +2077,7 @@ mapStringLower([Name|Names], [Lower|Lowers]):-
 certVerifiedChain(Cert):-
   getEVStatus(Cert, EVStatus),
   (
-    ( 
+    (
       sanExt(Cert, true),
       findall(Name, san(Cert, Name), SANList0),
       mapStringLower(SANList0, SANList)
@@ -2105,237 +2105,237 @@ main([CertsFile, Cert]):-
   statistics(walltime, [_ | [VerifyTime]]),
   write('Cert verification time: '), write(VerifyTime), write('ms\n').
 
-assertionCarryingCertificateExt(cert_0, false).
-assertionCarryingCertificateExt(cert_1, false).
-assertionCarryingCertificateExt(cert_2, false).
-authorityInfoAccessCritical(cert_0, false). 
-authorityInfoAccessCritical(cert_1, false). 
-authorityInfoAccessExt(cert_0, true).
-authorityInfoAccessExt(cert_1, true).
-authorityInfoAccessExt(cert_2, false).
-authorityInfoAccessLocation(cert_0, "CA Issuers", "http://repo.harica.gr/certs/HaricaAuthSSLSubCAR2.crt").
-authorityInfoAccessLocation(cert_0, "OCSP", "http://ocsp.harica.gr").
-authorityInfoAccessLocation(cert_1, "CA Issuers", "http://repo.harica.gr/certs/HaricaRootCA2015.crt").
-authorityInfoAccessLocation(cert_1, "OCSP", "http://ocsp.harica.gr").
-basicConstraintsCritical(cert_1, true).
-basicConstraintsCritical(cert_2, true).
+assertionCarryingCertificateExt(cert(0), false).
+assertionCarryingCertificateExt(cert(1), false).
+assertionCarryingCertificateExt(cert(2), false).
+authorityInfoAccessCritical(cert(0), false).
+authorityInfoAccessCritical(cert(1), false).
+authorityInfoAccessExt(cert(0), true).
+authorityInfoAccessExt(cert(1), true).
+authorityInfoAccessExt(cert(2), false).
+authorityInfoAccessLocation(cert(0), "CA Issuers", "http://repo.harica.gr/certs/HaricaAuthSSLSubCAR2.crt").
+authorityInfoAccessLocation(cert(0), "OCSP", "http://ocsp.harica.gr").
+authorityInfoAccessLocation(cert(1), "CA Issuers", "http://repo.harica.gr/certs/HaricaRootCA2015.crt").
+authorityInfoAccessLocation(cert(1), "OCSP", "http://ocsp.harica.gr").
+basicConstraintsCritical(cert(1), true).
+basicConstraintsCritical(cert(2), true).
 basicConstraintsCritical(hack, hack).
-basicConstraintsExt(cert_0, false).
-basicConstraintsExt(cert_1, true).
-basicConstraintsExt(cert_2, true).
+basicConstraintsExt(cert(0), false).
+basicConstraintsExt(cert(1), true).
+basicConstraintsExt(cert(2), true).
 basicConstraintsExt(hack, hack).
-cabfOrganizationIdentifierExt(cert_0, false).
-cabfOrganizationIdentifierExt(cert_1, false).
-cabfOrganizationIdentifierExt(cert_2, false).
-certificatePolicies(cert_0, "0.4.0.2042.1.7").
-certificatePolicies(cert_0, "1.3.6.1.4.1.26513.1.1.1.2").
-certificatePolicies(cert_0, "2.23.140.1.2.2").
-certificatePolicies(cert_1, "2.5.29.32.0").
+cabfOrganizationIdentifierExt(cert(0), false).
+cabfOrganizationIdentifierExt(cert(1), false).
+cabfOrganizationIdentifierExt(cert(2), false).
+certificatePolicies(cert(0), "0.4.0.2042.1.7").
+certificatePolicies(cert(0), "1.3.6.1.4.1.26513.1.1.1.2").
+certificatePolicies(cert(0), "2.23.140.1.2.2").
+certificatePolicies(cert(1), "2.5.29.32.0").
 certificatePolicies(hack, hack).
-certificatePoliciesCritical(cert_0, false). 
-certificatePoliciesCritical(cert_1, false). 
+certificatePoliciesCritical(cert(0), false).
+certificatePoliciesCritical(cert(1), false).
 certificatePoliciesCritical(hack, hack).
-certificatePoliciesExt(cert_0, true).
-certificatePoliciesExt(cert_1, true).
-certificatePoliciesExt(cert_2, false).
+certificatePoliciesExt(cert(0), true).
+certificatePoliciesExt(cert(1), true).
+certificatePoliciesExt(cert(2), false).
 certificatePoliciesExt(hack, hack).
-commonName(cert_0, "hrm.auth.gr").
-commonName(cert_1, "Aristotle University of Thessaloniki SSL RSA SubCA R2").
-commonName(cert_2, "Hellenic Academic and Research Institutions RootCA 2015").
+commonName(cert(0), "hrm.auth.gr").
+commonName(cert(1), "Aristotle University of Thessaloniki SSL RSA SubCA R2").
+commonName(cert(2), "Hellenic Academic and Research Institutions RootCA 2015").
 commonName(hack, hack).
-country(cert_0, "GR").
-country(cert_1, "GR").
-country(cert_2, "GR").
-crlDistributionPoint(cert_0, "687474703a2f2f63726c2e6861726963612e67722f4861726963614175746853534c537562434152322e63726c").
-crlDistributionPoint(cert_1, "687474703a2f2f63726c76312e6861726963612e67722f486172696361526f6f744341323031352f63726c76312e6465722e63726c").
-crlDistributionPointsCritical(cert_0, false). 
-crlDistributionPointsCritical(cert_1, false). 
-crlDistributionPointsExt(cert_0, true).
-crlDistributionPointsExt(cert_1, true).
-crlDistributionPointsExt(cert_2, false).
-extendedKeyUsage(cert_0, clientAuth).
-extendedKeyUsage(cert_0, serverAuth).
-extendedKeyUsage(cert_1, clientAuth).
-extendedKeyUsage(cert_1, serverAuth).
+country(cert(0), "GR").
+country(cert(1), "GR").
+country(cert(2), "GR").
+crlDistributionPoint(cert(0), "687474703a2f2f63726c2e6861726963612e67722f4861726963614175746853534c537562434152322e63726c").
+crlDistributionPoint(cert(1), "687474703a2f2f63726c76312e6861726963612e67722f486172696361526f6f744341323031352f63726c76312e6465722e63726c").
+crlDistributionPointsCritical(cert(0), false).
+crlDistributionPointsCritical(cert(1), false).
+crlDistributionPointsExt(cert(0), true).
+crlDistributionPointsExt(cert(1), true).
+crlDistributionPointsExt(cert(2), false).
+extendedKeyUsage(cert(0), clientAuth).
+extendedKeyUsage(cert(0), serverAuth).
+extendedKeyUsage(cert(1), clientAuth).
+extendedKeyUsage(cert(1), serverAuth).
 extendedKeyUsage(hack, hack).
-extendedKeyUsageCritical(cert_0, false).
-extendedKeyUsageCritical(cert_1, false).
+extendedKeyUsageCritical(cert(0), false).
+extendedKeyUsageCritical(cert(1), false).
 extendedKeyUsageCritical(hack, hack).
-extendedKeyUsageExt(cert_0, true).
-extendedKeyUsageExt(cert_1, true).
-extendedKeyUsageExt(cert_2, false).
+extendedKeyUsageExt(cert(0), true).
+extendedKeyUsageExt(cert(1), true).
+extendedKeyUsageExt(cert(2), false).
 extendedKeyUsageExt(hack, hack).
-fingerprint(cert_0, "141C7A18A5A00EF35EF43F89288F80405B358EA407C2DEEE933FA7D07A52559F").
-fingerprint(cert_1, "0EE82CEB7ECA241CCC29D4E588062C43E447EDE6C696F135ACC411966126BA83").
-fingerprint(cert_2, "A040929A02CE53B4ACF4F2FFC6981CE4496F755E6D45FE0B2A692BCD52523F36").
+fingerprint(cert(0), "141C7A18A5A00EF35EF43F89288F80405B358EA407C2DEEE933FA7D07A52559F").
+fingerprint(cert(1), "0EE82CEB7ECA241CCC29D4E588062C43E447EDE6C696F135ACC411966126BA83").
+fingerprint(cert(2), "A040929A02CE53B4ACF4F2FFC6981CE4496F755E6D45FE0B2A692BCD52523F36").
 fingerprint(hack, hack).
-givenName(cert_0, "").
-givenName(cert_1, "").
-givenName(cert_2, "").
-inhibitAnyPolicyExt(cert_0, false).
-inhibitAnyPolicyExt(cert_1, false).
-inhibitAnyPolicyExt(cert_2, false).
+givenName(cert(0), "").
+givenName(cert(1), "").
+givenName(cert(2), "").
+inhibitAnyPolicyExt(cert(0), false).
+inhibitAnyPolicyExt(cert(1), false).
+inhibitAnyPolicyExt(cert(2), false).
 inhibitAnyPolicyExt(hack, hack).
-isCA(cert_1, true).
-isCA(cert_2, true).
+isCA(cert(1), true).
+isCA(cert(2), true).
 isCA(hack, hack).
-issuer(cert_0, cert_1).
-issuer(cert_1, cert_2).
-issuer(cert_2, cert_2). % Self-signing root
+issuer(cert(0), cert(1)).
+issuer(cert(1), cert(2)).
+issuer(cert(2), cert(2)). % Self-signing root
 issuer(hack, hack).
-keyAlgorithm(cert_0, "1.2.840.113549.1.1.1").
-keyAlgorithm(cert_1, "1.2.840.113549.1.1.1").
-keyAlgorithm(cert_2, "1.2.840.113549.1.1.1").
+keyAlgorithm(cert(0), "1.2.840.113549.1.1.1").
+keyAlgorithm(cert(1), "1.2.840.113549.1.1.1").
+keyAlgorithm(cert(2), "1.2.840.113549.1.1.1").
 keyAlgorithm(hack, hack).
-keyLen(cert_0, 270).
-keyLen(cert_1, 526).
-keyLen(cert_2, 526).
+keyLen(cert(0), 270).
+keyLen(cert(1), 526).
+keyLen(cert(2), 526).
 keyLen(hack, hack).
-keyUsage(cert_0, digitalSignature).
-keyUsage(cert_0, keyEncipherment).
-keyUsage(cert_1, cRLSign).
-keyUsage(cert_1, digitalSignature).
-keyUsage(cert_1, keyCertSign).
-keyUsage(cert_2, cRLSign).
-keyUsage(cert_2, keyCertSign).
+keyUsage(cert(0), digitalSignature).
+keyUsage(cert(0), keyEncipherment).
+keyUsage(cert(1), cRLSign).
+keyUsage(cert(1), digitalSignature).
+keyUsage(cert(1), keyCertSign).
+keyUsage(cert(2), cRLSign).
+keyUsage(cert(2), keyCertSign).
 keyUsage(hack, hack).
-keyUsageCritical(cert_0, true).
-keyUsageCritical(cert_1, true).
-keyUsageCritical(cert_2, true).
+keyUsageCritical(cert(0), true).
+keyUsageCritical(cert(1), true).
+keyUsageCritical(cert(2), true).
 keyUsageCritical(hack, hack).
-keyUsageExt(cert_0, true).
-keyUsageExt(cert_1, true).
-keyUsageExt(cert_2, true).
+keyUsageExt(cert(0), true).
+keyUsageExt(cert(1), true).
+keyUsageExt(cert(2), true).
 keyUsageExt(hack, hack).
-localityName(cert_0, "Thessaloniki").
-localityName(cert_1, "Thessaloniki").
-localityName(cert_2, "Athens").
-nameConstraintsCritical(cert_1, false).
+localityName(cert(0), "Thessaloniki").
+localityName(cert(1), "Thessaloniki").
+localityName(cert(2), "Athens").
+nameConstraintsCritical(cert(1), false).
 nameConstraintsCritical(hack, hack).
-nameConstraintsExcluded(cert_1, "IPv4Address", "0.0.0.0").
-nameConstraintsExcluded(cert_1, "IPv6Address", "unsupported").
+nameConstraintsExcluded(cert(1), "IPv4Address", "0.0.0.0").
+nameConstraintsExcluded(cert(1), "IPv6Address", "unsupported").
 nameConstraintsExcluded(hack, hack, hack).
-nameConstraintsExt(cert_0, false).
-nameConstraintsExt(cert_1, true).
-nameConstraintsExt(cert_2, false).
+nameConstraintsExt(cert(0), false).
+nameConstraintsExt(cert(1), true).
+nameConstraintsExt(cert(2), false).
 nameConstraintsExt(hack, hack).
-nameConstraintsPermitted(cert_1, "DNS", "auth.edu.gr").
-nameConstraintsPermitted(cert_1, "DNS", "auth.gr").
-nameConstraintsPermitted(cert_1, "Directory/country", "GR").
-nameConstraintsPermitted(cert_1, "Directory/country", "GR").
-nameConstraintsPermitted(cert_1, "Directory/locality", "Thessaloniki").
-nameConstraintsPermitted(cert_1, "Directory/locality", "Θεσσαλονίκη").
-nameConstraintsPermitted(cert_1, "Directory/organization", "Aristotle University of Thessaloniki").
-nameConstraintsPermitted(cert_1, "Directory/organization", "Αριστοτέλειο Πανεπιστήμιο Θεσσαλονίκης").
+nameConstraintsPermitted(cert(1), "DNS", "auth.edu.gr").
+nameConstraintsPermitted(cert(1), "DNS", "auth.gr").
+nameConstraintsPermitted(cert(1), "Directory/country", "GR").
+nameConstraintsPermitted(cert(1), "Directory/country", "GR").
+nameConstraintsPermitted(cert(1), "Directory/locality", "Thessaloniki").
+nameConstraintsPermitted(cert(1), "Directory/locality", "Θεσσαλονίκη").
+nameConstraintsPermitted(cert(1), "Directory/organization", "Aristotle University of Thessaloniki").
+nameConstraintsPermitted(cert(1), "Directory/organization", "Αριστοτέλειο Πανεπιστήμιο Θεσσαλονίκης").
 nameConstraintsPermitted(hack, hack, hack).
-notAfter(cert_0, 1621497267).
-notAfter(cert_1, 1804856417).
-notAfter(cert_2, 2224663881).
+notAfter(cert(0), 1621497267).
+notAfter(cert(1), 1804856417).
+notAfter(cert(2), 2224663881).
 notAfter(hack, hack).
-notBefore(cert_0, 1558425267).
-notBefore(cert_1, 1552568417).
-notBefore(cert_2, 1436263881).
+notBefore(cert(0), 1558425267).
+notBefore(cert(1), 1552568417).
+notBefore(cert(2), 1436263881).
 notBefore(hack, hack).
-ocspResponse(cert_0, []).
-ocspResponse(cert_1, []).
-ocspResponse(cert_2, []).
-ocspResponse(cert_2, []).
+ocspResponse(cert(0), []).
+ocspResponse(cert(1), []).
+ocspResponse(cert(2), []).
+ocspResponse(cert(2), []).
 ocspResponse(hack, hack).
-organizationName(cert_0, "Aristotle University of Thessaloniki").
-organizationName(cert_1, "Aristotle University of Thessaloniki").
-organizationName(cert_2, "Hellenic Academic and Research Institutions Cert. Authority").
-organizationalIdentifier(cert_0, "").
-organizationalIdentifier(cert_1, "").
-organizationalIdentifier(cert_2, "").
-organizationalUnitName(cert_0, "IT Center").
-organizationalUnitName(cert_1, "").
-organizationalUnitName(cert_2, "").
-pathLimit(cert_1, 0).
-pathLimit(cert_2, none).
+organizationName(cert(0), "Aristotle University of Thessaloniki").
+organizationName(cert(1), "Aristotle University of Thessaloniki").
+organizationName(cert(2), "Hellenic Academic and Research Institutions Cert. Authority").
+organizationalIdentifier(cert(0), "").
+organizationalIdentifier(cert(1), "").
+organizationalIdentifier(cert(2), "").
+organizationalUnitName(cert(0), "IT Center").
+organizationalUnitName(cert(1), "").
+organizationalUnitName(cert(2), "").
+pathLimit(cert(1), 0).
+pathLimit(cert(2), none).
 pathLimit(hack, hack).
 policyConstraintsCritical(hack, hack).
-policyConstraintsExt(cert_0, false).
-policyConstraintsExt(cert_1, false).
-policyConstraintsExt(cert_2, false).
+policyConstraintsExt(cert(0), false).
+policyConstraintsExt(cert(1), false).
+policyConstraintsExt(cert(2), false).
 policyConstraintsExt(hack, hack).
 policyMappings(hack, hack, hack).
-policyMappingsExt(cert_0, false).
-policyMappingsExt(cert_1, false).
-policyMappingsExt(cert_2, false).
+policyMappingsExt(cert(0), false).
+policyMappingsExt(cert(1), false).
+policyMappingsExt(cert(2), false).
 policyMappingsExt(hack, hack, hack).
-postalCode(cert_0, "").
-postalCode(cert_1, "").
-postalCode(cert_2, "").
+postalCode(cert(0), "").
+postalCode(cert(1), "").
+postalCode(cert(2), "").
 requireExplicitPolicy(hack, hack).
-san(cert_0, "hrm.auth.gr").
-san(cert_0, "hrm.ccf.auth.gr").
-san(cert_0, "www.hrm.auth.gr").
+san(cert(0), "hrm.auth.gr").
+san(cert(0), "hrm.ccf.auth.gr").
+san(cert(0), "www.hrm.auth.gr").
 san(hack, hack).
-sanCritical(cert_0, false).
+sanCritical(cert(0), false).
 sanCritical(hack, hack).
-sanExt(cert_0, true).
-sanExt(cert_1, false).
-sanExt(cert_2, false).
+sanExt(cert(0), true).
+sanExt(cert(1), false).
+sanExt(cert(2), false).
 sanExt(hack, hack).
-serialNumber(cert_0, "81145350999406919196577180948723453866").
-serialNumber(cert_1, "100219007759874061356102918292732837412").
-serialNumber(cert_2, "0").
+serialNumber(cert(0), "81145350999406919196577180948723453866").
+serialNumber(cert(1), "100219007759874061356102918292732837412").
+serialNumber(cert(2), "0").
 serialNumber(hack, hack).
-signature(cert_0, "1.2.840.113549.1.1.11", none).
-signature(cert_1, "1.2.840.113549.1.1.11", none).
-signature(cert_2, "1.2.840.113549.1.1.11", none).
+signature(cert(0), "1.2.840.113549.1.1.11", none).
+signature(cert(1), "1.2.840.113549.1.1.11", none).
+signature(cert(2), "1.2.840.113549.1.1.11", none).
 signature(hack, hack, hack).
-signatureAlgorithm(cert_0, "1.2.840.113549.1.1.11", none).
-signatureAlgorithm(cert_1, "1.2.840.113549.1.1.11", none).
-signatureAlgorithm(cert_2, "1.2.840.113549.1.1.11", none).
+signatureAlgorithm(cert(0), "1.2.840.113549.1.1.11", none).
+signatureAlgorithm(cert(1), "1.2.840.113549.1.1.11", none).
+signatureAlgorithm(cert(2), "1.2.840.113549.1.1.11", none).
 signatureAlgorithm(hack, hack, hack).
-spkiDSAParameters(cert_0, na, na, na).
-spkiDSAParameters(cert_1, na, na, na).
-spkiDSAParameters(cert_2, na, na, na).
+spkiDSAParameters(cert(0), na, na, na).
+spkiDSAParameters(cert(1), na, na, na).
+spkiDSAParameters(cert(2), na, na, na).
 spkiDSAParameters(hack, hack, hack, hack).
-spkiRSAExponent(cert_0, 65537).
-spkiRSAExponent(cert_1, 65537).
-spkiRSAExponent(cert_2, 65537).
-spkiRSAModLength(cert_0, 2048).
-spkiRSAModLength(cert_1, 4096).
-spkiRSAModLength(cert_2, 4096).
-% spkiRSAModulus(cert_0, 26532090800773536014594405263504573604936847872309649892027624699423185317519238032757856279822034850487453260954952589600697087260208573830129296951311074452731263184276473440854546090015448026581735362961352242031468290108587297601856707504840222046607937642553525409974004163045492576568329519719233109838690537746545420002645674912790756916739680485608850028345820999619805659154894058824171666520135905937753917531394475242063883181203686339460759957345033588907370913530125699609630812150691817863244663175131808356657573426870463886517770296307039608038492542906646045345734971073535928756882993908869644933869).
-% spkiRSAModulus(cert_1, 587531583894096212377173975997989441747922378126499049508860662020051374845380448323919233581531627401035192298496464141828748265333444329484647080416806910991200469038946414697715449295701853074844045249665806144850821755809713290607782993856639158645966001719113560908149347145042390934653512631429412677731338748795491015700573607952793568832493385853939658781402778529153041450065621554156675862370289567708498060814634261314396401772950400217290518135505293764086251138117255615510445692541368897620414173994103172597594809549087177145291888251410951651351204147042583684737481759599304317042125598097488541590764706866062707868634705886229324709370271833466936830848767604894206774744424069990938668815490317226358746949070605121731424600776461428027348157957096978445394548745177916759636782689220496673674461930857363229416917204587559554326900481954246132652428785054807919065684601190585203788356556693379439084924146870397305993068328540964804508035546582173005359149347788246049780947831637364831646586001468131866893269106714660822416649769740083124242749020245283438650252936453570618210286524893434613503866942373075567259728827136258703856442585145794113175066509538992640526183854851586261004102727556363640395260821).
-% spkiRSAModulus(cert_2, 795413640054778832076741367922894928105502712187406973909227654526170543681357095411462588553795000408257651126922231637770121198620161886126668387481805859372976531223871831717384258154568361288176973558651066579450376289053977066687828830072984985073941247948564593943161242573376853811424969025137522090171955514729573569710619527650575048951589840965959676577046671675070067876881849828946566686974265644961757081017700743924193448810476748388106563076629561769490614572446915408122707654949142330338686978444212948076840351002877410442389760631182335684625322807695040862392169954873888196923219874096735648403837138827354214194184794952737091177128043495835777058459179664138403179048686267608840255263278669020964784782348170955863165232050165916045952456904486969642441561289100839109377284945372090788966173381494352067441696249688084782019935036929480680716488722426067943802031309392721617650037828835410948814881715574331234342376923202657305339142114979123121133845369453926374383486005335975842473734929701451930610954714112751317374336945497471280046083219105583749772782873488468693602529092792223715713507033217942676207138251740321260435963868701670199641706409103239407425662417104711929424177944212439571369505803).
-stapledResponse(cert_0, []).
-stapledResponse(cert_1, []).
-stapledResponse(cert_2, []).
-stapledResponse(cert_2, []).
+spkiRSAExponent(cert(0), 65537).
+spkiRSAExponent(cert(1), 65537).
+spkiRSAExponent(cert(2), 65537).
+spkiRSAModLength(cert(0), 2048).
+spkiRSAModLength(cert(1), 4096).
+spkiRSAModLength(cert(2), 4096).
+% spkiRSAModulus(cert(0), 26532090800773536014594405263504573604936847872309649892027624699423185317519238032757856279822034850487453260954952589600697087260208573830129296951311074452731263184276473440854546090015448026581735362961352242031468290108587297601856707504840222046607937642553525409974004163045492576568329519719233109838690537746545420002645674912790756916739680485608850028345820999619805659154894058824171666520135905937753917531394475242063883181203686339460759957345033588907370913530125699609630812150691817863244663175131808356657573426870463886517770296307039608038492542906646045345734971073535928756882993908869644933869).
+% spkiRSAModulus(cert(1), 587531583894096212377173975997989441747922378126499049508860662020051374845380448323919233581531627401035192298496464141828748265333444329484647080416806910991200469038946414697715449295701853074844045249665806144850821755809713290607782993856639158645966001719113560908149347145042390934653512631429412677731338748795491015700573607952793568832493385853939658781402778529153041450065621554156675862370289567708498060814634261314396401772950400217290518135505293764086251138117255615510445692541368897620414173994103172597594809549087177145291888251410951651351204147042583684737481759599304317042125598097488541590764706866062707868634705886229324709370271833466936830848767604894206774744424069990938668815490317226358746949070605121731424600776461428027348157957096978445394548745177916759636782689220496673674461930857363229416917204587559554326900481954246132652428785054807919065684601190585203788356556693379439084924146870397305993068328540964804508035546582173005359149347788246049780947831637364831646586001468131866893269106714660822416649769740083124242749020245283438650252936453570618210286524893434613503866942373075567259728827136258703856442585145794113175066509538992640526183854851586261004102727556363640395260821).
+% spkiRSAModulus(cert(2), 795413640054778832076741367922894928105502712187406973909227654526170543681357095411462588553795000408257651126922231637770121198620161886126668387481805859372976531223871831717384258154568361288176973558651066579450376289053977066687828830072984985073941247948564593943161242573376853811424969025137522090171955514729573569710619527650575048951589840965959676577046671675070067876881849828946566686974265644961757081017700743924193448810476748388106563076629561769490614572446915408122707654949142330338686978444212948076840351002877410442389760631182335684625322807695040862392169954873888196923219874096735648403837138827354214194184794952737091177128043495835777058459179664138403179048686267608840255263278669020964784782348170955863165232050165916045952456904486969642441561289100839109377284945372090788966173381494352067441696249688084782019935036929480680716488722426067943802031309392721617650037828835410948814881715574331234342376923202657305339142114979123121133845369453926374383486005335975842473734929701451930610954714112751317374336945497471280046083219105583749772782873488468693602529092792223715713507033217942676207138251740321260435963868701670199641706409103239407425662417104711929424177944212439571369505803).
+stapledResponse(cert(0), []).
+stapledResponse(cert(1), []).
+stapledResponse(cert(2), []).
+stapledResponse(cert(2), []).
 stapledResponse(hack, hack).
-stateOrProvinceName(cert_0, "").
-stateOrProvinceName(cert_1, "").
-stateOrProvinceName(cert_2, "").
-streetAddress(cert_0, "").
-streetAddress(cert_1, "").
-streetAddress(cert_2, "").
-subject(cert_0, "hrm.auth.gr", "GR", "Thessaloniki", "", "Aristotle University of Thessaloniki").
-subject(cert_1, "Aristotle University of Thessaloniki SSL RSA SubCA R2", "GR", "Thessaloniki", "", "Aristotle University of Thessaloniki").
-subject(cert_2, "Hellenic Academic and Research Institutions RootCA 2015", "GR", "Athens", "", "Hellenic Academic and Research Institutions Cert. Authority").
-subjectKeyIdentifier(cert_0, "76:42:3f:c2:de:22:9f:f1:b1:c9:e9:dd:0a:dc:68:60:3c:b7:61:5b").
-subjectKeyIdentifier(cert_1, "87:38:76:f6:6e:62:c1:67:ff:26:cd:4b:fe:c2:ec:a3:f3:cb:e6:41").
-subjectKeyIdentifier(cert_2, "71:15:67:c8:c8:c9:bd:75:5d:72:d0:38:18:6a:9d:f3:71:24:54:0b").
+stateOrProvinceName(cert(0), "").
+stateOrProvinceName(cert(1), "").
+stateOrProvinceName(cert(2), "").
+streetAddress(cert(0), "").
+streetAddress(cert(1), "").
+streetAddress(cert(2), "").
+subject(cert(0), "hrm.auth.gr", "GR", "Thessaloniki", "", "Aristotle University of Thessaloniki").
+subject(cert(1), "Aristotle University of Thessaloniki SSL RSA SubCA R2", "GR", "Thessaloniki", "", "Aristotle University of Thessaloniki").
+subject(cert(2), "Hellenic Academic and Research Institutions RootCA 2015", "GR", "Athens", "", "Hellenic Academic and Research Institutions Cert. Authority").
+subjectKeyIdentifier(cert(0), "76:42:3f:c2:de:22:9f:f1:b1:c9:e9:dd:0a:dc:68:60:3c:b7:61:5b").
+subjectKeyIdentifier(cert(1), "87:38:76:f6:6e:62:c1:67:ff:26:cd:4b:fe:c2:ec:a3:f3:cb:e6:41").
+subjectKeyIdentifier(cert(2), "71:15:67:c8:c8:c9:bd:75:5d:72:d0:38:18:6a:9d:f3:71:24:54:0b").
 subjectKeyIdentifier(hack, hack).
-subjectKeyIdentifierCritical(cert_0, false).
-subjectKeyIdentifierCritical(cert_1, false).
-subjectKeyIdentifierCritical(cert_2, false).
+subjectKeyIdentifierCritical(cert(0), false).
+subjectKeyIdentifierCritical(cert(1), false).
+subjectKeyIdentifierCritical(cert(2), false).
 subjectKeyIdentifierCritical(hack, hack).
-subjectKeyIdentifierExt(cert_0, true).
-subjectKeyIdentifierExt(cert_1, true).
-subjectKeyIdentifierExt(cert_2, true).
+subjectKeyIdentifierExt(cert(0), true).
+subjectKeyIdentifierExt(cert(1), true).
+subjectKeyIdentifierExt(cert(2), true).
 subjectKeyIdentifierExt(hack, hack).
-surname(cert_0, "").
-surname(cert_1, "").
-surname(cert_2, "").
-version(cert_0, 2).
-version(cert_1, 2).
-version(cert_2, 2).
+surname(cert(0), "").
+surname(cert(1), "").
+surname(cert(2), "").
+version(cert(0), 2).
+version(cert(1), 2).
+version(cert(2), 2).
 version(hack, hack).
 
 envDomain("hrm.auth.gr").
 
-go :- certVerifiedChain(cert_0).
+go :- certVerifiedChain(cert(0)).
