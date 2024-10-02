@@ -58,7 +58,7 @@ impl View for RuleX {
     }
 }
 
-impl View for ProgramX {
+impl View for Program {
     type V = SpecProgram;
 
     open spec fn view(&self) -> Self::V {

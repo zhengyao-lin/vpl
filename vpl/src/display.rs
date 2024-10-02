@@ -142,7 +142,7 @@ impl fmt::Display for ParserError {
     }
 }
 
-impl fmt::Display for ProgramX {
+impl fmt::Display for Program {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for (i, rule) in self.rules.iter().enumerate() {
             if i == 0 {

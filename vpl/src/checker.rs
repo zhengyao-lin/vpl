@@ -54,9 +54,8 @@ pub struct RuleX {
     pub body: Vec<Term>,
 }
 
-pub type Program = Rc<ProgramX>;
 #[derive(Debug)]
-pub struct ProgramX {
+pub struct Program {
     pub rules: Vec<Rule>,
 }
 
@@ -423,11 +422,11 @@ impl RuleX {
     }
 }
 
-impl ProgramX {
+impl Program {
     pub fn new(rules: Vec<Rule>) -> (res: Program)
         ensures res.rules == rules
     {
-        Rc::new(ProgramX { rules })
+        Program { rules }
     }
 }
 

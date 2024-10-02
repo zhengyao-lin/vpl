@@ -13,6 +13,8 @@ use parser::common::OptionDeep::*;
 
 use vpl::checker::*;
 use vpl::proof::*;
+use vpl::backend::*;
+use vpl::validate::*;
 
 verus! {
 
@@ -255,6 +257,12 @@ pub open spec fn spec_verify_signature(issuer: SpecCertificateValue, subject: Sp
 
 //// Implementations of the specs above
 
+pub enum ValidationError {
+    IntegerOverflow,
+    EmptyChain,
+    ProofFailure,
+}
+
 pub fn likely_issued(issuer: &CertificateValue, subject: &CertificateValue) -> (res: bool)
     ensures res == spec_likely_issued(issuer@, subject@)
 {
@@ -457,11 +465,11 @@ pub fn cert_id_term(i: LiteralInt) -> (res: Term)
 }
 
 pub fn gen_root_issue_facts(
-    roots: &VecDeep<&CertificateValue>,
-    chain: &VecDeep<&CertificateValue>,
-) -> (res: OptionDeep<VecDeep<Rule>>)
+    roots: &VecDeep<CertificateValue>,
+    chain: &VecDeep<CertificateValue>,
+) -> (res: Result<VecDeep<Rule>, ValidationError>)
     ensures
-        res matches Some(res) ==>
+        res matches Ok(res) ==>
             res@ =~= spec_gen_root_issue_facts(roots@, chain@)
 {
     let mut facts = vec_deep![];
@@ -508,15 +516,15 @@ pub fn gen_root_issue_facts(
                 verify_signature(roots.get(i), chain.get(j)) {
                 // Check bounds and overflow
                 if let Option::Some(root_id) = i.checked_add(chain.len()) {
-                    if root_id <= LiteralInt::MAX as usize && j <= LiteralInt::MAX as usize {
-                        issuer_facts.push(vec_deep![
-                            issuer_fact(root_id as LiteralInt, j as LiteralInt)
-                        ]);
-                    } else {
-                        return None;
+                    if root_id > LiteralInt::MAX as usize || j > LiteralInt::MAX as usize {
+                        return Err(ValidationError::IntegerOverflow);
                     }
+
+                    issuer_facts.push(vec_deep![
+                        issuer_fact(root_id as LiteralInt, j as LiteralInt)
+                    ]);
                 } else {
-                    return None;
+                    return Err(ValidationError::IntegerOverflow);
                 }
             } else {
                 issuer_facts.push(vec_deep![]);
@@ -526,14 +534,14 @@ pub fn gen_root_issue_facts(
         facts.push(VecDeep::flatten(issuer_facts));
     }
 
-    Some(VecDeep::flatten(facts))
+    Ok(VecDeep::flatten(facts))
 }
 
 pub fn gen_chain_issue_facts(
-    chain: &VecDeep<&CertificateValue>,
-) -> (res: OptionDeep<VecDeep<Rule>>)
+    chain: &VecDeep<CertificateValue>,
+) -> (res: Result<VecDeep<Rule>, ValidationError>)
     requires chain@.len() > 0
-    ensures res matches Some(res) ==>
+    ensures res matches Ok(res) ==>
         res@ =~= spec_gen_chain_issue_facts(chain@)
 {
     let mut facts = vec_deep![];
@@ -555,26 +563,26 @@ pub fn gen_chain_issue_facts(
     {
         if likely_issued(chain.get(i + 1), chain.get(i)) &&
             verify_signature(chain.get(i + 1), chain.get(i)) {
-            if i < LiteralInt::MAX as usize {
-                facts.push(vec_deep![ issuer_fact(i as LiteralInt + 1, i as LiteralInt) ]);
-            } else {
-                return None;
+            if i >= LiteralInt::MAX as usize {
+                return Err(ValidationError::IntegerOverflow);
             }
+
+            facts.push(vec_deep![ issuer_fact(i as LiteralInt + 1, i as LiteralInt) ]);
         } else {
             facts.push(vec_deep![]);
         }
     }
 
-    Some(VecDeep::flatten(facts))
+    Ok(VecDeep::flatten(facts))
 }
 
 pub fn gen_all_facts(
-    roots: &VecDeep<&CertificateValue>,
-    chain: &VecDeep<&CertificateValue>,
+    roots: &VecDeep<CertificateValue>,
+    chain: &VecDeep<CertificateValue>,
     domain: &str,
-) -> (res: OptionDeep<VecDeep<Rule>>)
+) -> (res: Result<VecDeep<Rule>, ValidationError>)
     requires chain@.len() > 0
-    ensures res matches Some(res) ==>
+    ensures res matches Ok(res) ==>
         res@ =~= spec_gen_all_facts(roots@, chain@, domain@)
 {
     let mut facts: VecDeep<VecDeep<Rule>> = vec_deep![];
@@ -591,7 +599,7 @@ pub fn gen_all_facts(
         if i <= LiteralInt::MAX as usize {
             facts.push(gen_cert_facts(chain.get(i), i as LiteralInt));
         } else {
-            return None;
+            return Err(ValidationError::IntegerOverflow);
         }
     }
 
@@ -608,10 +616,10 @@ pub fn gen_all_facts(
             if sum <= LiteralInt::MAX as usize {
                 facts.push(gen_cert_facts(roots.get(i), sum as LiteralInt));
             } else {
-                return None;
+                return Err(ValidationError::IntegerOverflow);
             }
         } else {
-            return None;
+            return Err(ValidationError::IntegerOverflow);
         }
     }
 
@@ -624,15 +632,54 @@ pub fn gen_all_facts(
 
     let mut facts = VecDeep::flatten(facts);
 
-    if let Some(mut root_issuers) = gen_root_issue_facts(roots, chain) {
-        if let Some(mut chain_issuers) = gen_chain_issue_facts(chain) {
-            facts.append(&mut root_issuers);
-            facts.append(&mut chain_issuers);
-            return Some(facts);
-        }
+    let mut root_issuers = gen_root_issue_facts(roots, chain)?;
+    let mut chain_issuers = gen_chain_issue_facts(chain)?;
+
+    facts.append(&mut root_issuers);
+    facts.append(&mut chain_issuers);
+
+    Ok(facts)
+}
+
+pub fn valid_domain<B: Backend, E>(
+    backend: &mut B,
+    mut policy: Program,
+    roots: &VecDeep<CertificateValue>,
+    chain: &VecDeep<CertificateValue>,
+    domain: &str,
+) -> (res: Result<bool, E>)
+    where
+        E: std::convert::From<B::Error>,
+        E: std::convert::From<ValidationError>,
+        E: std::convert::From<ProofError>,
+
+    ensures
+        res matches Ok(true) ==> spec_valid_domain(policy@, roots@, chain@, domain@),
+{
+    if chain.len() == 0 {
+        Err(ValidationError::EmptyChain)?;
     }
 
-    None
+    let ghost old_policy = policy@;
+
+    // Add all generated facts to the policy
+    let mut facts = gen_all_facts(roots, chain, domain)?.to_vec();
+    policy.rules.append(&mut facts);
+
+    let goal = TermX::app_str("certVerifiedChain", vec![ cert_id_term(0) ]);
+    assert(goal@->App_1 == seq![ spec_cert_id_term(0) ]);
+
+    // Solve and validate the goal
+    match solve_and_validate::<B, E>(backend, &policy, &goal, true, true)? {
+        ValidateResult::Success(thm) => {
+            assert(policy@ =~= SpecProgram {
+                rules: old_policy.rules + spec_gen_all_facts(roots@, chain@, domain@),
+            });
+            Ok(true)
+        }
+        ValidateResult::ProofFailure => Err(ValidationError::ProofFailure)?,
+        ValidateResult::BackendFailure => Ok(false),
+    }
 }
 
 }

@@ -245,7 +245,7 @@ impl Solver {
 #[verifier::external_body]
 pub fn test() {
     // connectivity11.pl
-    let program = ProgramX::new(vec![
+    let program = Program::new(vec![
         RuleX::new(TermX::app_str("edge", vec![ TermX::constant("n66"), TermX::constant("n96") ]), vec![]),
         RuleX::new(TermX::app_str("edge", vec![ TermX::constant("n23"), TermX::constant("n59") ]), vec![]),
         RuleX::new(TermX::app_str("edge", vec![ TermX::constant("n49"), TermX::constant("n50") ]), vec![]),

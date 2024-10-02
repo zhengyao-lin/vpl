@@ -307,7 +307,7 @@ peg::parser!(grammar prolog(state: &ParserState) for str {
                 line_map.insert(num_lines, i);
             }
 
-            (ProgramX::new(program_rules), line_map)
+            (Program::new(program_rules), line_map)
         }
 
     /// Parser of a trace event
