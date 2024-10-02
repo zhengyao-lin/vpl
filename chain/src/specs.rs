@@ -18,7 +18,7 @@ verus! {
 /// The top-level spec stating when a certificate chain
 /// is considered valid with respect to given policy,
 /// root certificates, and final domain
-pub open spec fn spec_valid_certificate(
+pub open spec fn spec_valid_domain(
     policy: SpecProgram,
     roots: Seq<SpecCertificateValue>,
     chain: Seq<SpecCertificateValue>,
@@ -29,6 +29,8 @@ pub open spec fn spec_valid_certificate(
     let merged_policy = spec_merge_policy_facts(policy, roots, chain, domain);
 
     &&& chain.len() > 0
+
+    // Exists a proof of the final goal certVerifiedChain(cert(0))
     &&& exists |thm: SpecTheorem| {
         &&& #[trigger] thm.wf(merged_policy)
         &&& thm.stmt == SpecTerm::App(

@@ -30,8 +30,6 @@ impl fmt::Display for FnName {
             // [] /= '[]', but functor([1, 2], '[|]', _) is true.
             FnName::Nil => write!(f, "[]"),
             FnName::Cons => write!(f, "'[|]'"),
-
-            FnName::Directive => write!(f, ""),
         }
     }
 }
@@ -42,6 +40,7 @@ impl fmt::Display for Literal {
             Literal::Int(i) => write!(f, "{}", i),
             Literal::String(s) => write!(f, "\"{}\"", escape_string(s, '"')),
             Literal::Atom(a) => fmt_symbol(a, f),
+            Literal::Directive => write!(f, ""),
         }
     }
 }
@@ -89,7 +88,7 @@ impl fmt::Display for RuleX {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.head)?;
 
-        if let TermX::App(FnName::Directive, ..) = self.head.as_ref() {
+        if let TermX::Literal(Literal::Directive) = self.head.as_ref() {
             write!(f, ":- ")?;
         } else if self.body.len() != 0 {
             write!(f, " :- ")?;
@@ -140,5 +139,18 @@ impl fmt::Display for ParserError {
             ":{}:{}: expecting {}",
             self.1.location.line, self.1.location.column, self.1.expected
         )
+    }
+}
+
+impl fmt::Display for ProgramX {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        for (i, rule) in self.rules.iter().enumerate() {
+            if i == 0 {
+                write!(f, "{}", rule)?;
+            } else {
+                write!(f, "\n{}", rule)?;
+            }
+        }
+        Ok(())
     }
 }

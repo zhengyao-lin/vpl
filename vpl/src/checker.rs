@@ -29,7 +29,6 @@ pub enum FnName {
     User(UserFnName, Arity),
     Nil,
     Cons,
-    Directive,
 }
 
 #[derive(Debug)]
@@ -37,6 +36,7 @@ pub enum Literal {
     Int(LiteralInt),
     String(LiteralString),
     Atom(LiteralAtom),
+    Directive,
 }
 
 pub type Term = Rc<TermX>;
@@ -98,7 +98,6 @@ impl FnName {
                 rc_str_eq(name1, name2) && arity1 == arity2,
             (FnName::Nil, FnName::Nil) => true,
             (FnName::Cons, FnName::Cons) => true,
-            (FnName::Directive, FnName::Directive) => true,
             _ => false,
         }
     }
@@ -112,7 +111,6 @@ impl Clone for FnName {
             FnName::User(name, arity) => FnName::User(name.clone(), *arity),
             FnName::Nil => FnName::Nil,
             FnName::Cons => FnName::Cons,
-            FnName::Directive => FnName::Directive,
         }
     }
 }
@@ -125,6 +123,7 @@ impl Literal {
             (Literal::Int(i1), Literal::Int(i2)) => i1 == i2,
             (Literal::String(s1), Literal::String(s2)) => rc_str_eq(s1, s2),
             (Literal::Atom(a1), Literal::Atom(a2)) => rc_str_eq(a1, a2),
+            (Literal::Directive, Literal::Directive) => true,
             _ => false,
         }
     }
@@ -190,13 +189,13 @@ impl TermX {
                 let subst_args = vec_map(args, |arg| -> (res: Term)
                     ensures res@ == arg@.subst(subst@)
                     { TermX::subst(arg, subst) });
-                
+
                 assert(subst_args.deep_view() =~= args.deep_view().map_values(|arg: SpecTerm| arg.subst(subst@)));
                 TermX::app(name, subst_args)
             }
         }
     }
-    
+
     pub fn eq(&self, other: &Self) -> (res: bool)
         ensures res == (self@ == other@)
     {
@@ -207,7 +206,7 @@ impl TermX {
                 if !f1.eq(f2) {
                     return false;
                 }
-                
+
                 if args1.len() != args2.len() {
                     assert(self@->App_1 !~= other@->App_1);
                     return false;
@@ -574,7 +573,7 @@ impl Theorem {
     /// and check the assumption that each rule head (program.only_unifiable_with_base)
     /// - Either is matched by pattern and is a fact
     /// - Or is not unifiable with pattern
-    /// 
+    ///
     /// Essentially this exhausts all possible solutions to pattern
     /// and substitute that solution into template,
     /// assuming that the pattern is headed by a "base" predicate symbol
@@ -795,7 +794,7 @@ impl Theorem {
             // findall/3 (base case only)
             (FN_NAME_FINDALL, 3) => return Self::findall_base(program, goal),
 
-            
+
             // nonvar/1, var/1
             (FN_NAME_NONVAR, 1) => match rc_as_ref(&args[0]) {
                 TermX::Var(..) => false,
@@ -833,7 +832,7 @@ impl Theorem {
                     } else {
                         return proof_err!("goal failed: ", goal);
                     }
-                }                
+                }
                 true
             }
 
@@ -889,7 +888,7 @@ impl Theorem {
                 let sep = (&args[1]).as_string()?;
                 let padding = (&args[2]).as_string()?;
                 let list = (&args[3]).as_list()?;
-                
+
                 if sep.unicode_len() == 1 && padding.unicode_len() == 0 {
                     let mut split_strs: Vec<&str> = Vec::new();
 

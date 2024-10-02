@@ -92,15 +92,16 @@ pub enum SpecFnName {
     // List nil/0 and cons/2
     Nil,
     Cons,
-    // A special symbol for denoting headless clauses/directives
-    // e.g. <Directive> :- ...
-    Directive,
 }
 
 pub enum SpecLiteral {
     Int(SpecIntLiteral),
     String(SpecStringLiteral),
     Atom(SpecAtomLiteral),
+
+    // A special symbol for denoting headless clauses/directives
+    // e.g. <Directive> :- ...
+    Directive,
 }
 
 /**

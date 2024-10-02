@@ -14,7 +14,6 @@ impl View for FnName {
             FnName::User(name, arity) => SpecFnName::User(name.view(), *arity as int),
             FnName::Nil => SpecFnName::Nil,
             FnName::Cons => SpecFnName::Cons,
-            FnName::Directive => SpecFnName::Directive,
         }
     }
 }
@@ -26,6 +25,7 @@ impl View for Literal {
             Literal::Int(i) => SpecLiteral::Int(*i as int),
             Literal::String(s) => SpecLiteral::String(s.view()),
             Literal::Atom(a) => SpecLiteral::Atom(a.view()),
+            Literal::Directive => SpecLiteral::Directive,
         }
     }
 }

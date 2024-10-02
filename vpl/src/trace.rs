@@ -128,7 +128,6 @@ impl TraceValidator {
     ) -> (res: Result<&Theorem, ProofError>)
         requires
             old(self).wf(program@),
-            !old(self).thms@.contains_key(event.id),
 
         ensures
             res matches Ok(thm) ==> {

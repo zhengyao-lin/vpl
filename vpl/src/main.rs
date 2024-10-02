@@ -8,24 +8,19 @@ mod proof;
 mod solver;
 mod trace;
 mod view;
+mod backend;
+mod validate;
 
-use std::collections::HashMap;
 use std::fs;
-use std::include_str;
-use std::io;
-use std::io::BufRead;
-use std::io::Write;
-use std::process::{ChildStdout, Command, ExitCode, Stdio};
+use std::process::ExitCode;
 
-use tempfile::NamedTempFile;
+use backend::*;
+use validate::*;
 
 use clap::{command, Parser};
 
 use crate::error::Error;
-use crate::parser::{parse_program, parse_term, parse_trace_event};
-use crate::trace::TraceValidator;
-
-use crate::checker::{Program, RuleId, Term};
+use crate::parser::{parse_program, parse_term};
 
 #[derive(Parser, Debug)]
 #[command(long_about = None)]
@@ -53,60 +48,6 @@ struct Args {
     dry: bool,
 }
 
-fn validate_trace(
-    args: &Args,
-    program: &Program,
-    line_map: &HashMap<usize, RuleId>,
-    goal: &Term,
-    swipl_stdout: &mut ChildStdout,
-) -> Result<(), Error> {
-    let mut validator = TraceValidator::new(program);
-    let mut last_event_id = 0;
-
-    // For each line, check if it is a trace event;
-    // if so, parse it and send it to the validator
-    for line in io::BufReader::new(swipl_stdout).lines() {
-        let line_str = line?;
-
-        if args.debug {
-            eprintln!("[debug] ==============================================================");
-            eprintln!("[debug] event {}", &line_str);
-        }
-
-        match parse_trace_event(&line_str, &line_map) {
-            Ok(event) => {
-                last_event_id = event.id;
-                let thm = validator.process_event(&program, &event, args.debug, args.allow_unsupported_builtin, true)?;
-                if args.debug {
-                    eprintln!("[debug] validated: {}", thm.stmt);
-                }
-            }
-            Err(err) => Err(Error::Other(format!(
-                "[error] failed to parse trace event \"{}\": {}",
-                &line_str, err
-            )))?,
-        }
-    }
-
-    // Verify that the goal term is indeed proved
-    if let Ok(thm) = validator.get_theorem(&program, last_event_id) {
-        if thm.stmt.eq(&goal) {
-            println!("validated goal: {}", &goal);
-            Ok(())
-        } else {
-            Err(Error::Other(format!(
-                "unmatched final goal: expecting `{}`, got `{}`",
-                &goal, &thm.stmt
-            )))
-        }
-    } else {
-        Err(Error::Other(format!(
-            "failed to validate a proof of the goal: {}",
-            &goal
-        )))
-    }
-}
-
 fn main_args(mut args: Args) -> Result<(), Error> {
     // Parse the source file
     let source = fs::read_to_string(&args.source)?;
@@ -122,66 +63,23 @@ fn main_args(mut args: Args) -> Result<(), Error> {
         }
     }
 
-    let mut meta_file: NamedTempFile = NamedTempFile::new()?;
-
-    if args.debug {
-        eprintln!("[debug] writing meta.pl to {}", meta_file.path().display());
-    }
-    write!(meta_file, "{}", include_str!("meta.pl"))?;
-
-    // Run the main goal in swipl with the meta interpreter
-    let mut swipl_cmd = Command::new(&args.swipl_bin);
-    swipl_cmd
-        .arg("-s")
-        .arg(meta_file.path())
-        .arg("-s")
-        .arg(&args.source)
-        .arg("-g")
-        .arg(format!("prove({})", &args.goal))
-        .arg("-g")
-        .arg("halt")
-        .stdout(Stdio::piped());
-
-    if args.debug || args.dry {
-        eprintln!("[debug] running swipl command: {:?}", &swipl_cmd);
-    }
-
-    if args.dry {
-        return Ok(());
-    }
-
-    let mut swipl = swipl_cmd.spawn()?;
-    let mut swipl_stdout = swipl
-        .stdout
-        .take()
-        .ok_or(Error::Other("failed to open swipl stdout".to_string()))?;
-
-    let res = match validate_trace(&args, &program, &line_map, &goal, &mut swipl_stdout) {
-        Ok(()) => {
-            if !swipl.wait()?.success() {
-                Err(Error::Other("swipl exited with failure".to_string()))
-            } else {
-                Ok(())
-            }
-        }
-        Err(err) => {
-            // Consume and throw away rest of the stdout,
-            // so that swipl doesn't block
-            io::copy(&mut swipl_stdout, &mut io::sink())?;
-
-            if !swipl.wait()?.success() {
-                eprintln!("[error] {}", err);
-                Err(Error::Other("swipl exited with failure".to_string()))
-            } else {
-                eprintln!("swipl exited successfully");
-                Err(err)
-            }
-        }
+    let mut swipl_backend = SwiplBackend {
+        debug: args.debug,
+        swipl_bin: args.swipl_bin.clone(),
     };
 
-    meta_file.close()?;
-
-    return res;
+    match solve_and_validate::<_, Error>(&mut swipl_backend, &program, &goal, args.debug, args.allow_unsupported_builtin)? {
+        ValidateResult::Proven(thm) => {
+            println!("validated goal: {}", thm.stmt);
+            Ok(())
+        }
+        ValidateResult::ProofFailure => {
+            Err(Error::Other("swipl succeeded, but proof failed".to_string()))
+        }
+        ValidateResult::BackendFailure => {
+            Err(Error::Other("swipl exited with failure".to_string()))
+        }
+    }
 }
 
 pub fn main() -> ExitCode {
