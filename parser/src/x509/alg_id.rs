@@ -68,6 +68,13 @@ mapper! {
     }
 }
 
+impl<'a> PolyfillEq for AlgorithmIdentifierValue<'a> {
+    fn polyfill_eq(&self, other: &Self) -> bool {
+        self.id.polyfill_eq(&other.id) &&
+        self.param.polyfill_eq(&other.param)
+    }
+}
+
 }
 
 #[cfg(test)]

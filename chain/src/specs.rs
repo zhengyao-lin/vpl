@@ -11,6 +11,7 @@ use parser::x509::*;
 
 use parser::common::OptionDeep::*;
 
+use vpl::checker::*;
 use vpl::proof::*;
 
 verus! {
@@ -26,7 +27,9 @@ pub open spec fn spec_valid_domain(
 ) -> bool
 {
     let leaf = chain[0];
-    let merged_policy = spec_merge_policy_facts(policy, roots, chain, domain);
+    let merged_policy = SpecProgram {
+        rules: policy.rules + spec_gen_all_facts(roots, chain, domain),
+    };
 
     &&& chain.len() > 0
 
@@ -40,44 +43,53 @@ pub open spec fn spec_valid_domain(
     }
 }
 
-/// Merge the policy with facts about each certificate,
-/// issuer relation between certificates, and environment
-/// facts such as the domain to be validated
-pub open spec fn spec_merge_policy_facts(
-    policy: SpecProgram,
+/// Generate all facts about the root certificates
+/// cert chain, and the domain
+pub open spec fn spec_gen_all_facts(
     roots: Seq<SpecCertificateValue>,
     chain: Seq<SpecCertificateValue>,
     domain: SpecStringLiteral,
-) -> SpecProgram
+) -> Seq<SpecRule>
 {
     let facts =
-        Seq::new(chain.len(), |i| spec_cert_to_facts(chain[i], i)) +
-        Seq::new(roots.len(), |i| spec_cert_to_facts(roots[i], i + chain.len())) +
-        seq![ seq![ spec_domain_fact(domain) ] ] +
+        Seq::new(chain.len(), |i| spec_gen_cert_facts(chain[i], i)) +
+        Seq::new(roots.len(), |i| spec_gen_cert_facts(roots[i], i + chain.len())) +
+        seq![ seq![ spec_domain_fact(domain) ] ];
 
-        // Facts about whether any root cert issued any of the chain certs
-        Seq::new(roots.len(),
-            |i| Seq::new(chain.len(), |j|
-                if spec_likely_issued(roots[i], chain[j]) &&
-                    spec_verify_signature(roots[i], chain[j]) {
-                    seq![ spec_issuer_fact(i + chain.len(), j) ]
-                } else {
-                    seq![]
-                }
-            ).flatten()
-        ) +
+    facts.flatten() + spec_gen_root_issue_facts(roots, chain) + spec_gen_chain_issue_facts(chain)
+}
 
-        // Facts about the chain[i] being issued by chain[i + 1]
-        Seq::new((chain.len() - 1) as nat,
-            |i: int| if spec_likely_issued(chain[i + 1], chain[i]) &&
-                spec_verify_signature(chain[i + 1], chain[i]) {
-                seq![ spec_issuer_fact(i + 1, i) ]
+/// Generate facts about root certs issuing chain certs
+pub open spec fn spec_gen_root_issue_facts(
+    roots: Seq<SpecCertificateValue>,
+    chain: Seq<SpecCertificateValue>,
+) -> Seq<SpecRule>
+{
+    Seq::new(roots.len(),
+        |i| Seq::new(chain.len(), |j|
+            if spec_likely_issued(roots[i], chain[j]) &&
+                spec_verify_signature(roots[i], chain[j]) {
+                seq![ spec_issuer_fact(i + chain.len(), j) ]
             } else {
                 seq![]
             }
-        );
+        ).flatten()
+    ).flatten()
+}
 
-    SpecProgram { rules: policy.rules + facts.flatten() }
+/// Generate facts about chain certs issuing each other
+pub open spec fn spec_gen_chain_issue_facts(
+    chain: Seq<SpecCertificateValue>,
+) -> Seq<SpecRule>
+{
+    Seq::new((chain.len() - 1) as nat,
+        |i: int| if spec_likely_issued(chain[i + 1], chain[i]) &&
+            spec_verify_signature(chain[i + 1], chain[i]) {
+            seq![ spec_issuer_fact(i + 1, i) ]
+        } else {
+            seq![]
+        }
+    ).flatten()
 }
 
 /// Construct an issuer fact of the form issuer(cert_i, cert_j)
@@ -117,11 +129,7 @@ pub open spec fn spec_cert_id_term(i: int) -> SpecTerm
 }
 
 /// Specify the facts to be generated from a certificate
-pub open spec fn spec_cert_to_facts(cert: SpecCertificateValue, i: int) -> Seq<SpecRule>
-{
-    // TODO
-    seq![]
-}
+pub closed spec fn spec_gen_cert_facts(cert: SpecCertificateValue, i: int) -> Seq<SpecRule>;
 
 /// If the the issuer likely issued the subject.
 /// Similar to https://github.com/openssl/openssl/blob/ed6862328745c51c2afa2b6485cc3e275d543c4e/crypto/x509/v3_purp.c#L963
@@ -401,6 +409,230 @@ pub fn same_attr(a: &AttributeTypeAndValueValue, b: &AttributeTypeAndValueValue)
 
         _ => false,
     }
+}
+
+pub fn verify_signature(issuer: &CertificateValue, subject: &CertificateValue) -> (res: bool)
+    ensures res == spec_verify_signature(issuer@, subject@)
+{
+    // TODO: verify signature
+    subject.sig_alg.polyfill_eq(&subject.cert.signature)
+}
+
+#[verifier::external_body]
+pub fn gen_cert_facts(cert: &CertificateValue, i: LiteralInt) -> (res: VecDeep<Rule>)
+    ensures res@ =~= spec_gen_cert_facts(cert@, i as int)
+{
+    // TODO
+    vec_deep![]
+}
+
+pub fn issuer_fact(i: LiteralInt, j: LiteralInt) -> (res: Rule)
+    ensures res@ =~= spec_issuer_fact(i as int, j as int)
+{
+    let res = RuleX::new(
+        TermX::app_str("issuer", vec![ cert_id_term(j), cert_id_term(i) ]),
+        vec![],
+    );
+    assert(res@.head->App_1 == spec_issuer_fact(i as int, j as int).head->App_1);
+    res
+}
+
+pub fn domain_fact(domain: &str) -> (res: Rule)
+    ensures res@ =~= spec_domain_fact(domain@)
+{
+    let res = RuleX::new(
+        TermX::app_str("envDomain", vec![ TermX::str(domain) ]),
+        vec![],
+    );
+    assert(res@.head->App_1 == spec_domain_fact(domain@).head->App_1);
+    res
+}
+
+pub fn cert_id_term(i: LiteralInt) -> (res: Term)
+    ensures res@ =~= spec_cert_id_term(i as int)
+{
+    let res = TermX::app_str("cert", vec![ TermX::int(i) ]);
+    assert(res@->App_1 == spec_cert_id_term(i as int)->App_1);
+    res
+}
+
+pub fn gen_root_issue_facts(
+    roots: &VecDeep<&CertificateValue>,
+    chain: &VecDeep<&CertificateValue>,
+) -> (res: OptionDeep<VecDeep<Rule>>)
+    ensures
+        res matches Some(res) ==>
+            res@ =~= spec_gen_root_issue_facts(roots@, chain@)
+{
+    let mut facts = vec_deep![];
+    let chain_len = chain.len();
+    let roots_len = roots.len();
+
+    for i in 0..roots_len
+        invariant
+            chain_len == chain@.len(),
+            roots_len == roots@.len(),
+
+            facts@ =~=
+                Seq::new(i as nat,
+                    |i| Seq::new(chain@.len(), |j|
+                        if spec_likely_issued(roots@[i], chain@[j]) &&
+                            spec_verify_signature(roots@[i], chain@[j]) {
+                            seq![ spec_issuer_fact(i + chain@.len(), j) ]
+                        } else {
+                            seq![]
+                        }
+                    ).flatten()
+                ),
+    {
+        let mut issuer_facts = vec_deep![];
+
+        for j in 0..chain_len
+            invariant
+                0 <= i < roots_len,
+                chain_len == chain@.len(),
+                roots_len == roots@.len(),
+
+                issuer_facts@ =~~=
+                    Seq::new(j as nat, |j|
+                        if spec_likely_issued(roots@[i as int], chain@[j as int]) &&
+                            spec_verify_signature(roots@[i as int], chain@[j as int]) {
+                            seq![ spec_issuer_fact(i + chain@.len(), j) ]
+                        } else {
+                            seq![]
+                        }
+                    ),
+        {
+            // Verify signature too
+            if likely_issued(roots.get(i), chain.get(j)) &&
+                verify_signature(roots.get(i), chain.get(j)) {
+                // Check bounds and overflow
+                if let Option::Some(root_id) = i.checked_add(chain.len()) {
+                    if root_id <= LiteralInt::MAX as usize && j <= LiteralInt::MAX as usize {
+                        issuer_facts.push(vec_deep![
+                            issuer_fact(root_id as LiteralInt, j as LiteralInt)
+                        ]);
+                    } else {
+                        return None;
+                    }
+                } else {
+                    return None;
+                }
+            } else {
+                issuer_facts.push(vec_deep![]);
+            }
+        }
+
+        facts.push(VecDeep::flatten(issuer_facts));
+    }
+
+    Some(VecDeep::flatten(facts))
+}
+
+pub fn gen_chain_issue_facts(
+    chain: &VecDeep<&CertificateValue>,
+) -> (res: OptionDeep<VecDeep<Rule>>)
+    requires chain@.len() > 0
+    ensures res matches Some(res) ==>
+        res@ =~= spec_gen_chain_issue_facts(chain@)
+{
+    let mut facts = vec_deep![];
+    let chain_len = chain.len();
+
+    // Add facts about the (i + 1)-th certificate issuing the i-th certificate
+    for i in 0..chain_len - 1
+        invariant
+            chain_len > 0,
+            chain_len == chain@.len(),
+            facts@ =~~= Seq::new(i as nat,
+                    |i: int| if spec_likely_issued(chain@[i + 1], chain@[i]) &&
+                        spec_verify_signature(chain@[i + 1], chain@[i]) {
+                        seq![ spec_issuer_fact(i + 1, i) ]
+                    } else {
+                        seq![]
+                    }
+                ),
+    {
+        if likely_issued(chain.get(i + 1), chain.get(i)) &&
+            verify_signature(chain.get(i + 1), chain.get(i)) {
+            if i < LiteralInt::MAX as usize {
+                facts.push(vec_deep![ issuer_fact(i as LiteralInt + 1, i as LiteralInt) ]);
+            } else {
+                return None;
+            }
+        } else {
+            facts.push(vec_deep![]);
+        }
+    }
+
+    Some(VecDeep::flatten(facts))
+}
+
+pub fn gen_all_facts(
+    roots: &VecDeep<&CertificateValue>,
+    chain: &VecDeep<&CertificateValue>,
+    domain: &str,
+) -> (res: OptionDeep<VecDeep<Rule>>)
+    requires chain@.len() > 0
+    ensures res matches Some(res) ==>
+        res@ =~= spec_gen_all_facts(roots@, chain@, domain@)
+{
+    let mut facts: VecDeep<VecDeep<Rule>> = vec_deep![];
+    let chain_len = chain.len();
+    let roots_len = roots.len();
+
+    // Push chain cert facts
+    for i in 0..chain_len
+        invariant
+            chain_len == chain@.len(),
+            roots_len == roots@.len(),
+            facts@ =~= Seq::new(i as nat, |i| spec_gen_cert_facts(chain@[i], i)),
+    {
+        if i <= LiteralInt::MAX as usize {
+            facts.push(gen_cert_facts(chain.get(i), i as LiteralInt));
+        } else {
+            return None;
+        }
+    }
+
+    // Push root cert facts
+    for i in 0..roots_len
+        invariant
+            chain_len == chain@.len(),
+            roots_len == roots@.len(),
+            facts@ =~=
+                Seq::new(chain@.len(), |i| spec_gen_cert_facts(chain@[i], i)) +
+                Seq::new(i as nat, |i| spec_gen_cert_facts(roots@[i], i + chain@.len())),
+    {
+        if let Option::Some(sum) = i.checked_add(chain.len()) {
+            if sum <= LiteralInt::MAX as usize {
+                facts.push(gen_cert_facts(roots.get(i), sum as LiteralInt));
+            } else {
+                return None;
+            }
+        } else {
+            return None;
+        }
+    }
+
+    facts.push(vec_deep![ domain_fact(domain) ]);
+
+    assert(facts@ =~~=
+        Seq::new(chain@.len(), |i| spec_gen_cert_facts(chain@[i], i)) +
+        Seq::new(roots@.len(), |i| spec_gen_cert_facts(roots@[i], i + chain@.len())) +
+        seq![ seq![ spec_domain_fact(domain@) ] ]);
+
+    let mut facts = VecDeep::flatten(facts);
+
+    if let Some(mut root_issuers) = gen_root_issue_facts(roots, chain) {
+        if let Some(mut chain_issuers) = gen_chain_issue_facts(chain) {
+            facts.append(&mut root_issuers);
+            facts.append(&mut chain_issuers);
+            return Some(facts);
+        }
+    }
+
+    None
 }
 
 }

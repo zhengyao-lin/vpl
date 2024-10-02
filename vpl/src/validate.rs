@@ -9,7 +9,7 @@ use crate::trace::*;
 verus! {
 
 pub enum ValidateResult {
-    Proven(Theorem),
+    Success(Theorem),
 
     /// backend succeeds but fails to produce a proof
     ProofFailure,
@@ -31,7 +31,7 @@ pub fn solve_and_validate<B: Backend, E: From<B::Error> + From<ProofError>>(
     allow_unsupported_builtin: bool,
 ) -> (res: Result<ValidateResult, E>)
     ensures
-        res matches Ok(ValidateResult::Proven(thm)) ==> {
+        res matches Ok(ValidateResult::Success(thm)) ==> {
             &&& thm@.wf(program@)
             &&& thm@.stmt == goal@
         }
@@ -48,7 +48,7 @@ pub fn solve_and_validate<B: Backend, E: From<B::Error> + From<ProofError>>(
             if let Some(event) = events.next()? {
                 let thm = validator.process_event(&program, &event, debug, allow_unsupported_builtin, true)?;
                 if (&thm.stmt).eq(goal) {
-                    return Ok(ValidateResult::Proven(thm.clone()));
+                    return Ok(ValidateResult::Success(thm.clone()));
                 }
             } else {
                 break;

@@ -86,6 +86,7 @@ pub type SpecStringLiteral = Seq<char>;
 
 pub type SpecAtomLiteral = Seq<char>;
 
+#[verifier::ext_equal]
 pub enum SpecFnName {
     // User-defined symbol: (name, arity)
     User(SpecUserFnName, SpecArity),
@@ -94,6 +95,7 @@ pub enum SpecFnName {
     Cons,
 }
 
+#[verifier::ext_equal]
 pub enum SpecLiteral {
     Int(SpecIntLiteral),
     String(SpecStringLiteral),
@@ -113,17 +115,20 @@ pub enum SpecLiteral {
  * 3. Both true and true() are true predicates in swipl.
  */
 
+#[verifier::ext_equal]
 pub enum SpecTerm {
     Var(SpecVar),
     Literal(SpecLiteral),
     App(SpecFnName, Seq<SpecTerm>),
 }
 
+#[verifier::ext_equal]
 pub struct SpecRule {
     pub head: SpecTerm,
     pub body: Seq<SpecTerm>,
 }
 
+#[verifier::ext_equal]
 pub struct SpecProgram {
     pub rules: Seq<SpecRule>,
 }

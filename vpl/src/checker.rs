@@ -170,6 +170,18 @@ impl TermX {
         Rc::new(TermX::Literal(Literal::Atom(str_to_rc_str(name))))
     }
 
+    pub fn int(i: LiteralInt) -> (res: Term)
+        ensures res@ == SpecTerm::Literal(SpecLiteral::Int(i as int))
+    {
+        Rc::new(TermX::Literal(Literal::Int(i)))
+    }
+
+    pub fn str(s: &str) -> (res: Term)
+        ensures res@ == SpecTerm::Literal(SpecLiteral::String(s@))
+    {
+        Rc::new(TermX::Literal(Literal::String(str_to_rc_str(s))))
+    }
+
     /// Apply substitution to a term
     pub fn subst(term: &Term, subst: &Subst) -> (res: Term)
         ensures res@ == term@.subst(subst@)

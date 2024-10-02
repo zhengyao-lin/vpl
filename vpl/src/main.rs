@@ -68,8 +68,14 @@ fn main_args(mut args: Args) -> Result<(), Error> {
         swipl_bin: args.swipl_bin.clone(),
     };
 
-    match solve_and_validate::<_, Error>(&mut swipl_backend, &program, &goal, args.debug, args.allow_unsupported_builtin)? {
-        ValidateResult::Proven(thm) => {
+    match solve_and_validate::<_, Error>(
+        &mut swipl_backend,
+        &program,
+        &goal,
+        args.debug,
+        args.allow_unsupported_builtin,
+    )? {
+        ValidateResult::Success(thm) => {
             println!("validated goal: {}", thm.stmt);
             Ok(())
         }
