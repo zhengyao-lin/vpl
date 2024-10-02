@@ -257,6 +257,7 @@ pub open spec fn spec_verify_signature(issuer: SpecCertificateValue, subject: Sp
 
 //// Implementations of the specs above
 
+#[derive(Debug)]
 pub enum ValidationError {
     IntegerOverflow,
     EmptyChain,

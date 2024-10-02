@@ -3,15 +3,18 @@ mod specs;
 
 use vstd::prelude::*;
 
+use std::fs;
 use std::process::ExitCode;
 use base64::Engine;
 
 use clap::{command, Parser};
 
-use parser::common::ParseError;
-use parser::common::Combinator;
+use parser::common::{ParseError, Combinator, VecDeep};
 use parser::asn1;
 use parser::x509;
+
+use vpl::parser::parse_program;
+use vpl::backend::SwiplBackend;
 
 use specs::*;
 
@@ -27,11 +30,25 @@ verus! {
 #[derive(Parser, Debug)]
 #[command(long_about = None)]
 struct Args {
+    /// A Prolog source file containing the policy program
+    policy: String,
+
     /// File containing the trusted root certificates
     roots: String,
 
     /// The certificate chain to verify
     chain: String,
+
+    /// The target domain to be validated
+    domain: String,
+
+    /// Path to the SWI-Prolog binary
+    #[clap(long, value_parser, num_args = 0.., value_delimiter = ' ', default_value = "swipl")]
+    swipl_bin: String,
+
+    /// Enable debug mode
+    #[arg(long, default_value_t = false)]
+    debug: bool,
 }
 
 /// Read the given PEM file and return a vector of Vec<u8>'s
@@ -98,6 +115,25 @@ fn main_args(args: Args) -> Result<(), Error> {
             println!("last cert issued by root cert {}: {}", i, root.cert.subject);
         }
     }
+
+    println!("=================== validating domain {} ===================", &args.domain);
+
+    let mut swipl_backend = SwiplBackend {
+        debug: args.debug,
+        swipl_bin: args.swipl_bin.clone(),
+    };
+
+    // Parse the source file
+    let source = fs::read_to_string(&args.policy)?;
+    let (policy, _) = parse_program(source, &args.policy)?;
+
+    println!("result: {}", valid_domain::<_, Error>(
+        &mut swipl_backend,
+        policy,
+        &VecDeep::from_vec(roots),
+        &VecDeep::from_vec(chain),
+        &args.domain,
+    )?);
 
     Ok(())
 }
