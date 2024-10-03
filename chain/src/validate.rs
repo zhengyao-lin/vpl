@@ -192,7 +192,7 @@ pub fn issuer_fact(i: LiteralInt, j: LiteralInt) -> (res: Rule)
     ensures res@ =~= spec_issuer_fact(i as int, j as int)
 {
     let res = RuleX::new(
-        TermX::app_str("issuer", vec![ cert_id_term(j), cert_id_term(i) ]),
+        TermX::app_str("issuer", vec![ cert_name(j), cert_name(i) ]),
         vec![],
     );
     assert(res@.head->App_1 == spec_issuer_fact(i as int, j as int).head->App_1);
@@ -210,11 +210,11 @@ pub fn domain_fact(domain: &str) -> (res: Rule)
     res
 }
 
-pub fn cert_id_term(i: LiteralInt) -> (res: Term)
-    ensures res@ =~= spec_cert_id_term(i as int)
+pub fn cert_name(i: LiteralInt) -> (res: Term)
+    ensures res@ =~= spec_cert_name(i as int)
 {
     let res = TermX::app_str("cert", vec![ TermX::int(i) ]);
-    assert(res@->App_1 == spec_cert_id_term(i as int)->App_1);
+    assert(res@->App_1 == spec_cert_name(i as int)->App_1);
     res
 }
 
@@ -429,8 +429,8 @@ pub fn valid_domain<B: Backend, E>(
 
     policy.rules.append(&mut facts);
 
-    let goal = TermX::app_str("certVerifiedChain", vec![ cert_id_term(0) ]);
-    assert(goal@->App_1 == seq![ spec_cert_id_term(0) ]);
+    let goal = TermX::app_str("certVerifiedChain", vec![ cert_name(0) ]);
+    assert(goal@->App_1 == seq![ spec_cert_name(0) ]);
 
     // Solve and validate the goal
     match solve_and_validate::<B, E>(backend, &policy, &goal, debug, true)? {

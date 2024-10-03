@@ -1,6 +1,7 @@
 mod error;
 mod specs;
 mod validate;
+mod hash;
 
 use vstd::prelude::*;
 
@@ -84,6 +85,7 @@ fn main_args(args: Args) -> Result<(), Error> {
         parse_x509_bytes(cert_bytes)
     }).collect::<Result<Vec<_>, _>>()?;
 
+    // Print some general information about the certs
     eprintln!("{} root certificate(s)", roots.len());
     eprintln!("{} certificate(s) in the chain", chain.len());
 
@@ -123,6 +125,7 @@ fn main_args(args: Args) -> Result<(), Error> {
     let source = fs::read_to_string(&args.policy)?;
     let (policy, _) = parse_program(source, &args.policy)?;
 
+    // Call the main validation routine
     eprintln!("result: {}", valid_domain::<_, Error>(
         &mut swipl_backend,
         policy,

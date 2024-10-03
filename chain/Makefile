@@ -1,7 +1,7 @@
 NAME = chain
 TARGETS = chain
 
-CARGO_DEPS = base64 macros clap thiserror
+CARGO_DEPS = macros base64 clap thiserror libcrux
 VERUS_DEPS = parser polyfill vest vpl
 
 # Temporary fix for https://github.com/verus-lang/verus/issues/1288

@@ -15,3 +15,4 @@ vpl = { path = "../vpl" }
 base64 = "0.22.1"
 clap = { version = "4.5.4", features = ["derive"] }
 thiserror = "1.0.63"
+libcrux = "0.0.2-alpha.3"

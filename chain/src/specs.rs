@@ -8,6 +8,8 @@ use parser::OptionDeep::*;
 
 use vpl::*;
 
+use crate::hash;
+
 verus! {
 
 /// The top-level spec stating when a certificate chain
@@ -30,10 +32,7 @@ pub open spec fn spec_valid_domain(
     // Exists a proof of the final goal certVerifiedChain(cert(0))
     &&& exists |thm: SpecTheorem| {
         &&& #[trigger] thm.wf(merged_policy)
-        &&& thm.stmt == SpecTerm::App(
-            SpecFnName::User("certVerifiedChain"@, 1),
-            seq![ spec_cert_id_term(0) ],
-        )
+        &&& thm.stmt == spec_app!("certVerifiedChain", spec_cert_name(0))
     }
 }
 
@@ -90,40 +89,22 @@ pub open spec fn spec_gen_chain_issue_facts(
 /// NOTE: i is the issuer of j
 pub open spec fn spec_issuer_fact(i: int, j: int) -> SpecRule
 {
-    SpecRule {
-        head: SpecTerm::App(
-            SpecFnName::User("issuer"@, 2),
-            seq![ spec_cert_id_term(j), spec_cert_id_term(i) ],
-        ),
-        body: seq![],
-    }
+    spec_fact!("issuer", spec_cert_name(j), spec_cert_name(i))
 }
 
 /// Construct envDomain(domain)
 pub open spec fn spec_domain_fact(domain: SpecStringLiteral) -> SpecRule
 {
-    SpecRule {
-        head: SpecTerm::App(
-            SpecFnName::User("envDomain"@, 1),
-            seq![ SpecTerm::Literal(SpecLiteral::String(domain)) ],
-        ),
-        body: seq![],
-    }
+    spec_fact!("envDomain", spec_str!(domain))
 }
 
 /// Construct term cert(i)
-pub open spec fn spec_cert_id_term(i: int) -> SpecTerm
+pub open spec fn spec_cert_name(i: int) -> SpecTerm
 {
     // NOTE: instead of doing cert_i as in the original Hammurabi
     // we use cert(i) to avoid int::to_string in the spec
-    SpecTerm::App(
-        SpecFnName::User("cert"@, 1),
-        seq![ SpecTerm::Literal(SpecLiteral::Int(i)) ],
-    )
+    spec_app!("cert", spec_int!(i))
 }
-
-/// Specify the facts to be generated from a certificate
-pub closed spec fn spec_gen_cert_facts(cert: SpecCertificateValue, i: int) -> Seq<SpecRule>;
 
 /// If the the issuer likely issued the subject.
 /// Similar to https://github.com/openssl/openssl/blob/ed6862328745c51c2afa2b6485cc3e275d543c4e/crypto/x509/v3_purp.c#L963
@@ -139,8 +120,8 @@ pub open spec fn spec_likely_issued(issuer: SpecCertificateValue, subject: SpecC
 /// - RFC 2459, 4.1.2.4
 /// - https://github.com/openssl/openssl/blob/ed6862328745c51c2afa2b6485cc3e275d543c4e/crypto/x509/x509_cmp.c#L254
 ///
-/// Basically compare the equality, except that two PrintableString's
-/// are considered equal modulo upper/lower case, leading/trailing white spaces
+/// Basically equality, except that two PrintableString's
+/// are considered equal modulo upper/lower cases, leading/trailing white spaces
 /// and multiple white spaces in the middle are considered as one white space.
 pub open spec fn spec_same_name(a: SpecNameValue, b: SpecNameValue) -> bool {
     &&& a.len() == b.len()
@@ -246,5 +227,69 @@ pub open spec fn spec_verify_signature(issuer: SpecCertificateValue, subject: Sp
 
     // TODO: actually check the signature
 }
+
+/// Specify the facts to be generated from a certificate
+pub open spec fn spec_gen_cert_facts(cert: SpecCertificateValue, i: int) -> Seq<SpecRule>
+{
+    let ser_cert = Certificate.spec_serialize(cert).unwrap();
+
+    seq![
+        spec_fact!("fingerprint",
+            spec_cert_name(0),
+            spec_str!(hash::spec_to_hex_upper(hash::spec_sha256_digest(ser_cert))),
+        ),
+    ]
+}
+
+#[allow(unused_macros)]
+macro_rules! count_args {
+    () => { 0 };
+    ($x:expr $(, $rest:expr)*) => { 1 + count_args!($($rest),*) };
+}
+pub(crate) use count_args;
+
+#[allow(unused_macros)]
+macro_rules! spec_app {
+    ($name:literal $(, $args:expr)* $(,)?) => {
+        ::builtin_macros::verus_proof_expr! {
+            SpecTerm::App(
+                SpecFnName::User($name.view(), count_args!($($args),*) as int),
+                seq![$($args),*],
+            )
+        }
+    };
+}
+pub(crate) use spec_app;
+
+#[allow(unused_macros)]
+macro_rules! spec_fact {
+    ($name:literal $(, $args:expr)* $(,)?) => {
+        ::builtin_macros::verus_proof_expr! {
+            SpecRule {
+                head: spec_app!($name $(, $args)*),
+                body: seq![],
+            }
+        }
+    }
+}
+pub(crate) use spec_fact;
+
+/// String literal as a SpecTerm
+#[allow(unused_macros)]
+macro_rules! spec_str {
+    ($x:expr) => {
+        SpecTerm::Literal(SpecLiteral::String($x))
+    };
+}
+pub(crate) use spec_str;
+
+/// String literal as a SpecTerm
+#[allow(unused_macros)]
+macro_rules! spec_int {
+    ($x:expr) => {
+        SpecTerm::Literal(SpecLiteral::Int($x))
+    };
+}
+pub(crate) use spec_int;
 
 }
