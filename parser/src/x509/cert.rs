@@ -24,7 +24,7 @@ wrap_combinator! {
 }
 
 pub type SpecCertificateValue = SpecCertificateInnerValue;
-pub type CertificateValue<'a> = CachedValue<'a, CertificateInnerValue<'a>>;
+pub type CertificateValue<'a> = CachedValue<'a, ASN1<CertificateInner>>;
 
 }
 
@@ -37,7 +37,22 @@ mod test {
         /// Check that all trait bounds and preconditions are satisfied
         #[test]
         fn is_combinator() {
-            let _ = ASN1(Certificate).parse(&[]);
+            let _ = Certificate.parse(&[]);
+        }
+
+        /// Check if the serialization cache is correct
+        #[test]
+        fn cached() {
+            if let Ok((_, res)) = Certificate.parse(&[]) {
+                let ser = res.serialize();
+                assert(ASN1(CertificateInner)@.spec_serialize(res@).is_ok());
+                assert(ser@ == ASN1(CertificateInner)@.spec_serialize(res@).unwrap());
+
+                let tbs: &CachedValue<ASN1<TBSCertificate>> = &res.get().cert;
+                let tbs_ser = tbs.serialize();
+                assert(ASN1(TBSCertificate)@.spec_serialize(tbs@).is_ok());
+                assert(tbs_ser@ == ASN1(TBSCertificate)@.spec_serialize(tbs@).unwrap());
+            }
         }
     }
 
@@ -47,10 +62,12 @@ mod test {
         let cert_bytes = base64::prelude::BASE64_STANDARD.decode(cert_base64)
             .map_err(|e| format!("Failed to decode Base64: {}", e))?;
 
-        let cert = ASN1(Certificate).parse(&cert_bytes)
+        let (n, cert) = Certificate.parse(&cert_bytes)
             .map_err(|e| format!("Failed to parse certificate"))?;
 
-        println!("Certificate: {:?}", cert);
+        // Check that the caching is correct
+        assert_eq!(n, cert_bytes.len());
+        assert_eq!(&cert_bytes, cert.serialize());
 
         Ok(())
     }

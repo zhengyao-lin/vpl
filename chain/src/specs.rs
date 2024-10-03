@@ -231,11 +231,13 @@ pub open spec fn spec_verify_signature(issuer: SpecCertificateValue, subject: Sp
 /// Specify the facts to be generated from a certificate
 pub open spec fn spec_gen_cert_facts(cert: SpecCertificateValue, i: int) -> Seq<SpecRule>
 {
-    let ser_cert = Certificate.spec_serialize(cert).unwrap();
+    // Using ASN1(CertificateInner)@ instead of CertificateValue@
+    // here since due to CachedValue::serialized()
+    let ser_cert = ASN1(CertificateInner)@.spec_serialize(cert).unwrap();
 
     seq![
         spec_fact!("fingerprint",
-            spec_cert_name(0),
+            spec_cert_name(i),
             spec_str!(hash::spec_to_hex_upper(hash::spec_sha256_digest(ser_cert))),
         ),
     ]

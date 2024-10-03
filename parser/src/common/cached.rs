@@ -9,31 +9,72 @@ verus! {
 #[derive(View)]
 pub struct Cached<T>(pub T);
 
-#[derive(Debug, PolyfillClone)]
-pub struct CachedValue<'a, T> {
-    pub x: T,
-    pub serialized: &'a [u8],
-}
-
-pub struct CachedValueOwned<T> {
-    pub x: T,
-    pub serialized: Vec<u8>,
+pub struct CachedValue<'a, C: Combinator> where
+    C::V: SecureSpecCombinator<SpecResult = <C::Owned as View>::V>,
+{
+    inner: C::Result<'a>,
+    combinator: Ghost<C>,
+    serialized: &'a [u8],
 }
 
 /// View of CachedValue discards the serialization
-impl<'a, T: View> View for CachedValue<'a, T> {
-    type V = T::V;
+impl<'a, C: Combinator> View for CachedValue<'a, C> where
+    C::V: SecureSpecCombinator<SpecResult = <C::Owned as View>::V>,
+    for<'b> C::Result<'b>: View,
+{
+    type V = <C::Result<'a> as View>::V;
 
-    open spec fn view(&self) -> Self::V {
-        self.x@
+    closed spec fn view(&self) -> Self::V {
+        self.inner@
     }
 }
 
-impl<T: View> View for CachedValueOwned<T> {
-    type V = T::V;
+impl<'a, C: Combinator> PolyfillClone for CachedValue<'a, C> where
+    C::V: SecureSpecCombinator<SpecResult = <C::Owned as View>::V>,
+    C::Result<'a>: PolyfillClone,
+{
+    fn clone(&self) -> Self {
+        proof {
+            use_type_invariant(self);
+        }
+        CachedValue {
+            inner: self.inner.clone(),
+            combinator: self.combinator,
+            serialized: self.serialized,
+        }
+    }
+}
 
-    open spec fn view(&self) -> Self::V {
-        self.x@
+impl<'a, C: Combinator> CachedValue<'a, C> where
+    C::V: SecureSpecCombinator<SpecResult = <C::Owned as View>::V>,
+{
+    #[verifier::type_invariant]
+    closed spec fn inv(self) -> bool {
+        let res = self.combinator@@.spec_serialize(self.inner@);
+        &&& res.is_ok()
+        &&& self.serialized@ =~= res.unwrap()
+    }
+
+    pub fn get(&self) -> (res: &C::Result<'a>)
+        ensures res@ == self@
+    {
+        &self.inner
+    }
+
+    /// Since we can't expose any of self's fields, we can't check if
+    /// the combinator expected by the user is the same as self.combinator
+    ///
+    /// But the type of self.combinator is exposed to the user, and
+    /// if there is a unique constructor for that type, then we can
+    /// deduce that the serialized result would be the same.
+    pub fn serialize(&self) -> (res: &[u8])
+        requires forall |c1: C, c2: C| c1.view() == c2.view()
+        ensures forall |c: C| (#[trigger] c.view()).spec_serialize(self@) matches Ok(r) && r == res@
+    {
+        proof {
+            use_type_invariant(self);
+        }
+        self.serialized
     }
 }
 
@@ -74,8 +115,8 @@ impl<T: SecureSpecCombinator> SecureSpecCombinator for Cached<T> {
 impl<T: Combinator> Combinator for Cached<T> where
     T::V: SecureSpecCombinator<SpecResult = <T::Owned as View>::V>,
 {
-    type Result<'a> = CachedValue<'a, T::Result<'a>>;
-    type Owned = CachedValueOwned<T::Owned>;
+    type Result<'a> = CachedValue<'a, T>;
+    type Owned = T::Owned;
 
     open spec fn spec_length(&self) -> Option<usize> {
         self.0.spec_length()
@@ -89,9 +130,15 @@ impl<T: Combinator> Combinator for Cached<T> where
         self.0.parse_requires()
     }
 
-    fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ParseError>) {
+    fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ParseError>)
+    {
         let (n, x) = self.0.parse(s)?;
-        Ok((n, CachedValue { x, serialized: slice_take(s, n) }))
+        let len = s.len();
+        proof {
+            assert(len <= usize::MAX);
+            self@.theorem_parse_serialize_roundtrip(s@);
+        }
+        Ok((n, CachedValue { inner: x, combinator: Ghost(self.0), serialized: slice_take(s, n) }))
     }
 
     open spec fn serialize_requires(&self) -> bool {
@@ -102,8 +149,17 @@ impl<T: Combinator> Combinator for Cached<T> where
         usize,
         SerializeError,
     >) {
-        self.0.serialize(v.x, data, pos)
+        self.0.serialize(v.inner, data, pos)
     }
 }
 
+}
+
+impl<'a, C: Combinator> std::fmt::Debug for CachedValue<'a, C> where
+    C::V: SecureSpecCombinator<SpecResult = <C::Owned as View>::V>,
+    C::Result<'a>: std::fmt::Debug,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.inner.fmt(f)
+    }
 }

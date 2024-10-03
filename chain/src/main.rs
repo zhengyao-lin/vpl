@@ -94,11 +94,11 @@ fn main_args(args: Args) -> Result<(), Error> {
 
     for (i, cert) in chain.iter().enumerate() {
         eprintln!("cert {}:", i);
-        eprintln!("  issuer: {}", cert.x.cert.x.issuer);
-        eprintln!("  subject: {}", cert.x.cert.x.subject);
-        eprintln!("  signature algorithm: {:?}", cert.x.sig_alg);
-        eprintln!("  signature: {:?}", cert.x.cert.x.signature);
-        eprintln!("  subject key info: {:?}", cert.x.cert.x.subject_key);
+        eprintln!("  issuer: {}", cert.get().cert.get().issuer);
+        eprintln!("  subject: {}", cert.get().cert.get().subject);
+        eprintln!("  signature algorithm: {:?}", cert.get().sig_alg);
+        eprintln!("  signature: {:?}", cert.get().cert.get().signature);
+        eprintln!("  subject key info: {:?}", cert.get().cert.get().subject_key);
     }
 
     // Check that for each i, cert[i + 1] issued cert[i]
@@ -113,7 +113,7 @@ fn main_args(args: Args) -> Result<(), Error> {
     // Find root certificates that issued the last certificate in the chain
     for (i, root) in roots.iter().enumerate() {
         if likely_issued(root, &chain[chain.len() - 1]) {
-            eprintln!("last cert issued by root cert {}: {}", i, root.x.cert.x.subject);
+            eprintln!("last cert issued by root cert {}: {}", i, root.get().cert.get().subject);
         }
     }
 

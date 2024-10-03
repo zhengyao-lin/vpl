@@ -7,6 +7,7 @@ use parser::OptionDeep::*;
 
 use vpl::*;
 use crate::specs::*;
+use crate::hash;
 
 verus! {
 
@@ -20,7 +21,7 @@ pub enum ValidationError {
 pub fn likely_issued(issuer: &CertificateValue, subject: &CertificateValue) -> (res: bool)
     ensures res == spec_likely_issued(issuer@, subject@)
 {
-    same_name(&issuer.x.cert.x.subject, &subject.x.cert.x.issuer) &&
+    same_name(&issuer.get().cert.get().subject, &subject.get().cert.get().issuer) &&
     check_auth_key_id(issuer, subject)
 }
 
@@ -42,7 +43,7 @@ pub fn check_auth_key_id(issuer: &CertificateValue, subject: &CertificateValue) 
 
         // Check serial number
         if let Some(serial) = &akid.auth_cert_serial {
-            if !serial.polyfill_eq(&issuer.x.cert.x.serial) {
+            if !serial.polyfill_eq(&issuer.get().cert.get().serial) {
                 return false;
             }
         }
@@ -56,7 +57,7 @@ pub fn check_auth_key_id(issuer: &CertificateValue, subject: &CertificateValue) 
 pub fn get_extension_param<'a, 'b>(cert: &'b CertificateValue<'a>, oid: &ObjectIdentifierValue) -> (res: OptionDeep<&'b ExtensionParamValue<'a>>)
     ensures res@ == spec_get_extension_param(cert@, oid@)
 {
-    if let Some(exts) = &cert.x.cert.x.extensions {
+    if let Some(exts) = &cert.get().cert.get().extensions {
         let len = exts.len();
 
         assert(exts@.skip(0) == exts@);
@@ -177,15 +178,29 @@ pub fn verify_signature(issuer: &CertificateValue, subject: &CertificateValue) -
     ensures res == spec_verify_signature(issuer@, subject@)
 {
     // TODO: verify signature
-    subject.x.sig_alg.polyfill_eq(&subject.x.cert.x.signature)
+    subject.get().sig_alg.polyfill_eq(&subject.get().cert.get().signature)
 }
 
-#[verifier::external_body]
-pub fn gen_cert_facts(cert: &CertificateValue, i: LiteralInt) -> (res: VecDeep<Rule>)
-    ensures res@ =~= spec_gen_cert_facts(cert@, i as int)
+pub fn gen_cert_facts(cert: &CertificateValue, i: LiteralInt) -> (res: Result<VecDeep<Rule>, ValidationError>)
+    ensures res matches Ok(res) ==> res@ =~~= spec_gen_cert_facts(cert@, i as int)
 {
-    // TODO
-    vec_deep![]
+    let ser_cert = cert.serialize();
+
+    let fingerprint = RuleX::new(
+        TermX::app_str("fingerprint", vec![
+            cert_name(i),
+            TermX::str(hash::to_hex_upper(&hash::sha256_digest(ser_cert)).as_str()),
+        ]),
+        vec![],
+    );
+    let ghost fingerprint_view = spec_fact!("fingerprint",
+        spec_cert_name(i as int),
+        spec_str!(hash::spec_to_hex_upper(hash::spec_sha256_digest(ASN1(CertificateInner).view().spec_serialize(cert.view()).unwrap()))),
+    );
+
+    assert(fingerprint@.head->App_1 == fingerprint_view.head->App_1);
+
+    Ok(vec_deep![ fingerprint ])
 }
 
 pub fn issuer_fact(i: LiteralInt, j: LiteralInt) -> (res: Rule)
@@ -351,7 +366,7 @@ pub fn gen_all_facts(
             facts@ =~= Seq::new(i as nat, |i| spec_gen_cert_facts(chain@[i], i)),
     {
         if i <= LiteralInt::MAX as usize {
-            facts.push(gen_cert_facts(chain.get(i), i as LiteralInt));
+            facts.push(gen_cert_facts(chain.get(i), i as LiteralInt)?);
         } else {
             return Err(ValidationError::IntegerOverflow);
         }
@@ -368,7 +383,7 @@ pub fn gen_all_facts(
     {
         if let Option::Some(sum) = i.checked_add(chain.len()) {
             if sum <= LiteralInt::MAX as usize {
-                facts.push(gen_cert_facts(roots.get(i), sum as LiteralInt));
+                facts.push(gen_cert_facts(roots.get(i), sum as LiteralInt)?);
             } else {
                 return Err(ValidationError::IntegerOverflow);
             }
