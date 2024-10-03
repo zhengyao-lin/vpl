@@ -1,6 +1,6 @@
 // Error types and their conversions
 use crate::checker::ProofError;
-use crate::parser::ParserError;
+use crate::parser::ParseError;
 use std::num::TryFromIntError;
 use thiserror::Error;
 
@@ -11,13 +11,16 @@ pub enum Error {
     IOError(#[from] std::io::Error),
 
     #[error("parse error: {0}")]
-    ParseError(ParserError),
+    ParseError(ParseError),
 
     #[error("proof error: {0}")]
     ProofError(ProofError),
 
-    #[error("{0}")]
-    Other(String),
+    #[error("Backend succeeded but failed to produce a valid proof")]
+    NoMatchingProof,
+
+    #[error("Backend failed to prove the goal")]
+    BackendFailure,
 }
 
 impl From<ProofError> for Error {
@@ -26,8 +29,8 @@ impl From<ProofError> for Error {
     }
 }
 
-impl From<ParserError> for Error {
-    fn from(err: ParserError) -> Self {
+impl From<ParseError> for Error {
+    fn from(err: ParseError) -> Self {
         Error::ParseError(err)
     }
 }

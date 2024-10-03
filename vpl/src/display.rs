@@ -2,7 +2,7 @@ use std::fmt;
 use std::rc::Rc;
 
 use crate::checker::*;
-use crate::parser::{escape_string, ParserError};
+use crate::parser::{escape_string, ParseError};
 use crate::proof::*;
 
 fn fmt_symbol(symbol: &Rc<str>, f: &mut fmt::Formatter) -> fmt::Result {
@@ -128,7 +128,7 @@ impl fmt::Display for ProofError {
     }
 }
 
-impl fmt::Display for ParserError {
+impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self.0 {
             Some(path) => write!(f, "{}", path)?,

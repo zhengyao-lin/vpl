@@ -8,7 +8,7 @@ use crate::trace::*;
 
 verus! {
 
-pub enum ValidateResult {
+pub enum ValidationResult {
     Success(Theorem),
 
     /// backend succeeds but fails to produce a proof
@@ -29,9 +29,9 @@ pub fn solve_and_validate<B: Backend, E: From<B::Error> + From<ProofError>>(
     // Some options
     debug: bool,
     allow_unsupported_builtin: bool,
-) -> (res: Result<ValidateResult, E>)
+) -> (res: Result<ValidationResult, E>)
     ensures
-        res matches Ok(ValidateResult::Success(thm)) ==> {
+        res matches Ok(ValidationResult::Success(thm)) ==> {
             &&& thm@.wf(program@)
             &&& thm@.stmt == goal@
         }
@@ -48,7 +48,7 @@ pub fn solve_and_validate<B: Backend, E: From<B::Error> + From<ProofError>>(
             if let Some(event) = events.next()? {
                 let thm = validator.process_event(&program, &event, debug, allow_unsupported_builtin, true)?;
                 if (&thm.stmt).eq(goal) {
-                    return Ok(ValidateResult::Success(thm.clone()));
+                    return Ok(ValidationResult::Success(thm.clone()));
                 }
             } else {
                 break;
@@ -57,9 +57,9 @@ pub fn solve_and_validate<B: Backend, E: From<B::Error> + From<ProofError>>(
     }
 
     if instance.proven()? {
-        Ok(ValidateResult::ProofFailure)
+        Ok(ValidationResult::ProofFailure)
     } else {
-        Ok(ValidateResult::BackendFailure)
+        Ok(ValidationResult::BackendFailure)
     }
 }
 

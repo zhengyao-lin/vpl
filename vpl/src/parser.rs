@@ -349,7 +349,7 @@ peg::parser!(grammar prolog(state: &ParserState) for str {
 
 /// First argument is the path
 #[derive(Debug)]
-pub struct ParserError(
+pub struct ParseError(
     pub Option<String>,
     pub peg::error::ParseError<peg::str::LineCol>,
 );
@@ -359,25 +359,25 @@ pub struct ParserError(
 pub fn parse_program(
     source: impl AsRef<str>,
     path: impl AsRef<str>,
-) -> Result<(Program, HashMap<usize, RuleId>), ParserError> {
+) -> Result<(Program, HashMap<usize, RuleId>), ParseError> {
     let state = ParserState::new(source.as_ref());
     prolog::program(source.as_ref(), &state)
-        .map_err(|e| ParserError(Some(path.as_ref().to_string()), e))
+        .map_err(|e| ParseError(Some(path.as_ref().to_string()), e))
 }
 
 /// Parse a Prolog term
-pub fn parse_term(source: impl AsRef<str>) -> Result<Term, ParserError> {
+pub fn parse_term(source: impl AsRef<str>) -> Result<Term, ParseError> {
     let state = ParserState::new(source.as_ref());
-    prolog::term(source.as_ref(), &state).map_err(|e| ParserError(None, e))
+    prolog::term(source.as_ref(), &state).map_err(|e| ParseError(None, e))
 }
 
 /// Parse a trace event
 pub fn parse_trace_event(
     source: impl AsRef<str>,
     line_map: &HashMap<usize, RuleId>,
-) -> Result<Event, ParserError> {
+) -> Result<Event, ParseError> {
     let state = ParserState::new(source.as_ref());
-    prolog::event(source.as_ref(), &state, &line_map).map_err(|e| ParserError(None, e))
+    prolog::event(source.as_ref(), &state, &line_map).map_err(|e| ParseError(None, e))
 }
 
 pub fn test() {

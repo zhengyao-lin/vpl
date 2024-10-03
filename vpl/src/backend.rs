@@ -7,7 +7,6 @@ use std::collections::HashMap;
 use tempfile::NamedTempFile;
 
 use crate::trace::Event;
-use crate::error::Error;
 use crate::checker::*;
 use crate::parser::*;
 
@@ -73,7 +72,7 @@ pub struct SwiplInstanceIterator<'a> {
 
 impl Backend for SwiplBackend {
     type Instance = SwiplInstance;
-    type Error = Error;
+    type Error = io::Error;
 
     fn solve(&mut self, program: &Program, goal: &Term) -> Result<Self::Instance, Self::Error> {
         let mut meta_file = NamedTempFile::new()?;
@@ -127,13 +126,13 @@ impl Backend for SwiplBackend {
 
 impl InstanceSuper for SwiplInstance {
     type Iterator<'a> = SwiplInstanceIterator<'a>;
-    type Error = Error;
+    type Error = io::Error;
 }
 
 impl Instance for SwiplInstance {
     fn events<'a>(&'a mut self) -> Result<Self::Iterator<'a>, Self::Error> {
         let stdout = self.child.stdout.as_mut()
-            .ok_or(Error::Other(format!("child process missing stdout")))?;
+            .ok_or(io::Error::other("child process missing stdout"))?;
 
         // Return an iterator over stdout lines
         Ok(SwiplInstanceIterator {
@@ -156,7 +155,7 @@ impl Instance for SwiplInstance {
 }
 
 impl<'a> EventIterator<'a> for SwiplInstanceIterator<'a> {
-    type Error = Error;
+    type Error = io::Error;
 
     fn next(&mut self) -> Result<Option<Event>, Self::Error> {
         let Some(line) = self.lines.next() else {
@@ -172,8 +171,8 @@ impl<'a> EventIterator<'a> for SwiplInstanceIterator<'a> {
         // Parse each line as an event
         match parse_trace_event(&line, &self.line_map) {
             Ok(event) => Ok(Some(event)),
-            Err(err) => Err(Error::Other(format!(
-                "[error] failed to parse trace event \"{}\": {}",
+            Err(err) => Err(io::Error::other(format!(
+                "failed to parse trace event \"{}\": {}",
                 &line, err
             ))),
         }

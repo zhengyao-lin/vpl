@@ -1,23 +1,19 @@
 mod error;
 mod specs;
+mod validate;
 
 use vstd::prelude::*;
 
 use std::fs;
 use std::process::ExitCode;
-use base64::Engine;
 
+use base64::Engine;
 use clap::{command, Parser};
 
-use parser::common::{ParseError, Combinator, VecDeep};
-use parser::asn1;
-use parser::x509;
+use parser::{asn1, x509, ParseError, Combinator, VecDeep};
+use vpl::{parse_program, SwiplBackend};
 
-use vpl::parser::parse_program;
-use vpl::backend::SwiplBackend;
-
-use specs::*;
-
+use validate::*;
 use error::Error;
 
 verus! {
@@ -62,12 +58,12 @@ fn read_pem_file_as_bytes(path: &str) -> Result<Vec<Vec<u8>>, Error> {
 
     for chunk in src.split(PREFIX).skip(1) {
         let Some(cert_src) = chunk.split(SUFFIX).next() else {
-            return Err(Error::Other("BEGIN CERTIFICATE without matching END CERTIFICATE".to_string()));
+            return Err(Error::NoMatchingEndCertificate);
         };
 
         let cert_base64 = cert_src.split_whitespace().collect::<String>();
         let cert_bytes = base64::prelude::BASE64_STANDARD.decode(cert_base64)
-            .map_err(|e| Error::Other(format!("Failed to decode Base64: {}", e)))?;
+            .map_err(|e| Error::Base64DecodeError(e))?;
 
         certs.push(cert_bytes);
     }
@@ -88,35 +84,35 @@ fn main_args(args: Args) -> Result<(), Error> {
         parse_x509_bytes(cert_bytes)
     }).collect::<Result<Vec<_>, _>>()?;
 
-    println!("{} root certificate(s)", roots.len());
-    println!("{} certificate(s) in the chain", chain.len());
+    eprintln!("{} root certificate(s)", roots.len());
+    eprintln!("{} certificate(s) in the chain", chain.len());
 
     for (i, cert) in chain.iter().enumerate() {
-        println!("cert {}:", i);
-        println!("  issuer: {}", cert.cert.issuer);
-        println!("  subject: {}", cert.cert.subject);
-        println!("  signature algorithm: {:?}", cert.sig_alg);
-        println!("  signature: {:?}", cert.cert.signature);
-        println!("  subject key info: {:?}", cert.cert.subject_key);
+        eprintln!("cert {}:", i);
+        eprintln!("  issuer: {}", cert.cert.issuer);
+        eprintln!("  subject: {}", cert.cert.subject);
+        eprintln!("  signature algorithm: {:?}", cert.sig_alg);
+        eprintln!("  signature: {:?}", cert.cert.signature);
+        eprintln!("  subject key info: {:?}", cert.cert.subject_key);
     }
 
     // Check that for each i, cert[i + 1] issued cert[i]
     for i in 0..chain.len() - 1 {
         if likely_issued(&chain[i + 1], &chain[i]) {
-            println!("cert {} issued by cert {}", i + 1, i);
+            eprintln!("cert {} issued by cert {}", i + 1, i);
         } else {
-            println!("cert {} not issued by cert {}", i + 1, i);
+            eprintln!("cert {} not issued by cert {}", i + 1, i);
         }
     }
 
     // Find root certificates that issued the last certificate in the chain
     for (i, root) in roots.iter().enumerate() {
         if likely_issued(root, &chain[chain.len() - 1]) {
-            println!("last cert issued by root cert {}: {}", i, root.cert.subject);
+            eprintln!("last cert issued by root cert {}: {}", i, root.cert.subject);
         }
     }
 
-    println!("=================== validating domain {} ===================", &args.domain);
+    eprintln!("=================== validating domain {} ===================", &args.domain);
 
     let mut swipl_backend = SwiplBackend {
         debug: args.debug,
@@ -127,12 +123,13 @@ fn main_args(args: Args) -> Result<(), Error> {
     let source = fs::read_to_string(&args.policy)?;
     let (policy, _) = parse_program(source, &args.policy)?;
 
-    println!("result: {}", valid_domain::<_, Error>(
+    eprintln!("result: {}", valid_domain::<_, Error>(
         &mut swipl_backend,
         policy,
         &VecDeep::from_vec(roots),
         &VecDeep::from_vec(chain),
         &args.domain,
+        args.debug,
     )?);
 
     Ok(())

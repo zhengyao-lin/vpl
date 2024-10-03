@@ -1,13 +1,10 @@
 use thiserror::Error;
 
-use parser::common::ParseError as X509ParseError;
-use vpl::checker::ProofError;
-use vpl::parser::ParserError as VPLParserError;
-use vpl::error::Error as VPLError;
-use crate::specs::ValidationError;
+use parser::ParseError as X509ParseError;
+use vpl::{ProofError as VPLProofError, ParseError as VPLParseError};
+use crate::validate::ValidationError;
 
 #[derive(Error, Debug)]
-/// Aggregate all errors in main()
 pub enum Error {
     #[error("IO error: {0}")]
     IOError(#[from] std::io::Error),
@@ -19,16 +16,16 @@ pub enum Error {
     ValidationError(ValidationError),
 
     #[error("vpl parse error: {0}")]
-    VPLParserError(VPLParserError),
+    VPLParseError(VPLParseError),
 
-    #[error("vpl error: {0}")]
-    VPLError(VPLError),
+    #[error("vpl proof error: {0}")]
+    VPLProofError(VPLProofError),
 
-    #[error("proof error: {0}")]
-    ProofError(ProofError),
+    #[error("found BEGIN CERTIFICATE without matching END CERTIFICATE")]
+    NoMatchingEndCertificate,
 
-    #[error("{0}")]
-    Other(String),
+    #[error("base64 decode error: {0}")]
+    Base64DecodeError(#[from] base64::DecodeError),
 }
 
 impl From<X509ParseError> for Error {
@@ -43,20 +40,14 @@ impl From<ValidationError> for Error {
     }
 }
 
-impl From<VPLParserError> for Error {
-    fn from(err: VPLParserError) -> Self {
-        Error::VPLParserError(err)
+impl From<VPLParseError> for Error {
+    fn from(err: VPLParseError) -> Self {
+        Error::VPLParseError(err)
     }
 }
 
-impl From<VPLError> for Error {
-    fn from(err: VPLError) -> Self {
-        Error::VPLError(err)
-    }
-}
-
-impl From<ProofError> for Error {
-    fn from(err: ProofError) -> Self {
-        Error::ProofError(err)
+impl From<VPLProofError> for Error {
+    fn from(err: VPLProofError) -> Self {
+        Error::VPLProofError(err)
     }
 }

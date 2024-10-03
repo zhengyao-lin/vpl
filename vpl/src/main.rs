@@ -5,7 +5,6 @@ mod error;
 mod matching;
 mod parser;
 mod proof;
-mod solver;
 mod trace;
 mod view;
 mod backend;
@@ -75,15 +74,15 @@ fn main_args(mut args: Args) -> Result<(), Error> {
         args.debug,
         args.allow_unsupported_builtin,
     )? {
-        ValidateResult::Success(thm) => {
-            println!("validated goal: {}", thm.stmt);
+        ValidationResult::Success(thm) => {
+            eprintln!("validated goal: {}", thm.stmt);
             Ok(())
         }
-        ValidateResult::ProofFailure => {
-            Err(Error::Other("swipl succeeded, but proof failed".to_string()))
+        ValidationResult::ProofFailure => {
+            Err(Error::NoMatchingProof)
         }
-        ValidateResult::BackendFailure => {
-            Err(Error::Other("swipl exited with failure".to_string()))
+        ValidationResult::BackendFailure => {
+            Err(Error::BackendFailure)
         }
     }
 }
