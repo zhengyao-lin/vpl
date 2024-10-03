@@ -162,14 +162,17 @@ pub fn derive_polyfill_clone(input: TokenStream) -> TokenStream {
 
     // Get type parameters A1, A2, ..., An
     // TODO: collect trait bounds here?
-    let generic_idents: Vec<_> = input.generics.params.iter().map(|g| match g {
-        syn::GenericParam::Type(ty) => &ty.ident,
-        _ => panic!("derive(PolyfillClone) only supports type parameters"),
+    let generic_params: Vec<_> = input.generics.params.iter().map(|g| match g {
+        syn::GenericParam::Type(ty) => quote! { #ty },
+        syn::GenericParam::Lifetime(lt) => quote! { #lt },
+        syn::GenericParam::Const(..) => panic!("derive(PolyfillClone) does not support const generics"),
     }).collect();
 
-    // Map to A1: PolyfillClone, ... An: PolyfillClone
-    let view_generic_idents: Vec<_> = generic_idents.iter().map(|ident| {
-        quote! { #ident: PolyfillClone }
+    // Map to A1: PolyfillClone, ... An: PolyfillClone (along with any lifetime params)
+    let impl_generic_params: Vec<_> = input.generics.params.iter().map(|g| match g {
+        syn::GenericParam::Type(ty) => quote! { #ty: PolyfillClone },
+        syn::GenericParam::Lifetime(lt) => quote! { #lt },
+        syn::GenericParam::Const(..) => panic!("derive(PolyfillClone) only supports type parameters"),
     }).collect();
 
     // Generate `impl PolyfillClone` body
@@ -186,7 +189,7 @@ pub fn derive_polyfill_clone(input: TokenStream) -> TokenStream {
                     // Generate the implementation
                     quote! {
                         ::builtin_macros::verus! {
-                            impl<#(#view_generic_idents),*> PolyfillClone for #name<#(#generic_idents),*> {
+                            impl<#(#impl_generic_params),*> PolyfillClone for #name<#(#generic_params),*> {
                                 fn clone(&self) -> Self {
                                     #name(#(#field_view),*)
                                 }
@@ -204,7 +207,7 @@ pub fn derive_polyfill_clone(input: TokenStream) -> TokenStream {
                     // Generate the implementation for named struct
                     quote! {
                         ::builtin_macros::verus! {
-                            impl<#(#view_generic_idents),*> PolyfillClone for #name<#(#generic_idents),*> {
+                            impl<#(#impl_generic_params),*> PolyfillClone for #name<#(#generic_params),*> {
                                 fn clone(&self) -> Self {
                                     #name {
                                         #(#field_view),*
@@ -217,7 +220,7 @@ pub fn derive_polyfill_clone(input: TokenStream) -> TokenStream {
                 Fields::Unit => {
                     quote! {
                         ::builtin_macros::verus! {
-                            impl<#(#view_generic_idents),*> PolyfillClone for #name<#(#generic_idents),*> {
+                            impl<#(#impl_generic_params),*> PolyfillClone for #name<#(#generic_params),*> {
                                 fn clone(&self) -> Self {
                                     #name
                                 }
@@ -262,7 +265,7 @@ pub fn derive_polyfill_clone(input: TokenStream) -> TokenStream {
 
             quote! {
                 ::builtin_macros::verus! {
-                    impl<#(#view_generic_idents),*> PolyfillClone for #name<#(#generic_idents),*> {
+                    impl<#(#impl_generic_params),*> PolyfillClone for #name<#(#generic_params),*> {
                         fn clone(&self) -> Self {
                             match &self {
                                 #(#variant_matches),*

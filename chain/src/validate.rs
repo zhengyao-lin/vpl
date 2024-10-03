@@ -20,7 +20,7 @@ pub enum ValidationError {
 pub fn likely_issued(issuer: &CertificateValue, subject: &CertificateValue) -> (res: bool)
     ensures res == spec_likely_issued(issuer@, subject@)
 {
-    same_name(&issuer.cert.subject, &subject.cert.issuer) &&
+    same_name(&issuer.x.cert.x.subject, &subject.x.cert.x.issuer) &&
     check_auth_key_id(issuer, subject)
 }
 
@@ -42,7 +42,7 @@ pub fn check_auth_key_id(issuer: &CertificateValue, subject: &CertificateValue) 
 
         // Check serial number
         if let Some(serial) = &akid.auth_cert_serial {
-            if !serial.polyfill_eq(&issuer.cert.serial) {
+            if !serial.polyfill_eq(&issuer.x.cert.x.serial) {
                 return false;
             }
         }
@@ -56,7 +56,7 @@ pub fn check_auth_key_id(issuer: &CertificateValue, subject: &CertificateValue) 
 pub fn get_extension_param<'a, 'b>(cert: &'b CertificateValue<'a>, oid: &ObjectIdentifierValue) -> (res: OptionDeep<&'b ExtensionParamValue<'a>>)
     ensures res@ == spec_get_extension_param(cert@, oid@)
 {
-    if let Some(exts) = &cert.cert.extensions {
+    if let Some(exts) = &cert.x.cert.x.extensions {
         let len = exts.len();
 
         assert(exts@.skip(0) == exts@);
@@ -177,7 +177,7 @@ pub fn verify_signature(issuer: &CertificateValue, subject: &CertificateValue) -
     ensures res == spec_verify_signature(issuer@, subject@)
 {
     // TODO: verify signature
-    subject.sig_alg.polyfill_eq(&subject.cert.signature)
+    subject.x.sig_alg.polyfill_eq(&subject.x.cert.x.signature)
 }
 
 #[verifier::external_body]

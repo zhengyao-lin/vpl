@@ -1,18 +1,11 @@
 use vstd::prelude::*;
-use super::vest::*;
+use super::*;
 
 verus! {
 
-/// Combinator used for custom error message
+/// Similar to Fail, but without error message
+#[derive(View)]
 pub struct Unreachable;
-
-impl View for Unreachable {
-    type V = Unreachable;
-
-    open spec fn view(&self) -> Self::V {
-        *self
-    }
-}
 
 impl SpecCombinator for Unreachable {
     type SpecResult = ();

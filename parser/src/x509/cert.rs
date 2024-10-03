@@ -12,12 +12,19 @@ verus! {
 //     signatureValue       BIT STRING
 // }
 asn1_sequence! {
-    seq Certificate {
-        cert: ASN1<TBSCertificate> = ASN1(TBSCertificate),
+    seq CertificateInner {
+        cert: Cached<ASN1<TBSCertificate>> = Cached(ASN1(TBSCertificate)),
         sig_alg: ASN1<AlgorithmIdentifier> = ASN1(AlgorithmIdentifier),
         sig: ASN1<BitString> = ASN1(BitString),
     }
 }
+
+wrap_combinator! {
+    pub struct Certificate: Cached<ASN1<CertificateInner>> = Cached(ASN1(CertificateInner));
+}
+
+pub type SpecCertificateValue = SpecCertificateInnerValue;
+pub type CertificateValue<'a> = CachedValue<'a, CertificateInnerValue<'a>>;
 
 }
 

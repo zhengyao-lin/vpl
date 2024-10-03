@@ -11,7 +11,7 @@ use std::process::ExitCode;
 use base64::Engine;
 use clap::{command, Parser};
 
-use parser::{asn1, x509, ParseError, Combinator, VecDeep};
+use parser::{x509, ParseError, Combinator, VecDeep};
 use vpl::{parse_program, SwiplBackend};
 
 use validate::*;
@@ -19,7 +19,10 @@ use error::Error;
 
 verus! {
     fn parse_x509_bytes<'a>(bytes: &'a [u8]) -> Result<x509::CertificateValue<'a>, ParseError> {
-        let (_, cert) = asn1::ASN1(x509::Certificate).parse(bytes)?;
+        let (n, cert) = x509::Certificate.parse(bytes)?;
+        if n != bytes.len() {
+            return Err(ParseError::Other("trailing bytes in certificate".to_string()));
+        }
         Ok(cert)
     }
 }
@@ -91,11 +94,11 @@ fn main_args(args: Args) -> Result<(), Error> {
 
     for (i, cert) in chain.iter().enumerate() {
         eprintln!("cert {}:", i);
-        eprintln!("  issuer: {}", cert.cert.issuer);
-        eprintln!("  subject: {}", cert.cert.subject);
-        eprintln!("  signature algorithm: {:?}", cert.sig_alg);
-        eprintln!("  signature: {:?}", cert.cert.signature);
-        eprintln!("  subject key info: {:?}", cert.cert.subject_key);
+        eprintln!("  issuer: {}", cert.x.cert.x.issuer);
+        eprintln!("  subject: {}", cert.x.cert.x.subject);
+        eprintln!("  signature algorithm: {:?}", cert.x.sig_alg);
+        eprintln!("  signature: {:?}", cert.x.cert.x.signature);
+        eprintln!("  subject key info: {:?}", cert.x.cert.x.subject_key);
     }
 
     // Check that for each i, cert[i + 1] issued cert[i]
@@ -110,7 +113,7 @@ fn main_args(args: Args) -> Result<(), Error> {
     // Find root certificates that issued the last certificate in the chain
     for (i, root) in roots.iter().enumerate() {
         if likely_issued(root, &chain[chain.len() - 1]) {
-            eprintln!("last cert issued by root cert {}: {}", i, root.cert.subject);
+            eprintln!("last cert issued by root cert {}: {}", i, root.x.cert.x.subject);
         }
     }
 

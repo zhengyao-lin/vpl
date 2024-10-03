@@ -16,6 +16,7 @@ mod mapper;
 mod default;
 mod eq;
 mod unreachable;
+mod cached;
 
 pub use depend::*;
 pub use repeat::*;
@@ -31,6 +32,7 @@ pub use mapper::*;
 pub use default::*;
 pub use eq::*;
 pub use unreachable::*;
+pub use cached::*;
 
 pub use macros::View;
 pub use macros::PolyfillClone;

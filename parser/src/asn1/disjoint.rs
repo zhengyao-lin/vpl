@@ -120,4 +120,27 @@ impl<T1, T2> DisjointFrom<ASN1<T1>> for Cond<ASN1<T2>> where
     proof fn parse_disjoint_on(&self, other: &ASN1<T1>, buf: Seq<u8>) {}
 }
 
+impl<T1, T2> DisjointFrom<Cached<ASN1<T1>>> for ASN1<T2> where
+    T1: ASN1Tagged + SpecCombinator,
+    T2: ASN1Tagged + SpecCombinator,
+{
+    open spec fn disjoint_from(&self, other: &Cached<ASN1<T1>>) -> bool {
+        self.0.spec_tag() != other.0.0.spec_tag()
+    }
+
+    proof fn parse_disjoint_on(&self, other: &Cached<ASN1<T1>>, buf: Seq<u8>) {}
+}
+
+impl<T1, T2, S> DisjointFrom<Cached<ASN1<T2>>> for Pair<ASN1<T1>, S> where
+    T1: ASN1Tagged + SecureSpecCombinator,
+    T2: ASN1Tagged + SecureSpecCombinator,
+    S: SecureSpecCombinator,
+{
+    open spec fn disjoint_from(&self, other: &Cached<ASN1<T2>>) -> bool {
+        other.0.0.spec_tag() != self.0.0.spec_tag()
+    }
+
+    proof fn parse_disjoint_on(&self, other: &Cached<ASN1<T2>>, buf: Seq<u8>) {}
+}
+
 }
