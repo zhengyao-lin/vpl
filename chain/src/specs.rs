@@ -44,34 +44,49 @@ pub open spec fn spec_gen_all_facts(
     domain: SpecStringLiteral,
 ) -> Seq<SpecRule>
 {
-    let facts =
-        Seq::new(chain.len(), |i| spec_gen_cert_facts(chain[i], i)) +
-        Seq::new(roots.len(), |i| spec_gen_cert_facts(roots[i], i + chain.len())) +
-        seq![ seq![ spec_domain_fact(domain) ] ];
+    // issuer() facts between chain certs
+    spec_gen_chain_issuer_facts(chain) +
 
-    facts.flatten() + spec_gen_root_issue_facts(roots, chain) + spec_gen_chain_issue_facts(chain)
+    // Facts about each individual chain cert
+    spec_gen_chain_facts(chain) +
+
+    // Root cert issuer() and other facts
+    spec_gen_root_facts(roots, chain) +
+
+    // Finally, the domain to be validated
+    seq![ spec_domain_fact(domain) ]
 }
 
-/// Generate facts about root certs issuing chain certs
-pub open spec fn spec_gen_root_issue_facts(
+/// Generate facts about root certs
+pub open spec fn spec_gen_root_facts(
     roots: Seq<SpecCertificateValue>,
     chain: Seq<SpecCertificateValue>,
 ) -> Seq<SpecRule>
 {
     Seq::new(roots.len(),
-        |i| Seq::new(chain.len(), |j|
-            if spec_likely_issued(roots[i], chain[j]) &&
-                spec_verify_signature(roots[i], chain[j]) {
-                seq![ spec_issuer_fact(i + chain.len(), j) ]
+        |i| {
+            let issue_facts = Seq::new(chain.len(), |j|
+                if spec_likely_issued(roots[i], chain[j]) &&
+                    spec_verify_signature(roots[i], chain[j]) {
+                    seq![ spec_issuer_fact(i + chain.len(), j) ]
+                } else {
+                    seq![]
+                }
+            ).flatten();
+
+            // Pruning happens here: if a root certificate did not
+            // issue any of the chain certs, we omit it
+            if issue_facts.len() != 0 {
+                issue_facts + spec_gen_cert_facts(roots[i], i + chain.len())
             } else {
-                seq![]
+                issue_facts
             }
-        ).flatten()
+        }
     ).flatten()
 }
 
 /// Generate facts about chain certs issuing each other
-pub open spec fn spec_gen_chain_issue_facts(
+pub open spec fn spec_gen_chain_issuer_facts(
     chain: Seq<SpecCertificateValue>,
 ) -> Seq<SpecRule>
 {
@@ -83,6 +98,13 @@ pub open spec fn spec_gen_chain_issue_facts(
             seq![]
         }
     ).flatten()
+}
+
+pub open spec fn spec_gen_chain_facts(
+    chain: Seq<SpecCertificateValue>,
+) -> Seq<SpecRule>
+{
+    Seq::new(chain.len(), |i| spec_gen_cert_facts(chain[i], i)).flatten()
 }
 
 /// Construct an issuer fact of the form issuer(cert_i, cert_j)

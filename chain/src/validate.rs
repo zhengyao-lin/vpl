@@ -233,13 +233,15 @@ pub fn cert_name(i: LiteralInt) -> (res: Term)
     res
 }
 
-pub fn gen_root_issue_facts(
+/// Generate facts about root certificates and prune
+/// out unused root certs
+pub fn gen_root_facts(
     roots: &VecDeep<CertificateValue>,
     chain: &VecDeep<CertificateValue>,
 ) -> (res: Result<VecDeep<Rule>, ValidationError>)
     ensures
         res matches Ok(res) ==>
-            res@ =~= spec_gen_root_issue_facts(roots@, chain@)
+            res@ =~= spec_gen_root_facts(roots@, chain@)
 {
     let mut facts = vec_deep![];
     let chain_len = chain.len();
@@ -250,25 +252,45 @@ pub fn gen_root_issue_facts(
             chain_len == chain@.len(),
             roots_len == roots@.len(),
 
-            facts@ =~=
-                Seq::new(i as nat,
-                    |i| Seq::new(chain@.len(), |j|
+            // Same as in spec_gen_root_facts
+            facts@ =~= Seq::new(i as nat,
+                |i| {
+                    let issue_facts = Seq::new(chain@.len(), |j|
                         if spec_likely_issued(roots@[i], chain@[j]) &&
                             spec_verify_signature(roots@[i], chain@[j]) {
                             seq![ spec_issuer_fact(i + chain@.len(), j) ]
                         } else {
                             seq![]
                         }
-                    ).flatten()
-                ),
+                    ).flatten();
+
+                    if issue_facts.len() != 0 {
+                        issue_facts + spec_gen_cert_facts(roots@[i as int], i + chain@.len())
+                    } else {
+                        issue_facts
+                    }
+                }
+            ),
     {
         let mut issuer_facts = vec_deep![];
 
+        // Compute the root cert id and check overflow
+        let root_id = if let Option::Some(root_id) = i.checked_add(chain_len) {
+            if root_id > LiteralInt::MAX as usize {
+                return Err(ValidationError::IntegerOverflow);
+            }
+            root_id as LiteralInt
+        } else {
+            return Err(ValidationError::IntegerOverflow);
+        };
+
+        // Check if the root cert issued any of the chain certs
         for j in 0..chain_len
             invariant
                 0 <= i < roots_len,
                 chain_len == chain@.len(),
                 roots_len == roots@.len(),
+                root_id == i + chain@.len(),
 
                 issuer_facts@ =~~=
                     Seq::new(j as nat, |j|
@@ -283,35 +305,34 @@ pub fn gen_root_issue_facts(
             // Verify signature too
             if likely_issued(roots.get(i), chain.get(j)) &&
                 verify_signature(roots.get(i), chain.get(j)) {
-                // Check bounds and overflow
-                if let Option::Some(root_id) = i.checked_add(chain.len()) {
-                    if root_id > LiteralInt::MAX as usize || j > LiteralInt::MAX as usize {
-                        return Err(ValidationError::IntegerOverflow);
-                    }
-
-                    issuer_facts.push(vec_deep![
-                        issuer_fact(root_id as LiteralInt, j as LiteralInt)
-                    ]);
-                } else {
-                    return Err(ValidationError::IntegerOverflow);
-                }
+                issuer_facts.push(vec_deep![
+                    issuer_fact(root_id as LiteralInt, j as LiteralInt)
+                ]);
             } else {
                 issuer_facts.push(vec_deep![]);
             }
         }
 
-        facts.push(VecDeep::flatten(issuer_facts));
+        let mut issuer_facts = VecDeep::flatten(issuer_facts);
+
+        if issuer_facts.len() != 0 {
+            // Add the root cert iff some chain cert is issued by it
+            let mut root_facts = gen_cert_facts(roots.get(i), root_id)?;
+            issuer_facts.append(&mut root_facts);
+        }
+
+        facts.push(issuer_facts);
     }
 
     Ok(VecDeep::flatten(facts))
 }
 
-pub fn gen_chain_issue_facts(
+pub fn gen_chain_issuer_facts(
     chain: &VecDeep<CertificateValue>,
 ) -> (res: Result<VecDeep<Rule>, ValidationError>)
     requires chain@.len() > 0
     ensures res matches Ok(res) ==>
-        res@ =~= spec_gen_chain_issue_facts(chain@)
+        res@ =~= spec_gen_chain_issuer_facts(chain@)
 {
     let mut facts = vec_deep![];
     let chain_len = chain.len();
@@ -345,24 +366,18 @@ pub fn gen_chain_issue_facts(
     Ok(VecDeep::flatten(facts))
 }
 
-pub fn gen_all_facts(
-    roots: &VecDeep<CertificateValue>,
+pub fn gen_chain_facts(
     chain: &VecDeep<CertificateValue>,
-    domain: &str,
 ) -> (res: Result<VecDeep<Rule>, ValidationError>)
-    requires chain@.len() > 0
     ensures res matches Ok(res) ==>
-        res@ =~= spec_gen_all_facts(roots@, chain@, domain@)
+        res@ =~= spec_gen_chain_facts(chain@)
 {
-    let mut facts: VecDeep<VecDeep<Rule>> = vec_deep![];
+    let mut facts = vec_deep![];
     let chain_len = chain.len();
-    let roots_len = roots.len();
 
-    // Push chain cert facts
     for i in 0..chain_len
         invariant
             chain_len == chain@.len(),
-            roots_len == roots@.len(),
             facts@ =~= Seq::new(i as nat, |i| spec_gen_cert_facts(chain@[i], i)),
     {
         if i <= LiteralInt::MAX as usize {
@@ -372,40 +387,29 @@ pub fn gen_all_facts(
         }
     }
 
-    // Push root cert facts
-    for i in 0..roots_len
-        invariant
-            chain_len == chain@.len(),
-            roots_len == roots@.len(),
-            facts@ =~=
-                Seq::new(chain@.len(), |i| spec_gen_cert_facts(chain@[i], i)) +
-                Seq::new(i as nat, |i| spec_gen_cert_facts(roots@[i], i + chain@.len())),
-    {
-        if let Option::Some(sum) = i.checked_add(chain.len()) {
-            if sum <= LiteralInt::MAX as usize {
-                facts.push(gen_cert_facts(roots.get(i), sum as LiteralInt)?);
-            } else {
-                return Err(ValidationError::IntegerOverflow);
-            }
-        } else {
-            return Err(ValidationError::IntegerOverflow);
-        }
-    }
+    Ok(VecDeep::flatten(facts))
+}
 
-    facts.push(vec_deep![ domain_fact(domain) ]);
+pub fn gen_all_facts(
+    roots: &VecDeep<CertificateValue>,
+    chain: &VecDeep<CertificateValue>,
+    domain: &str,
+) -> (res: Result<VecDeep<Rule>, ValidationError>)
+    requires chain@.len() > 0
+    ensures res matches Ok(res) ==>
+        res@ =~= spec_gen_all_facts(roots@, chain@, domain@)
+{
+    let mut facts = vec_deep![];
 
-    assert(facts@ =~~=
-        Seq::new(chain@.len(), |i| spec_gen_cert_facts(chain@[i], i)) +
-        Seq::new(roots@.len(), |i| spec_gen_cert_facts(roots@[i], i + chain@.len())) +
-        seq![ seq![ spec_domain_fact(domain@) ] ]);
+    let mut root_facts = gen_root_facts(roots, chain)?;
+    let mut chain_issuers = gen_chain_issuer_facts(chain)?;
+    let mut chain_facts = gen_chain_facts(chain)?;
 
-    let mut facts = VecDeep::flatten(facts);
-
-    let mut root_issuers = gen_root_issue_facts(roots, chain)?;
-    let mut chain_issuers = gen_chain_issue_facts(chain)?;
-
-    facts.append(&mut root_issuers);
     facts.append(&mut chain_issuers);
+    facts.append(&mut chain_facts);
+    facts.append(&mut root_facts);
+
+    facts.push(domain_fact(domain));
 
     Ok(facts)
 }
