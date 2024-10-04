@@ -57,7 +57,8 @@ pub open spec fn spec_gen_all_facts(
     seq![ spec_domain_fact(domain) ]
 }
 
-/// Generate facts about root certs
+/// Generate facts about root certs and prune
+/// unused root certs
 pub open spec fn spec_gen_root_facts(
     roots: Seq<SpecCertificateValue>,
     chain: Seq<SpecCertificateValue>,
@@ -250,6 +251,33 @@ pub open spec fn spec_verify_signature(issuer: SpecCertificateValue, subject: Sp
     // TODO: actually check the signature
 }
 
+/// TODO: missing support for TeletexString, UniversalString, BMPString
+pub open spec fn spec_dir_string_to_string(dir: SpecDirectoryStringValue) -> OptionDeep<Seq<char>>
+{
+    match dir {
+        SpecDirectoryStringValue::PrintableString(s) => Some(s),
+        SpecDirectoryStringValue::UTF8String(s) => Some(s),
+        SpecDirectoryStringValue::IA5String(s) => Some(s),
+        SpecDirectoryStringValue::TeletexString(s) => None,
+        SpecDirectoryStringValue::UniversalString(s) => None,
+        SpecDirectoryStringValue::BMPString(s) => None,
+    }
+}
+
+pub open spec fn spec_get_rdn(name: SpecNameValue, oid: SpecObjectIdentifierValue) -> OptionDeep<Seq<char>>
+    decreases name.len()
+{
+    if name.len() == 0 {
+        None
+    } else {
+        if name[0].len() == 1 && name[0][0].typ == oid {
+            spec_dir_string_to_string(name[0][0].value)
+        } else {
+            spec_get_rdn(name.drop_first(), oid)
+        }
+    }
+}
+
 /// Specify the facts to be generated from a certificate
 pub open spec fn spec_gen_cert_facts(cert: SpecCertificateValue, i: int) -> Seq<SpecRule>
 {
@@ -262,6 +290,21 @@ pub open spec fn spec_gen_cert_facts(cert: SpecCertificateValue, i: int) -> Seq<
             spec_cert_name(i),
             spec_str!(hash::spec_to_hex_upper(hash::spec_sha256_digest(ser_cert))),
         ),
+
+        spec_fact!("version", spec_cert_name(i), spec_int!(cert.cert.version as int)),
+
+        // spec_fact!("serial", spec_cert_name(i),
+        //     // common name
+        //     spec_str!(spec_get_rdn(cert.cert.subject, spec_oid!(2, 5, 4, 3)).unwrap_or("".view())),
+        //     // country
+        //     spec_str!(spec_get_rdn(cert.cert.subject, spec_oid!(2, 5, 4, 6)).unwrap_or("".view())),
+        //     // locality
+        //     spec_str!(spec_get_rdn(cert.cert.subject, spec_oid!(2, 5, 4, 7)).unwrap_or("".view())),
+        //     // state or province name
+        //     spec_str!(spec_get_rdn(cert.cert.subject, spec_oid!(2, 5, 4, 8)).unwrap_or("".view())),
+        //     // organization name
+        //     spec_str!(spec_get_rdn(cert.cert.subject, spec_oid!(2, 5, 4, 10)).unwrap_or("".view())),
+        // ),
     ]
 }
 
@@ -302,7 +345,9 @@ pub(crate) use spec_fact;
 #[allow(unused_macros)]
 macro_rules! spec_str {
     ($x:expr) => {
-        SpecTerm::Literal(SpecLiteral::String($x))
+        ::builtin_macros::verus_proof_expr! {
+            SpecTerm::Literal(SpecLiteral::String($x))
+        }
     };
 }
 pub(crate) use spec_str;
@@ -311,7 +356,9 @@ pub(crate) use spec_str;
 #[allow(unused_macros)]
 macro_rules! spec_int {
     ($x:expr) => {
-        SpecTerm::Literal(SpecLiteral::Int($x))
+        ::builtin_macros::verus_proof_expr! {
+            SpecTerm::Literal(SpecLiteral::Int($x))
+        }
     };
 }
 pub(crate) use spec_int;

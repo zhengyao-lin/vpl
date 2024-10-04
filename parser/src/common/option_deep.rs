@@ -10,4 +10,23 @@ pub enum OptionDeep<T> {
     None,
 }
 
+impl<T> OptionDeep<T> {
+    pub open spec fn spec_unwrap_or(self, default: T) -> T {
+        match self {
+            OptionDeep::Some(t) => t,
+            OptionDeep::None => default,
+        }
+    }
+
+    #[verifier::when_used_as_spec(spec_unwrap_or)]
+    pub fn unwrap_or(self, default: T) -> (res: T)
+        ensures res == self.spec_unwrap_or(default)
+    {
+        match self {
+            OptionDeep::Some(t) => t,
+            OptionDeep::None => default,
+        }
+    }
+}
+
 }

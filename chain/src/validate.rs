@@ -11,6 +11,8 @@ use crate::hash;
 
 verus! {
 
+broadcast use vpl::lemma_ext_equal_deep;
+
 #[derive(Debug)]
 pub enum ValidationError {
     IntegerOverflow,
@@ -186,51 +188,44 @@ pub fn gen_cert_facts(cert: &CertificateValue, i: LiteralInt) -> (res: Result<Ve
 {
     let ser_cert = cert.serialize();
 
-    let fingerprint = RuleX::new(
-        TermX::app_str("fingerprint", vec![
-            cert_name(i),
-            TermX::str(hash::to_hex_upper(&hash::sha256_digest(ser_cert)).as_str()),
-        ]),
-        vec![],
-    );
-    let ghost fingerprint_view = spec_fact!("fingerprint",
-        spec_cert_name(i as int),
-        spec_str!(hash::spec_to_hex_upper(hash::spec_sha256_digest(ASN1(CertificateInner).view().spec_serialize(cert.view()).unwrap()))),
-    );
+    Ok(vec_deep![
+        RuleX::new(
+            TermX::app_str("fingerprint", vec![
+                cert_name(i),
+                TermX::str(hash::to_hex_upper(&hash::sha256_digest(ser_cert)).as_str()),
+            ]),
+            vec![],
+        ),
 
-    assert(fingerprint@.head->App_1 == fingerprint_view.head->App_1);
-
-    Ok(vec_deep![ fingerprint ])
+        RuleX::new(
+            TermX::app_str("version", vec![ cert_name(i), TermX::int(cert.get().cert.get().version) ]),
+            vec![],
+        ),
+    ])
 }
 
 pub fn issuer_fact(i: LiteralInt, j: LiteralInt) -> (res: Rule)
-    ensures res@ =~= spec_issuer_fact(i as int, j as int)
+    ensures res@ =~~= spec_issuer_fact(i as int, j as int)
 {
-    let res = RuleX::new(
+    RuleX::new(
         TermX::app_str("issuer", vec![ cert_name(j), cert_name(i) ]),
         vec![],
-    );
-    assert(res@.head->App_1 == spec_issuer_fact(i as int, j as int).head->App_1);
-    res
+    )
 }
 
 pub fn domain_fact(domain: &str) -> (res: Rule)
-    ensures res@ =~= spec_domain_fact(domain@)
+    ensures res@ =~~= spec_domain_fact(domain@)
 {
-    let res = RuleX::new(
+    RuleX::new(
         TermX::app_str("envDomain", vec![ TermX::str(domain) ]),
         vec![],
-    );
-    assert(res@.head->App_1 == spec_domain_fact(domain@).head->App_1);
-    res
+    )
 }
 
 pub fn cert_name(i: LiteralInt) -> (res: Term)
-    ensures res@ =~= spec_cert_name(i as int)
+    ensures res@ =~~= spec_cert_name(i as int)
 {
-    let res = TermX::app_str("cert", vec![ TermX::int(i) ]);
-    assert(res@->App_1 == spec_cert_name(i as int)->App_1);
-    res
+    TermX::app_str("cert", vec![ TermX::int(i) ])
 }
 
 /// Generate facts about root certificates and prune

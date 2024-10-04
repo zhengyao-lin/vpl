@@ -720,4 +720,54 @@ impl SpecTheorem {
     }
 }
 
+pub broadcast proof fn lemma_spec_term_ext_equal_deep(t1: SpecTerm, t2: SpecTerm)
+    ensures
+        #[trigger] ext_equal_deep(t1, t2) <==> match (t1, t2) {
+            (SpecTerm::Var(v1), SpecTerm::Var(v2)) => v1 =~~= v2,
+            (SpecTerm::Literal(l1), SpecTerm::Literal(l2)) => l1 =~~= l2,
+            (SpecTerm::App(f1, args1), SpecTerm::App(f2, args2)) => f1 =~~= f2 && args1 =~~= args2,
+            _ => false,
+        },
+{}
+
+pub broadcast proof fn lemma_spec_rule_ext_equal_deep(r1: SpecRule, r2: SpecRule)
+    ensures
+        #[trigger] ext_equal_deep(r1, r2) <==> r1.head =~~= r2.head && r1.body =~~= r2.body,
+{}
+
+pub broadcast proof fn lemma_spec_literal_ext_equal_deep(l1: SpecLiteral, l2: SpecLiteral)
+    ensures
+        #[trigger] ext_equal_deep(l1, l2) <==> match (l1, l2) {
+            (SpecLiteral::Int(i1), SpecLiteral::Int(i2)) => i1 == i2,
+            (SpecLiteral::String(s1), SpecLiteral::String(s2)) => s1 =~~= s2,
+            (SpecLiteral::Atom(a1), SpecLiteral::Atom(a2)) => a1 =~~= a2,
+            (SpecLiteral::Directive, SpecLiteral::Directive) => true,
+            _ => false,
+        },
+{}
+
+pub broadcast proof fn lemma_spec_fn_name_ext_equal_deep(f1: SpecFnName, f2: SpecFnName)
+    ensures
+        #[trigger] ext_equal_deep(f1, f2) <==> match (f1, f2) {
+            (SpecFnName::User(n1, a1), SpecFnName::User(n2, a2)) => n1 =~~= n2 && a1 == a2,
+            (SpecFnName::Nil, SpecFnName::Nil) => true,
+            (SpecFnName::Cons, SpecFnName::Cons) => true,
+            _ => false,
+        },
+{}
+
+pub broadcast proof fn lemma_spec_program_ext_equal_deep(p1: SpecProgram, p2: SpecProgram)
+    ensures
+        #[trigger] ext_equal_deep(p1, p2) <==> p1.rules =~~= p2.rules,
+{}
+
+/// Extensional equalities for terms, rules, etc.
+pub broadcast group lemma_ext_equal_deep {
+    lemma_spec_term_ext_equal_deep,
+    lemma_spec_rule_ext_equal_deep,
+    lemma_spec_literal_ext_equal_deep,
+    lemma_spec_fn_name_ext_equal_deep,
+    lemma_spec_program_ext_equal_deep,
+}
+
 } // verus!
