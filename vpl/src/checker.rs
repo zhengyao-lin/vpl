@@ -10,7 +10,7 @@ use crate::matching::*;
 
 verus! {
 
-broadcast use TermX::axiom_view, SpecTerm::axiom_subst, SpecTerm::axiom_matches;
+broadcast use TermX::axiom_view, SpecTerm::axiom_subst, SpecTerm::axiom_matches, lemma_ext_equal_deep;
 
 pub type Var = Rc<str>;
 pub type UserFnName = Rc<str>;
@@ -419,6 +419,15 @@ impl RuleX {
         ensures res == (RuleX { head, body })
     {
         Rc::new(RuleX { head, body })
+    }
+
+    pub fn fact(name: &str, args: Vec<Term>) -> (res: Rule)
+        ensures res@ =~= (SpecRule {
+            head: SpecTerm::App(SpecFnName::User(name@, args.len() as int), args.deep_view()),
+            body: seq![],
+        })
+    {
+        RuleX::new(TermX::app(&FnName::user(name, args.len()), args), vec![])
     }
 }
 

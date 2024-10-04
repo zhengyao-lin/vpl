@@ -293,18 +293,55 @@ pub open spec fn spec_gen_cert_facts(cert: SpecCertificateValue, i: int) -> Seq<
 
         spec_fact!("version", spec_cert_name(i), spec_int!(cert.cert.version as int)),
 
-        // spec_fact!("serial", spec_cert_name(i),
-        //     // common name
-        //     spec_str!(spec_get_rdn(cert.cert.subject, spec_oid!(2, 5, 4, 3)).unwrap_or("".view())),
-        //     // country
-        //     spec_str!(spec_get_rdn(cert.cert.subject, spec_oid!(2, 5, 4, 6)).unwrap_or("".view())),
-        //     // locality
-        //     spec_str!(spec_get_rdn(cert.cert.subject, spec_oid!(2, 5, 4, 7)).unwrap_or("".view())),
-        //     // state or province name
-        //     spec_str!(spec_get_rdn(cert.cert.subject, spec_oid!(2, 5, 4, 8)).unwrap_or("".view())),
-        //     // organization name
-        //     spec_str!(spec_get_rdn(cert.cert.subject, spec_oid!(2, 5, 4, 10)).unwrap_or("".view())),
-        // ),
+        spec_fact!("subject", spec_cert_name(i),
+            // common name
+            spec_str!(spec_get_rdn(cert.cert.subject, spec_oid!(2, 5, 4, 3)).unwrap_or("".view())),
+            // country
+            spec_str!(spec_get_rdn(cert.cert.subject, spec_oid!(2, 5, 4, 6)).unwrap_or("".view())),
+            // locality
+            spec_str!(spec_get_rdn(cert.cert.subject, spec_oid!(2, 5, 4, 7)).unwrap_or("".view())),
+            // state or province name
+            spec_str!(spec_get_rdn(cert.cert.subject, spec_oid!(2, 5, 4, 8)).unwrap_or("".view())),
+            // organization name
+            spec_str!(spec_get_rdn(cert.cert.subject, spec_oid!(2, 5, 4, 10)).unwrap_or("".view())),
+        ),
+
+        // TODO: duplicate with the subject pred?
+        spec_fact!("commonName", spec_cert_name(i),
+            spec_str!(spec_get_rdn(cert.cert.subject, spec_oid!(2, 5, 4, 3)).unwrap_or("".view())),
+        ),
+
+        spec_fact!("country", spec_cert_name(i),
+            spec_str!(spec_get_rdn(cert.cert.subject, spec_oid!(2, 5, 4, 6)).unwrap_or("".view())),
+        ),
+
+        spec_fact!("givenName", spec_cert_name(i),
+            spec_str!(spec_get_rdn(cert.cert.subject, spec_oid!(2, 5, 4, 42)).unwrap_or("".view())),
+        ),
+
+        spec_fact!("localityName", spec_cert_name(i),
+            spec_str!(spec_get_rdn(cert.cert.subject, spec_oid!(2, 5, 4, 7)).unwrap_or("".view())),
+        ),
+
+        spec_fact!("organizationName", spec_cert_name(i),
+            spec_str!(spec_get_rdn(cert.cert.subject, spec_oid!(2, 5, 4, 10)).unwrap_or("".view())),
+        ),
+
+        spec_fact!("postalCode", spec_cert_name(i),
+            spec_str!(spec_get_rdn(cert.cert.subject, spec_oid!(2, 5, 4, 17)).unwrap_or("".view())),
+        ),
+
+        spec_fact!("stateOrProvinceName", spec_cert_name(i),
+            spec_str!(spec_get_rdn(cert.cert.subject, spec_oid!(2, 5, 4, 8)).unwrap_or("".view())),
+        ),
+
+        spec_fact!("streetAddress", spec_cert_name(i),
+            spec_str!(spec_get_rdn(cert.cert.subject, spec_oid!(2, 5, 4, 9)).unwrap_or("".view())),
+        ),
+
+        spec_fact!("surname", spec_cert_name(i),
+            spec_str!(spec_get_rdn(cert.cert.subject, spec_oid!(2, 5, 4, 4)).unwrap_or("".view())),
+        ),
     ]
 }
 

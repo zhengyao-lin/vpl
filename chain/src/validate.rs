@@ -183,43 +183,131 @@ pub fn verify_signature(issuer: &CertificateValue, subject: &CertificateValue) -
     subject.get().sig_alg.polyfill_eq(&subject.get().cert.get().signature)
 }
 
+pub fn dir_string_to_string<'a, 'b>(dir: &'b DirectoryStringValue<'a>) -> (res: OptionDeep<&'a str>)
+    ensures res@ == spec_dir_string_to_string(dir@)
+{
+    match dir {
+        DirectoryStringValue::PrintableString(s) => Some(s),
+        DirectoryStringValue::UTF8String(s) => Some(s),
+        DirectoryStringValue::IA5String(s) => Some(s),
+        DirectoryStringValue::TeletexString(s) => None,
+        DirectoryStringValue::UniversalString(s) => None,
+        DirectoryStringValue::BMPString(s) => None,
+    }
+}
+
+/// Get RDN value of a specific OID
+pub fn get_rdn<'a, 'b>(name: &'b NameValue<'a>, oid: &'b ObjectIdentifierValue) -> (res: OptionDeep<&'a str>)
+    ensures res@ == spec_get_rdn(name@, oid@)
+{
+    let len = name.len();
+
+    assert(name@.skip(0) == name@);
+
+    for i in 0..len
+        invariant
+            len == name@.len(),
+            spec_get_rdn(name@, oid@) =~= spec_get_rdn(name@.skip(i as int), oid@),
+    {
+        if name.get(i).len() == 1 && name.get(i).get(0).typ.polyfill_eq(oid) {
+            return dir_string_to_string(&name.get(i).get(0).value);
+        }
+        assert(name@.skip(i as int).drop_first() == name@.skip(i + 1));
+    }
+
+    return None;
+}
+
 pub fn gen_cert_facts(cert: &CertificateValue, i: LiteralInt) -> (res: Result<VecDeep<Rule>, ValidationError>)
     ensures res matches Ok(res) ==> res@ =~~= spec_gen_cert_facts(cert@, i as int)
 {
     let ser_cert = cert.serialize();
 
-    Ok(vec_deep![
-        RuleX::new(
-            TermX::app_str("fingerprint", vec![
-                cert_name(i),
-                TermX::str(hash::to_hex_upper(&hash::sha256_digest(ser_cert)).as_str()),
-            ]),
-            vec![],
-        ),
+    let oid = oid!(2, 5, 4, 3); assert(oid@ == spec_oid!(2, 5, 4, 3));
+    let oid = oid!(2, 5, 4, 4); assert(oid@ == spec_oid!(2, 5, 4, 4));
+    let oid = oid!(2, 5, 4, 6); assert(oid@ == spec_oid!(2, 5, 4, 6));
+    let oid = oid!(2, 5, 4, 7); assert(oid@ == spec_oid!(2, 5, 4, 7));
+    let oid = oid!(2, 5, 4, 8); assert(oid@ == spec_oid!(2, 5, 4, 8));
+    let oid = oid!(2, 5, 4, 9); assert(oid@ == spec_oid!(2, 5, 4, 9));
+    let oid = oid!(2, 5, 4, 10); assert(oid@ == spec_oid!(2, 5, 4, 10));
+    let oid = oid!(2, 5, 4, 42); assert(oid@ == spec_oid!(2, 5, 4, 42));
+    let oid = oid!(2, 5, 4, 17); assert(oid@ == spec_oid!(2, 5, 4, 17));
 
-        RuleX::new(
-            TermX::app_str("version", vec![ cert_name(i), TermX::int(cert.get().cert.get().version) ]),
-            vec![],
-        ),
+    Ok(vec_deep![
+        RuleX::fact("fingerprint", vec![
+            cert_name(i),
+            TermX::str(hash::to_hex_upper(&hash::sha256_digest(ser_cert)).as_str()),
+        ]),
+
+        RuleX::fact("version", vec![ cert_name(i), TermX::int(cert.get().cert.get().version) ]),
+
+        // TODO: performance?
+        RuleX::fact("subject", vec![
+            cert_name(i),
+            TermX::str(get_rdn(&cert.get().cert.get().subject, &oid!(2, 5, 4, 3)).unwrap_or("")),
+            TermX::str(get_rdn(&cert.get().cert.get().subject, &oid!(2, 5, 4, 6)).unwrap_or("")),
+            TermX::str(get_rdn(&cert.get().cert.get().subject, &oid!(2, 5, 4, 7)).unwrap_or("")),
+            TermX::str(get_rdn(&cert.get().cert.get().subject, &oid!(2, 5, 4, 8)).unwrap_or("")),
+            TermX::str(get_rdn(&cert.get().cert.get().subject, &oid!(2, 5, 4, 10)).unwrap_or("")),
+        ]),
+
+        RuleX::fact("commonName", vec![
+            cert_name(i),
+            TermX::str(get_rdn(&cert.get().cert.get().subject, &oid!(2, 5, 4, 3)).unwrap_or("")),
+        ]),
+
+        RuleX::fact("country", vec![
+            cert_name(i),
+            TermX::str(get_rdn(&cert.get().cert.get().subject, &oid!(2, 5, 4, 6)).unwrap_or("")),
+        ]),
+
+        RuleX::fact("givenName", vec![
+            cert_name(i),
+            TermX::str(get_rdn(&cert.get().cert.get().subject, &oid!(2, 5, 4, 42)).unwrap_or("")),
+        ]),
+
+        RuleX::fact("localityName", vec![
+            cert_name(i),
+            TermX::str(get_rdn(&cert.get().cert.get().subject, &oid!(2, 5, 4, 7)).unwrap_or("")),
+        ]),
+
+        RuleX::fact("organizationName", vec![
+            cert_name(i),
+            TermX::str(get_rdn(&cert.get().cert.get().subject, &oid!(2, 5, 4, 10)).unwrap_or("")),
+        ]),
+
+        RuleX::fact("postalCode", vec![
+            cert_name(i),
+            TermX::str(get_rdn(&cert.get().cert.get().subject, &oid!(2, 5, 4, 17)).unwrap_or("")),
+        ]),
+
+        RuleX::fact("stateOrProvinceName", vec![
+            cert_name(i),
+            TermX::str(get_rdn(&cert.get().cert.get().subject, &oid!(2, 5, 4, 8)).unwrap_or("")),
+        ]),
+
+        RuleX::fact("streetAddress", vec![
+            cert_name(i),
+            TermX::str(get_rdn(&cert.get().cert.get().subject, &oid!(2, 5, 4, 9)).unwrap_or("")),
+        ]),
+
+        RuleX::fact("surname", vec![
+            cert_name(i),
+            TermX::str(get_rdn(&cert.get().cert.get().subject, &oid!(2, 5, 4, 4)).unwrap_or("")),
+        ]),
     ])
 }
 
 pub fn issuer_fact(i: LiteralInt, j: LiteralInt) -> (res: Rule)
     ensures res@ =~~= spec_issuer_fact(i as int, j as int)
 {
-    RuleX::new(
-        TermX::app_str("issuer", vec![ cert_name(j), cert_name(i) ]),
-        vec![],
-    )
+    RuleX::fact("issuer", vec![ cert_name(j), cert_name(i) ])
 }
 
 pub fn domain_fact(domain: &str) -> (res: Rule)
     ensures res@ =~~= spec_domain_fact(domain@)
 {
-    RuleX::new(
-        TermX::app_str("envDomain", vec![ TermX::str(domain) ]),
-        vec![],
-    )
+    RuleX::fact("envDomain", vec![ TermX::str(domain) ])
 }
 
 pub fn cert_name(i: LiteralInt) -> (res: Term)
