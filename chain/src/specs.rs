@@ -3,6 +3,8 @@
 
 use vstd::prelude::*;
 
+use polyfill::*;
+
 use parser::{*, asn1::*, x509::*};
 use parser::OptionDeep::*;
 
@@ -278,6 +280,11 @@ pub open spec fn spec_get_rdn(name: SpecNameValue, oid: SpecObjectIdentifierValu
     }
 }
 
+pub open spec fn spec_oid_to_str(oid: SpecObjectIdentifierValue) -> Seq<char>
+{
+    seq_join(Seq::new(oid.len(), |i| spec_u64_to_string(oid[i])), "."@)
+}
+
 /// Specify the facts to be generated from a certificate
 pub open spec fn spec_gen_cert_facts(cert: SpecCertificateValue, i: int) -> Seq<SpecRule>
 {
@@ -342,6 +349,8 @@ pub open spec fn spec_gen_cert_facts(cert: SpecCertificateValue, i: int) -> Seq<
         spec_fact!("surname", spec_cert_name(i),
             spec_str!(spec_get_rdn(cert.cert.subject, spec_oid!(2, 5, 4, 4)).unwrap_or("".view())),
         ),
+
+        spec_fact!("signatureAlgorithm", spec_cert_name(i), spec_str!(spec_oid_to_str(cert.sig_alg.id))),
     ]
 }
 

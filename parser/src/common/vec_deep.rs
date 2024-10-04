@@ -113,11 +113,18 @@ impl<T: View> VecDeep<T> {
         VecDeep(v)
     }
 
-    pub fn to_vec(self) -> (res: Vec<T>)
+    pub fn to_vec_owned(self) -> (res: Vec<T>)
         ensures
             self@ =~= VecDeep(res)@,
     {
         self.0
+    }
+
+    pub fn to_vec(&self) -> (res: &Vec<T>)
+        ensures
+            self@ =~= VecDeep(*res)@,
+    {
+        &self.0
     }
 }
 

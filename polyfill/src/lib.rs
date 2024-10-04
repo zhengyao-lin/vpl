@@ -89,6 +89,16 @@ pub fn str_to_utf8(s: &str) -> (res: &[u8])
     s.as_bytes()
 }
 
+pub closed spec fn spec_u64_to_string(x: u64) -> (res: Seq<char>);
+
+/// TODO: specify this
+#[verifier::external_body]
+pub fn u64_to_string(x: u64) -> (res: String)
+    ensures res@ == spec_u64_to_string(x)
+{
+    x.to_string()
+}
+
 /// By Travis
 pub fn vec_map<T, U>(v: &Vec<T>, f: impl Fn(&T) -> U) -> (res: Vec<U>)
     requires
@@ -185,6 +195,39 @@ pub fn join_strs(list: &Vec<&str>, sep: &str) -> (res: String)
             ));
         } else {
             res.append(list[i]);
+        }
+    }
+    assert(list_deep_view.take(list.len() as int) =~= list_deep_view);
+
+    res
+}
+
+/// Same as above, but for vectors of Strings
+/// TODO: merge?
+pub fn join_strings(list: &Vec<String>, sep: &str) -> (res: String)
+    ensures
+        res@ =~= seq_join(list@.map_values(|v: String| v.view()), sep@),
+{
+    let mut res = string_new();
+    assert(res@ =~= seq![]);
+
+    let ghost list_deep_view = list@.map_values(|v: String| v.view());
+
+    for i in 0..list.len()
+        invariant
+            list_deep_view.len() == list.len(),
+            forall|i| #![auto] 0 <= i < list.len() ==> list_deep_view[i] == list[i]@,
+            res@ =~= seq_join(list_deep_view.take(i as int), sep@),
+    {
+        if i != 0 {
+            let ghost old_res = res@;
+            res.append(sep);
+            res.append(list[i].as_str());
+            assert(list_deep_view.take((i + 1) as int).drop_last() =~= list_deep_view.take(
+                i as int,
+            ));
+        } else {
+            res.append(list[i].as_str());
         }
     }
     assert(list_deep_view.take(list.len() as int) =~= list_deep_view);

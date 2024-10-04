@@ -218,6 +218,20 @@ pub fn get_rdn<'a, 'b>(name: &'b NameValue<'a>, oid: &'b ObjectIdentifierValue) 
     return None;
 }
 
+pub fn oid_to_str(oid: &ObjectIdentifierValue) -> (res: String)
+    ensures res@ =~= spec_oid_to_str(oid@)
+{
+    let strings = vec_map(oid.0.to_vec(),
+        |id: &u64| -> (res: String)
+        ensures res@ == spec_u64_to_string(*id)
+        { u64_to_string(*id) });
+
+    assert(Seq::new(strings@.len(), |i| strings@[i]@) =~= Seq::new(oid@.len(), |i| spec_u64_to_string(oid@[i])));
+    assert(Seq::new(strings@.len(), |i| strings@[i]@) =~= strings@.map_values(|v: String| v@));
+
+    join_strings(&strings, ".")
+}
+
 pub fn gen_cert_facts(cert: &CertificateValue, i: LiteralInt) -> (res: Result<VecDeep<Rule>, ValidationError>)
     ensures res matches Ok(res) ==> res@ =~~= spec_gen_cert_facts(cert@, i as int)
 {
@@ -294,6 +308,11 @@ pub fn gen_cert_facts(cert: &CertificateValue, i: LiteralInt) -> (res: Result<Ve
         RuleX::fact("surname", vec![
             cert_name(i),
             TermX::str(get_rdn(&cert.get().cert.get().subject, &oid!(2, 5, 4, 4)).unwrap_or("")),
+        ]),
+
+        RuleX::fact("signatureAlgorithm", vec![
+            cert_name(i),
+            TermX::str(oid_to_str(&cert.get().sig_alg.id).as_str()),
         ]),
     ])
 }
@@ -520,7 +539,7 @@ pub fn valid_domain<B: Backend, E>(
     let ghost old_policy = policy@;
 
     // Add all generated facts to the policy
-    let mut facts = gen_all_facts(roots, chain, domain)?.to_vec();
+    let mut facts = gen_all_facts(roots, chain, domain)?.to_vec_owned();
 
     if debug {
         eprintln_join!("[debug] facts:");
