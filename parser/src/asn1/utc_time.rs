@@ -119,6 +119,7 @@ macro_rules! spec_let_some {
         }
     };
 }
+pub(super) use spec_let_some;
 
 #[allow(unused_macros)]
 macro_rules! let_some {
@@ -134,6 +135,7 @@ macro_rules! let_some {
         }
     };
 }
+pub(super) use let_some;
 
 impl SpecCombinator for UTCTimeInner {
     type SpecResult = UTCTimeValueInner;
@@ -601,9 +603,8 @@ pub broadcast proof fn lemma_two_chars_to_u8_iso(b1: u8, b2: u8)
     ensures
         #[trigger] spec_two_chars_to_u8(b1, b2) matches Some(v) ==> {
             &&& 0 <= v < 100
-            &&& spec_u8_to_two_chars(v) matches Some((a1, a2))
-            &&& a1 == b1
-            &&& a2 == b2
+            &&& spec_u8_to_two_chars(v) matches Some(r)
+            &&& r == (b1, b2)
         }
 {
     reveal(spec_two_chars_to_u8);
@@ -642,9 +643,9 @@ pub fn two_chars_to_u8(b1: u8, b2: u8) -> (res: Option<u8>)
 #[verifier::when_used_as_spec(spec_u8_to_two_chars)]
 pub fn u8_to_two_chars(v: u8) -> (res: Option<(u8, u8)>)
     ensures
-        res matches Some((b1, b2)) ==> {
-            &&& spec_u8_to_two_chars(v) matches Some((a1, a2))
-            &&& a1 == b1 && a2 == b2
+        res matches Some(res) ==> {
+            &&& spec_u8_to_two_chars(v) matches Some(res2)
+            &&& res2 == res
         },
         res.is_none() ==> spec_u8_to_two_chars(v).is_none(),
 {

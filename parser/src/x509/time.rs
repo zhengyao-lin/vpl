@@ -13,7 +13,7 @@ verus! {
 ///
 /// TODO: The restrictions on UTCTime and GeneralizedTime are somewhat complicated,
 /// so we use UTF8String as their placeholder for now
-pub type TimeInner = Mapped<OrdChoice<ASN1<UTCTime>, ASN1<ImplicitTag<UTF8String>>>, TimeMapper>;
+pub type TimeInner = Mapped<OrdChoice<ASN1<UTCTime>, ASN1<GeneralizedTime>>, TimeMapper>;
 
 wrap_combinator! {
     pub struct Time: TimeInner =>
@@ -24,7 +24,7 @@ wrap_combinator! {
         Mapped {
             inner: OrdChoice(
                 ASN1(UTCTime),
-                ASN1(ImplicitTag(tag_of!(GENERALIZED_TIME), UTF8String)),
+                ASN1(GeneralizedTime),
             ),
             mapper: TimeMapper,
         };
@@ -40,9 +40,9 @@ mapper! {
         GeneralizedTime(GT),
     }
 
-    spec SpecTimeValue with <SpecUTCTimeValue, SpecUTF8StringValue>;
-    exec TimeValue<'a> with <UTCTimeValue<'a>, UTF8StringValue<'a>>;
-    owned TimeValueOwned with <UTCTimeValueOwned, UTF8StringValueOwned>;
+    spec SpecTimeValue with <SpecUTCTimeValue, SpecGeneralizedTimeValue>;
+    exec TimeValue<'a> with <UTCTimeValue<'a>, GeneralizedTimeValue<'a>>;
+    owned TimeValueOwned with <UTCTimeValueOwned, GeneralizedTimeValueOwned>;
 
     forward(x) {
         match x {

@@ -27,6 +27,21 @@ impl<T> OptionDeep<T> {
             OptionDeep::None => default,
         }
     }
+
+    pub open spec fn spec_from_opt(opt: Option<T>) -> Self {
+        match opt {
+            Some(t) => OptionDeep::Some(t),
+            None => OptionDeep::None,
+        }
+    }
+
+    #[verifier::when_used_as_spec(spec_from_opt)]
+    pub fn from_opt(opt: Option<T>) -> Self {
+        match opt {
+            Some(t) => OptionDeep::Some(t),
+            None => OptionDeep::None,
+        }
+    }
 }
 
 }
