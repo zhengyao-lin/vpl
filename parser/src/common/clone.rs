@@ -37,6 +37,18 @@ impl PolyfillClone for usize {
     }
 }
 
+impl PolyfillClone for u8 {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl PolyfillClone for u16 {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
 // Can't do this due to https://github.com/verus-lang/verus/issues/1108
 // impl PolyfillClone for () {
 //     fn clone(&self) -> Self {

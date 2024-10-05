@@ -20,6 +20,8 @@ mod boolean;
 mod len_wrapped;
 mod disjoint;
 mod null;
+mod utc_time;
+mod gen_time;
 
 pub use bounds::UInt;
 pub use var_int::*;
@@ -41,3 +43,5 @@ pub use boolean::*;
 pub use len_wrapped::*;
 pub use disjoint::*;
 pub use null::*;
+pub use utc_time::*;
+pub use gen_time::*;
