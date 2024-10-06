@@ -58,6 +58,23 @@ pub fn rc_as_ref<T: View>(rc: &Rc<T>) -> (res: &T)
     rc.as_ref()
 }
 
+#[verifier::inline]
+pub open spec fn spec_option_ok_or<T, E>(option: Option<T>, err: E) -> Result<T, E>
+{
+    match option {
+        Some(t) => Ok(t),
+        None => Err(err),
+    }
+}
+
+#[verifier::when_used_as_spec(spec_option_ok_or)]
+#[verifier::external_fn_specification]
+pub fn option_ok_or<T, E>(option: Option<T>, err: E) -> (res: Result<T, E>)
+    ensures res == spec_option_ok_or(option, err),
+{
+    option.ok_or(err)
+}
+
 /// Currently we do not have a specification in Verus for UTF-8
 /// so we just assume the implementation of `from_utf8` is correct
 pub closed spec fn spec_parse_utf8(s: Seq<u8>) -> Option<Seq<char>>;

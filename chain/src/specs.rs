@@ -3,6 +3,8 @@
 
 use vstd::prelude::*;
 
+use chrono::prelude::NaiveDate;
+
 use polyfill::*;
 
 use parser::{*, asn1::*, x509::*};
@@ -351,7 +353,53 @@ pub open spec fn spec_gen_cert_facts(cert: SpecCertificateValue, i: int) -> Seq<
         ),
 
         spec_fact!("signatureAlgorithm", spec_cert_name(i), spec_str!(spec_oid_to_str(cert.sig_alg.id))),
+
+        spec_fact!("notAfter", spec_cert_name(i), spec_int!(spec_x509_time_to_timestamp(cert.cert.validity.not_after).unwrap() as int)),
+        spec_fact!("notBefore", spec_cert_name(i), spec_int!(spec_x509_time_to_timestamp(cert.cert.validity.not_before).unwrap() as int)),
     ]
+}
+
+pub closed spec fn spec_x509_time_to_timestamp(time: SpecTimeValue) -> Option<i64>;
+
+/// Convert an X.509 Time to a UNIX timestamp
+/// NOTE: this implementation is unverified and trusted
+#[verifier::external_body]
+pub fn x509_time_to_timestamp(time: &TimeValue) -> (res: Option<i64>)
+    ensures res == spec_x509_time_to_timestamp(time@)
+{
+    // Convert UTCTime/GeneralizedTime to chrono::NaiveDateTime
+    let dt = match time {
+        TimeValue::UTCTime(t) => {
+            let date = NaiveDate::from_ymd_opt(t.year as i32, t.month as u32, t.day as u32)?;
+            let naive = date.and_hms_opt(
+                t.hour as u32,
+                t.minute as u32,
+                *t.second.as_ref().unwrap_or(&0) as u32,
+            )?;
+
+            if let UTCTimeZone::UTC = t.time_zone {
+                naive.and_utc()
+            } else {
+                return Option::None;
+            }
+        }
+        TimeValue::GeneralizedTime(t) => {
+            let date = NaiveDate::from_ymd_opt(t.year as i32, t.month as u32, t.day as u32)?;
+            let naive = date.and_hms_opt(
+                t.hour as u32,
+                *t.minute.as_ref().unwrap_or(&0) as u32,
+                *t.second.as_ref().unwrap_or(&0) as u32,
+            )?;
+
+            if let GeneralizedTimeZone::UTC = t.time_zone {
+                naive.and_utc()
+            } else {
+                return Option::None;
+            }
+        }
+    };
+
+    Option::Some(dt.timestamp())
 }
 
 #[allow(unused_macros)]

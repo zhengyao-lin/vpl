@@ -18,6 +18,7 @@ pub enum ValidationError {
     IntegerOverflow,
     EmptyChain,
     ProofFailure,
+    TimeParseError,
 }
 
 pub fn likely_issued(issuer: &CertificateValue, subject: &CertificateValue) -> (res: bool)
@@ -313,6 +314,16 @@ pub fn gen_cert_facts(cert: &CertificateValue, i: LiteralInt) -> (res: Result<Ve
         RuleX::fact("signatureAlgorithm", vec![
             cert_name(i),
             TermX::str(oid_to_str(&cert.get().sig_alg.id).as_str()),
+        ]),
+
+        RuleX::fact("notAfter", vec![
+            cert_name(i),
+            TermX::int(x509_time_to_timestamp(&cert.get().cert.get().validity.not_after).ok_or(ValidationError::TimeParseError)?),
+        ]),
+
+        RuleX::fact("notBefore", vec![
+            cert_name(i),
+            TermX::int(x509_time_to_timestamp(&cert.get().cert.get().validity.not_before).ok_or(ValidationError::TimeParseError)?),
         ]),
     ])
 }

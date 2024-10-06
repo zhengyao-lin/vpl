@@ -28,6 +28,23 @@ impl<T> OptionDeep<T> {
         }
     }
 
+    pub open spec fn spec_as_ref(&self) -> Option<&T> {
+        match self {
+            OptionDeep::Some(t) => Some(t),
+            OptionDeep::None => None,
+        }
+    }
+
+    #[verifier::when_used_as_spec(spec_as_ref)]
+    pub fn as_ref(&self) -> (res: Option<&T>)
+        ensures res == self.spec_as_ref()
+    {
+        match self {
+            OptionDeep::Some(t) => Some(t),
+            OptionDeep::None => None,
+        }
+    }
+
     pub open spec fn spec_from_opt(opt: Option<T>) -> Self {
         match opt {
             Some(t) => OptionDeep::Some(t),
