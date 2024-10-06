@@ -40,7 +40,7 @@ verus-deps-%:
 		pushd ../$$dep; \
 		echo "Building Verus dependency $$dep"; \
 		rlib=target/$*/lib$$dep.rlib; \
-		make $* || (echo "Fail to compile dependency $$dep"; exit 1) && \
+		make $$rlib || (echo "Fail to compile dependency $$dep"; exit 1) && \
 		if [ ! -f $$rlib ] || [ ! -f $$rlib.verusdata ]; then \
 			echo "Cannot find external Verus library $$rlib (or $$rlib.verusdata)"; \
 			exit 1; \
