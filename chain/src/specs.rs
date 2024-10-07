@@ -266,6 +266,7 @@ pub open spec fn spec_dir_string_to_string(dir: SpecDirectoryStringValue) -> Opt
         SpecDirectoryStringValue::TeletexString(s) => None,
         SpecDirectoryStringValue::UniversalString(s) => None,
         SpecDirectoryStringValue::BMPString(s) => None,
+        SpecDirectoryStringValue::Unreachable => None,
     }
 }
 

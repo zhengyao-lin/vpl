@@ -367,20 +367,21 @@ macro_rules! match_continuation {
                         >;
 
                         forward(x) {
-                            gen_match_continuation_forward! {
+                            gen_choice_forward! {
                                 x;
-                                $($variant,)* ; $last_variant
+                                $($variant,)* $last_variant
                             }
                         } by {
-                            if let gen_match_continuation_last_field_pat!(p, (); $($variant),*) = x {
+                            // One extra * for the last variant
+                            if let gen_choice_last_field_pat!(p, (*,); $($variant),*) = x {
                                 assert(p == ());
                             }
                         }
 
                         backward(y) {
-                            gen_match_continuation_backward! {
+                            gen_choice_backward! {
                                 y;
-                                $($variant,)* ; $last_variant
+                                $($variant,)* $last_variant
                             }
                         }
                     }
@@ -542,9 +543,21 @@ macro_rules! gen_match_continuation_apply {
 }
 pub(crate) use gen_match_continuation_apply;
 
+/// Given variants, generate if let branches to transform $src
+/// from a nested Either term to a specific variant
 #[allow(unused_macros)]
-macro_rules! gen_match_continuation_forward_branches {
-    ($src:expr, ($($stars:tt,)*); ; $last_variant:ident) => {
+macro_rules! gen_choice_forward {
+    ($src:expr; $($variant:ident),*) => {
+        gen_choice_forward_branches! {
+            $src, (); $($variant),*
+        }
+    };
+}
+pub(crate) use gen_choice_forward;
+
+#[allow(unused_macros)]
+macro_rules! gen_choice_forward_branches {
+    ($src:expr, ($($stars:tt,)*); $last_variant:ident) => {
         if let inj_ord_choice_pat!($($stars,)* p, *) = $src {
             PolyType::$last_variant(p)
         } else {
@@ -552,44 +565,51 @@ macro_rules! gen_match_continuation_forward_branches {
         }
     };
 
-    ($src:expr, ($($stars:tt,)*); $first_variant:ident, $($rest_variant:ident,)* ; $last_variant:ident) => {
+    ($src:expr, ($($stars:tt,)*); $first_variant:ident $(, $rest_variant:ident)+) => {
         if let inj_ord_choice_pat!($($stars,)* p, *) = $src {
             PolyType::$first_variant(p)
         } else {
-            gen_match_continuation_forward_branches! {
-                $src, ($($stars,)* *,); $($rest_variant,)* ; $last_variant
+            gen_choice_forward_branches! {
+                $src, ($($stars,)* *,); $($rest_variant),*
             }
         }
     };
 }
-pub(crate) use gen_match_continuation_forward_branches;
+pub(crate) use gen_choice_forward_branches;
 
+/// Generate inj_ord_choice_pat!(*, ..., *, p) with |$variant| stars before p
 #[allow(unused_macros)]
-macro_rules! gen_match_continuation_forward {
-    ($src:expr; $($variant:ident,)* ; $last_variant:ident) => {
-        gen_match_continuation_forward_branches! {
-            $src, (); $($variant,)* ; $last_variant
-        }
-    };
-}
-pub(crate) use gen_match_continuation_forward;
-
-/// Generate inj_ord_choice_pat!(*, ..., *, p) with |$variant| + 1 stars before p
-#[allow(unused_macros)]
-macro_rules! gen_match_continuation_last_field_pat {
+macro_rules! gen_choice_last_field_pat {
     ($pat:pat, ($($stars:tt,)*);) => {
-        inj_ord_choice_pat!($($stars,)* *, $pat)
+        inj_ord_choice_pat!($($stars),*, $pat)
     };
 
     ($pat:pat, ($($stars:tt,)*); $_:ident $(, $rest:ident)*) => {
-        gen_match_continuation_last_field_pat!($pat, ($($stars,)* *,); $($rest),*)
+        gen_choice_last_field_pat!($pat, ($($stars,)* *,); $($rest),*)
     };
 }
-pub(crate) use gen_match_continuation_last_field_pat;
+pub(crate) use gen_choice_last_field_pat;
+
+/// Given variants, generate if let branches to transform $src
+/// to a nested Either term
+/// if let variant1(p) = x {
+///    inj_ord_choice_result!(...)
+/// } else if let variant2(p) = x {
+///    ...
+/// } ...
+#[allow(unused_macros)]
+macro_rules! gen_choice_backward {
+    ($src:expr; $($variant:ident),+) => {
+        gen_choice_backward_branches! {
+            $src, (); $($variant),+
+        }
+    };
+}
+pub(crate) use gen_choice_backward;
 
 #[allow(unused_macros)]
-macro_rules! gen_match_continuation_backward_branches {
-    ($src:expr, ($($stars:tt,)*); ; $last_variant:ident) => {
+macro_rules! gen_choice_backward_branches {
+    ($src:expr, ($($stars:tt,)*); $last_variant:ident) => {
         if let PolyType::$last_variant(p) = $src {
             inj_ord_choice_result!($($stars,)* p, *)
         } else {
@@ -597,26 +617,112 @@ macro_rules! gen_match_continuation_backward_branches {
         }
     };
 
-    ($src:expr, ($($stars:tt,)*); $first_variant:ident, $($rest_variant:ident,)* ; $last_variant:ident) => {
+    ($src:expr, ($($stars:tt,)*); $first_variant:ident $(, $rest_variant:ident)+) => {
         if let PolyType::$first_variant(p) = $src {
             inj_ord_choice_result!($($stars,)* p, *)
         } else {
-            gen_match_continuation_backward_branches! {
-                $src, ($($stars,)* *,); $($rest_variant,)* ; $last_variant
+            gen_choice_backward_branches! {
+                $src, ($($stars,)* *,); $($rest_variant),*
             }
         }
     };
 }
-pub(crate) use gen_match_continuation_backward_branches;
+pub(crate) use gen_choice_backward_branches;
 
+/// Generate a combinator for an ASN.1 CHOICE
+///
+/// For example
+/// asn1_choice! {
+///     choice Test {
+///         PrintableString(ASN1(PrintableString)): ASN1<PrintableString>,
+///         UTF8String(ASN1(UTF8String)): ASN1<UTF8String>,
+///     }
+/// }
+///
+/// This essentially generates an OrdChoice combinator over all the choices
+///
+/// NOTE: Since we can't generate match branches in macros, there is a small
+/// artifact in the definition of the result type: a last variant with name
+/// `Unreachable`, which should never be produced at runtime as the combinator
+/// of Unreachable always fails
 #[allow(unused_macros)]
-macro_rules! gen_match_continuation_backward {
-    ($src:expr; $($variant:ident,)* ; $last_variant:ident) => {
-        gen_match_continuation_backward_branches! {
-            $src, (); $($variant,)* ; $last_variant
+macro_rules! asn1_choice {
+    // This assumes the view of $field_combinator is also $field_combinator
+    (
+        choice $name:ident {
+            $( $variant:ident($combinator:expr): $combinator_type:ty ),+
+            $(,)?
+        }
+    ) => {
+        paste! {
+            ::builtin_macros::verus! {
+                wrap_combinator! {
+                    pub struct $name: Mapped<ord_choice_type!(
+                            $($combinator_type,)+
+                            Unreachable,
+                        ), [< internal_ $name >]::Mapper> =>
+                        spec [< Spec $name Value >],
+                        exec<'a> [< $name Value >]<'a>,
+                        owned [< $name ValueOwned >],
+                    = Mapped {
+                            inner: ord_choice!(
+                                $($combinator,)+
+                                Unreachable,
+                            ),
+                            mapper: [< internal_ $name >]::Mapper,
+                        };
+                }
+
+                // Declare the spec/normal/owned result types
+                pub type [< Spec $name Value >] = [< internal_ $name >]::SpecValue;
+                pub type [< $name Value >]<'a> = [< internal_ $name >]::Value<'a>;
+                pub type [< $name ValueOwned >] = [< internal_ $name >]::ValueOwned;
+
+                // Implement a mapper from nested Eithers to a specific variant
+                // TODO: same as the mapper in match_continuation, merge?
+                mod [< internal_ $name >] {
+                    #![allow(non_camel_case_types)]
+                    #![allow(non_snake_case)]
+
+                    use super::*;
+
+                    mapper! {
+                        pub struct Mapper;
+
+                        for <$($variant),+>
+                        from FromType where type FromType<$($variant),+> = ord_choice_result!($($variant),+, ());
+                        to PolyType where #[derive(Eq, PartialEq)] pub enum PolyType<$($variant),+> {
+                            $($variant($variant),)+
+                            Unreachable,
+                        }
+
+                        spec SpecValue with <
+                            $(<<$combinator_type as View>::V as SpecCombinator>::SpecResult),+
+                        >;
+                        exec Value<'a> with <
+                            $(<$combinator_type as Combinator>::Result<'a>),+
+                        >;
+                        owned ValueOwned with <
+                            $(<$combinator_type as Combinator>::Owned),+
+                        >;
+
+                        forward(x) {
+                            gen_choice_forward! { x; $($variant),+ }
+                        } by {
+                            if let gen_choice_last_field_pat!(p, (); $($variant),+) = x {
+                                assert(p == ());
+                            }
+                        }
+
+                        backward(y) {
+                            gen_choice_backward! { y; $($variant),+ }
+                        }
+                    }
+                }
+            }
         }
     };
 }
-pub(crate) use gen_match_continuation_backward;
+pub(crate) use asn1_choice;
 
 }

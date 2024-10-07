@@ -174,6 +174,8 @@ pub fn same_attr(a: &AttributeTypeAndValueValue, b: &AttributeTypeAndValueValue)
         (DirectoryStringValue::UniversalString(a), DirectoryStringValue::UniversalString(b)) =>
             a.polyfill_eq(b),
 
+        (DirectoryStringValue::Unreachable, DirectoryStringValue::Unreachable) => true,
+
         _ => false,
     }
 }
@@ -195,6 +197,7 @@ pub fn dir_string_to_string<'a, 'b>(dir: &'b DirectoryStringValue<'a>) -> (res: 
         DirectoryStringValue::TeletexString(s) => None,
         DirectoryStringValue::UniversalString(s) => None,
         DirectoryStringValue::BMPString(s) => None,
+        DirectoryStringValue::Unreachable => None,
     }
 }
 

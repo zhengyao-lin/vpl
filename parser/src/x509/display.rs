@@ -15,6 +15,7 @@ impl<'a> Display for DirectoryStringValue<'a> {
             DirectoryStringValue::TeletexString(..) => write!(f, "<TeletexString>"),
             DirectoryStringValue::UniversalString(..) => write!(f, "<UniversalString>"),
             DirectoryStringValue::BMPString(..) => write!(f, "<BMPString>"),
+            DirectoryStringValue::Unreachable => write!(f, "<Unreachable>"),
         }
     }
 }
