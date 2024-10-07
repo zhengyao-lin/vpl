@@ -15,6 +15,7 @@ mod tbs_cert;
 mod cert;
 mod macros;
 mod display;
+mod general_name;
 
 pub use name::*;
 pub use rdn::*;
@@ -31,3 +32,4 @@ pub use tbs_cert::*;
 pub use cert::*;
 pub use macros::*;
 pub use display::*;
+pub use general_name::*;

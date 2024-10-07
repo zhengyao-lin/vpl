@@ -91,6 +91,7 @@ macro_rules! asn1_sequence {
                         from FromType where
                             type FromType<$($field_name),*> = gen_inner_combinator_poly_result_type!($(($($modifier $(($modifier_arg))?)?, $field_name));*);
                         to PolyType where
+                            #[derive(Eq, PartialEq)]
                             pub struct PolyType<$($field_name),*> {
                                 $(pub $field_name: [<FieldType_ $field_name>]<$field_name>,)*
                             }

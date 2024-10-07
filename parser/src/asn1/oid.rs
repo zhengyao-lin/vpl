@@ -17,7 +17,7 @@ pub struct ObjectIdentifier;
 asn1_tagged!(ObjectIdentifier, tag_of!(OBJECT_IDENTIFIER));
 
 pub type SpecObjectIdentifierValue = Seq<UInt>;
-#[derive(PolyfillClone)]
+#[derive(PolyfillClone, Eq, PartialEq)]
 pub struct ObjectIdentifierValue(pub VecDeep<UInt>);
 pub type ObjectIdentifierValueOwned = ObjectIdentifierValue;
 

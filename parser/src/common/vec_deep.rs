@@ -7,7 +7,7 @@ verus! {
 /// one layer deeper than the original Vec
 ///
 /// Otherwise inherits all methods from Vec
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct VecDeep<T>(pub Vec<T>);
 
 impl<T: View> View for VecDeep<T> {

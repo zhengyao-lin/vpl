@@ -5,6 +5,8 @@ use crate::asn1::Boolean;
 use crate::asn1::Integer;
 
 use crate::common::*;
+
+use super::general_name::*;
 use super::macros::*;
 
 verus! {
@@ -69,6 +71,9 @@ oid_match_continuation! {
 
         oid(2, 5, 29, 15) =>
             KeyUsage(ASN1(ExplicitTag(tag_of!(OCTET_STRING), ASN1(BitString)))): ASN1<ExplicitTag<ASN1<BitString>>>,
+
+        oid(2, 5, 29, 17) =>
+            SubjectAltName(ASN1(ExplicitTag(tag_of!(OCTET_STRING), ASN1(GeneralNames)))): ASN1<ExplicitTag<ASN1<GeneralNames>>>,
 
         _ => Other(ASN1(OctetString)): ASN1<OctetString>,
     }
