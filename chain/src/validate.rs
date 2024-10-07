@@ -413,9 +413,11 @@ pub fn gen_extension_facts(cert: &CertificateValue, i: LiteralInt) -> (res: Resu
 
     let mut basic_constraints = gen_ext_basic_constraints_facts(cert, i)?;
     let mut key_usage = gen_ext_key_usage_facts(cert, i)?;
+    let mut subject_alt_name = gen_ext_subject_alt_name_facts(cert, i);
 
     facts.append(&mut basic_constraints);
     facts.append(&mut key_usage);
+    facts.append(&mut subject_alt_name);
 
     Ok(facts)
 }
@@ -505,6 +507,149 @@ pub fn gen_ext_key_usage_facts(cert: &CertificateValue, i: LiteralInt) -> (res: 
     Ok(vec_deep![ RuleX::fact("keyUsageExt", vec![ cert_name(i), TermX::atom("false") ]) ])
 }
 
+#[verifier::loop_isolation(false)]
+pub fn gen_ext_subject_alt_name_facts(cert: &CertificateValue, i: LiteralInt) -> (res: VecDeep<Rule>)
+    ensures res@ =~~= spec_gen_ext_subject_alt_name_facts(cert@, i as int)
+{
+    let oid = oid!(2, 5, 29, 17);
+    assert(oid@ == spec_oid!(2, 5, 29, 17));
+
+    if let Some(ext) = get_extension(cert, &oid!(2, 5, 29, 17)) {
+        if let ExtensionParamValue::SubjectAltName(names) = &ext.param {
+            let mut facts = vec_deep![
+                RuleX::fact("sanExt", vec![ cert_name(i), TermX::atom("true") ]),
+                RuleX::fact("sanCritical", vec![ cert_name(i), TermX::atom(if ext.critical { "true" } else { "false" }) ]),
+            ];
+
+            let typ_names = VecDeep::flatten(extract_general_names(names));
+            let len = typ_names.len();
+
+            for j in 0..len
+                invariant
+                    len == typ_names@.len(),
+                    facts@ =~~= spec_gen_ext_subject_alt_name_facts(cert@, i as int).take(j + 2),
+            {
+                facts.push(RuleX::fact("san", vec![ cert_name(i), rc_clone(&typ_names.get(j).1) ]));
+            }
+
+            return facts;
+        }
+    }
+
+    vec_deep![ RuleX::fact("sanExt", vec![ cert_name(i), TermX::atom("false") ]) ]
+}
+
+pub fn extract_general_names(names: &VecDeep<GeneralNameValue>) -> (res: VecDeep<VecDeep<(String, Term)>>)
+    ensures res@ =~~= spec_extract_general_names(names@)
+{
+    let mut typ_names = vec_deep![];
+
+    let len = names.len();
+
+    for i in 0..len
+        invariant
+            len == names@.len(),
+            typ_names@ =~~= spec_extract_general_names(names@).take(i as int),
+    {
+        match names.get(i) {
+            GeneralNameValue::Other(..) => typ_names.push(vec_deep![("Other".to_string(), TermX::atom("unsupported"))]),
+            GeneralNameValue::RFC822(s) => typ_names.push(vec_deep![("RFC822".to_string(), TermX::str(s))]),
+            GeneralNameValue::DNS(s) => typ_names.push(vec_deep![("DNS".to_string(), TermX::str(s))]),
+            GeneralNameValue::X400(..) => typ_names.push(vec_deep![("X400".to_string(), TermX::atom("unsupported"))]),
+            GeneralNameValue::Directory(dir_names) => {
+                let mut dir_name_pairs = vec_deep![];
+
+                let len = dir_names.len();
+                for j in 0..len
+                    invariant
+                        len == dir_names@.len(),
+                        dir_name_pairs@ =~~= Seq::new(j as nat, |j| {
+                            Seq::new(dir_names@[j].len(), |k| {
+                                (
+                                    "Directory/"@ + spec_oid_to_name(dir_names@[j][k].typ),
+                                    match spec_dir_string_to_string(dir_names@[j][k].value) {
+                                        Some(s) => spec_str!(s),
+                                        None => spec_atom!("unsupported".view()),
+                                    }
+                                )
+                            })
+                        })
+                {
+                    let mut rdn_pairs = vec_deep![];
+
+                    // Read each RDN, and convert it to a pair of (type, value)
+                    let len = dir_names.get(j).len();
+                    for k in 0..len
+                        invariant
+                            0 <= j < dir_names@.len(),
+                            len == dir_names@[j as int].len(),
+                            rdn_pairs@ =~~= Seq::new(k as nat, |k| {
+                                (
+                                    "Directory/"@ + spec_oid_to_name(dir_names@[j as int][k].typ),
+                                    match spec_dir_string_to_string(dir_names@[j as int][k].value) {
+                                        Some(s) => spec_str!(s),
+                                        None => spec_atom!("unsupported".view()),
+                                    }
+                                )
+                            })
+                    {
+                        let attr = dir_names.get(j).get(k);
+                        let typ = "Directory/".to_string().concat(oid_to_name(&attr.typ));
+                        let val = match dir_string_to_string(&attr.value) {
+                            Some(s) => TermX::str(s),
+                            None => TermX::atom("unsupported"),
+                        };
+
+                        rdn_pairs.push((typ, val));
+                    }
+
+                    dir_name_pairs.push(rdn_pairs);
+                }
+
+                typ_names.push(VecDeep::flatten(dir_name_pairs));
+            }
+            GeneralNameValue::EDIParty(..) => typ_names.push(vec_deep![("EDIParty".to_string(), TermX::atom("unsupported"))]),
+            GeneralNameValue::URI(s) => typ_names.push(vec_deep![("URI".to_string(), TermX::str(s))]),
+            GeneralNameValue::IP(..) => typ_names.push(vec_deep![("IP".to_string(), TermX::atom("unsupported"))]),
+            GeneralNameValue::RegisteredID(..) => typ_names.push(vec_deep![("RegisteredID".to_string(), TermX::atom("unsupported"))]),
+            GeneralNameValue::Unreachable => typ_names.push(vec_deep![]),
+        }
+    }
+
+    typ_names
+}
+
+pub fn oid_to_name(oid: &ObjectIdentifierValue) -> (res: &'static str)
+    ensures res@ =~= spec_oid_to_name(oid@)
+{
+    let id = oid!(2, 5, 4, 6); assert(id@ == spec_oid!(2, 5, 4, 6));
+    let id = oid!(2, 5, 4, 10); assert(id@ == spec_oid!(2, 5, 4, 10));
+    let id = oid!(2, 5, 4, 11); assert(id@ == spec_oid!(2, 5, 4, 11));
+    let id = oid!(2, 5, 4, 97); assert(id@ == spec_oid!(2, 5, 4, 97));
+    let id = oid!(2, 5, 4, 3); assert(id@ == spec_oid!(2, 5, 4, 3));
+    let id = oid!(2, 5, 4, 4); assert(id@ == spec_oid!(2, 5, 4, 4));
+    let id = oid!(2, 5, 4, 8); assert(id@ == spec_oid!(2, 5, 4, 8));
+    let id = oid!(2, 5, 4, 9); assert(id@ == spec_oid!(2, 5, 4, 9));
+    let id = oid!(2, 5, 4, 7); assert(id@ == spec_oid!(2, 5, 4, 7));
+    let id = oid!(2, 5, 4, 17); assert(id@ == spec_oid!(2, 5, 4, 17));
+    let id = oid!(2, 5, 4, 42); assert(id@ == spec_oid!(2, 5, 4, 42));
+    let id = oid!(0, 9, 2342, 19200300, 100, 1, 25); assert(id@ == spec_oid!(0, 9, 2342, 19200300, 100, 1, 25));
+
+    if oid.polyfill_eq(&oid!(2, 5, 4, 6)) { "country" }
+    else if oid.polyfill_eq(&oid!(2, 5, 4, 10)) { "organization" }
+    else if oid.polyfill_eq(&oid!(2, 5, 4, 11)) { "organizational unit" }
+    else if oid.polyfill_eq(&oid!(2, 5, 4, 97)) { "organizational identifier" }
+    else if oid.polyfill_eq(&oid!(2, 5, 4, 3)) { "common name" }
+    else if oid.polyfill_eq(&oid!(2, 5, 4, 4)) { "surname" }
+    else if oid.polyfill_eq(&oid!(2, 5, 4, 8)) { "state" }
+    else if oid.polyfill_eq(&oid!(2, 5, 4, 9)) { "street address" }
+    else if oid.polyfill_eq(&oid!(2, 5, 4, 7)) { "locality" }
+    else if oid.polyfill_eq(&oid!(2, 5, 4, 17)) { "postal code" }
+    else if oid.polyfill_eq(&oid!(2, 5, 4, 42)) { "given name" }
+    else if oid.polyfill_eq(&oid!(0, 9, 2342, 19200300, 100, 1, 25)) { "domain component" }
+    else { "UNKNOWN" }
+}
+
 pub fn issuer_fact(i: LiteralInt, j: LiteralInt) -> (res: Rule)
     ensures res@ =~~= spec_issuer_fact(i as int, j as int)
 {
@@ -543,7 +688,7 @@ pub fn gen_root_facts(
             roots_len == roots@.len(),
 
             // Same as in spec_gen_root_facts
-            facts@ =~= Seq::new(i as nat,
+            facts@ =~~= Seq::new(i as nat,
                 |i| {
                     let issue_facts = Seq::new(chain@.len(), |j|
                         if spec_likely_issued(roots@[i], chain@[j]) &&
@@ -555,7 +700,8 @@ pub fn gen_root_facts(
                     ).flatten();
 
                     if issue_facts.len() != 0 {
-                        issue_facts + spec_gen_cert_facts(roots@[i as int], i + chain@.len())
+                        issue_facts + spec_gen_cert_facts(roots@[i as int], i + chain@.len()) +
+                        seq![ spec_issuer_fact(i + chain@.len(), i + chain@.len()) ]
                     } else {
                         issue_facts
                     }
@@ -609,6 +755,7 @@ pub fn gen_root_facts(
             // Add the root cert iff some chain cert is issued by it
             let mut root_facts = gen_cert_facts(roots.get(i), root_id)?;
             issuer_facts.append(&mut root_facts);
+            issuer_facts.push(RuleX::fact("issuer", vec![ cert_name(root_id), cert_name(root_id) ]));
         }
 
         facts.push(issuer_facts);

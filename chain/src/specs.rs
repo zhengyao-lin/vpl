@@ -82,7 +82,8 @@ pub open spec fn spec_gen_root_facts(
             // Pruning happens here: if a root certificate did not
             // issue any of the chain certs, we omit it
             if issue_facts.len() != 0 {
-                issue_facts + spec_gen_cert_facts(roots[i], i + chain.len())
+                issue_facts + spec_gen_cert_facts(roots[i], i + chain.len()) +
+                seq![ spec_issuer_fact(i + chain.len(), i + chain.len()) ] // self-issuing
             } else {
                 issue_facts
             }
@@ -410,7 +411,8 @@ pub open spec fn spec_gen_spki_rsa_param_fact(cert: SpecCertificateValue, i: int
 pub open spec fn spec_gen_extension_facts(cert: SpecCertificateValue, i: int) -> Seq<SpecRule>
 {
     spec_gen_ext_basic_constraints_facts(cert, i) +
-    spec_gen_ext_key_usage_facts(cert, i)
+    spec_gen_ext_key_usage_facts(cert, i) +
+    spec_gen_ext_subject_alt_name_facts(cert, i)
 }
 
 pub open spec fn spec_gen_ext_basic_constraints_facts(cert: SpecCertificateValue, i: int) -> Seq<SpecRule>
@@ -482,6 +484,78 @@ pub open spec fn spec_gen_ext_key_usage_facts(cert: SpecCertificateValue, i: int
     } else {
         seq![
             spec_fact!("keyUsageExt", spec_cert_name(i), spec_atom!("false".view())),
+        ]
+    }
+}
+
+/// Copied from Hammurabi
+pub open spec fn spec_oid_to_name(oid: SpecObjectIdentifierValue) -> Seq<char>
+{
+    if oid == spec_oid!(2, 5, 4, 6) { "country"@ }
+    else if oid == spec_oid!(2, 5, 4, 10) { "organization"@ }
+    else if oid == spec_oid!(2, 5, 4, 11) { "organizational unit"@ }
+    else if oid == spec_oid!(2, 5, 4, 97) { "organizational identifier"@ }
+    else if oid == spec_oid!(2, 5, 4, 3) { "common name"@ }
+    else if oid == spec_oid!(2, 5, 4, 4) { "surname"@ }
+    else if oid == spec_oid!(2, 5, 4, 8) { "state"@ }
+    else if oid == spec_oid!(2, 5, 4, 9) { "street address"@ }
+    else if oid == spec_oid!(2, 5, 4, 7) { "locality"@ }
+    else if oid == spec_oid!(2, 5, 4, 17) { "postal code"@ }
+    else if oid == spec_oid!(2, 5, 4, 42) { "given name"@ }
+    else if oid == spec_oid!(0, 9, 2342, 19200300, 100, 1, 25) { "domain component"@ }
+    else { "UNKNOWN"@ }
+}
+
+/// Extract all general names along with a string denoting their variant
+/// For directoryName, expand each RDN to a string
+pub open spec fn spec_extract_general_names(names: Seq<SpecGeneralNameValue>) -> Seq<Seq<(Seq<char>, SpecTerm)>>
+{
+    Seq::new(names.len(), |i| match names[i] {
+        SpecGeneralNameValue::Other(..) => seq![ ("Other"@, spec_atom!("unsupported".view())) ],
+        SpecGeneralNameValue::RFC822(s) => seq![ ("RFC822"@, spec_str!(s)) ],
+        SpecGeneralNameValue::DNS(s) => seq![ ("DNS"@, spec_str!(s)) ],
+        SpecGeneralNameValue::X400(..) => seq![ ("X400"@, spec_atom!("unsupported".view())) ],
+        SpecGeneralNameValue::Directory(dir_names) => {
+            Seq::new(dir_names.len(), |j| {
+                Seq::new(dir_names[j].len(), |k| {
+                    (
+                        "Directory/"@ + spec_oid_to_name(dir_names[j][k].typ),
+
+                        match spec_dir_string_to_string(dir_names[j][k].value) {
+                            Some(s) => spec_str!(s),
+                            None => spec_atom!("unsupported".view()),
+                        }
+                    )
+                })
+            }).flatten()
+        }
+        SpecGeneralNameValue::EDIParty(..) => seq![ ("EDIParty"@, spec_atom!("unsupported".view())) ],
+        SpecGeneralNameValue::URI(s) => seq![ ("URI"@, spec_str!(s)) ],
+        SpecGeneralNameValue::IP(..) => seq![ ("IP"@, spec_atom!("unsupported".view())) ],
+        SpecGeneralNameValue::RegisteredID(..) => seq![ ("RegisteredID"@, spec_atom!("unsupported".view())) ],
+        SpecGeneralNameValue::Unreachable => seq![],
+
+    })
+}
+
+pub open spec fn spec_gen_ext_subject_alt_name_facts(cert: SpecCertificateValue, i: int) -> Seq<SpecRule>
+{
+    if let Some(ext) = spec_get_extension(cert, spec_oid!(2, 5, 29, 17)) {
+        if let SpecExtensionParamValue::SubjectAltName(names) = ext.param {
+            seq![
+                spec_fact!("sanExt", spec_cert_name(i), spec_atom!("true".view())),
+                spec_fact!("sanCritical", spec_cert_name(i), spec_atom!((if ext.critical { "true" } else { "false" }).view())),
+            ] +
+            // Add all supported alt names
+            spec_extract_general_names(names).flatten().map_values(|v: (Seq<char>, SpecTerm)| spec_fact!("san", spec_cert_name(i), v.1))
+        } else {
+            seq![
+                spec_fact!("sanExt", spec_cert_name(i), spec_atom!("false".view())),
+            ]
+        }
+    } else {
+        seq![
+            spec_fact!("sanExt", spec_cert_name(i), spec_atom!("false".view())),
         ]
     }
 }

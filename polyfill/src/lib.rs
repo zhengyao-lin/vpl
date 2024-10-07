@@ -58,6 +58,14 @@ pub fn rc_as_ref<T: View>(rc: &Rc<T>) -> (res: &T)
     rc.as_ref()
 }
 
+#[verifier::external_body]
+pub fn rc_clone<T: View>(rc: &Rc<T>) -> (res: Rc<T>)
+    ensures
+        rc.view() == res.view(),
+{
+    rc.clone()
+}
+
 #[verifier::inline]
 pub open spec fn spec_option_ok_or<T, E>(option: Option<T>, err: E) -> Result<T, E>
 {
