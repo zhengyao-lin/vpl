@@ -10,7 +10,7 @@ verus! {
 
 asn1_sequence! {
     seq TBSCertificate {
-        #[default(0)] version: ASN1<ExplicitTag<ASN1<Integer>>> = ASN1(ExplicitTag(tag_of!(EXPLICIT 0), ASN1(Integer))),
+        #[default(0i64)] version: ASN1<ExplicitTag<ASN1<Integer>>> = ASN1(ExplicitTag(tag_of!(EXPLICIT 0), ASN1(Integer))),
 
         serial: ASN1<BigInt> = ASN1(BigInt),
         signature: ASN1<AlgorithmIdentifier> = ASN1(AlgorithmIdentifier),
