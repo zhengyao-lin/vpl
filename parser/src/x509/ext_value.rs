@@ -50,6 +50,32 @@ asn1! {
     seq of CertificatePolicies(ASN1(PolicyInfo)): ASN1<PolicyInfo>;
 
     seq of ExtendedKeyUsage(ASN1(ObjectIdentifier)): ASN1<ObjectIdentifier>;
+
+    // NameConstraints ::= SEQUENCE {
+    //     permittedSubtrees       [0]     GeneralSubtrees OPTIONAL,
+    //     excludedSubtrees        [1]     GeneralSubtrees OPTIONAL }
+
+    // GeneralSubtrees ::= SEQUENCE SIZE (1..MAX) OF GeneralSubtree
+
+    // GeneralSubtree ::= SEQUENCE {
+    //     base                    GeneralName,
+    //     minimum         [0]     BaseDistance DEFAULT 0,
+    //     maximum         [1]     BaseDistance OPTIONAL }
+
+    // BaseDistance ::= INTEGER (0..MAX)
+    seq NameConstraints {
+        // NOTE: implicit tag of a SEQ OF still has the constructed bit set?
+        #[optional] permitted: ASN1<ImplicitTag<GeneralSubtrees>> = ASN1(ImplicitTag(tag_of!(EXPLICIT 0), GeneralSubtrees)),
+        #[optional] excluded: ASN1<ImplicitTag<GeneralSubtrees>> = ASN1(ImplicitTag(tag_of!(EXPLICIT 1), GeneralSubtrees)),
+    }
+
+    seq of GeneralSubtrees(ASN1(GeneralSubtree)): ASN1<GeneralSubtree>;
+
+    seq GeneralSubtree {
+        base: GeneralName = GeneralName,
+        #[default(0i64)] min: ASN1<ImplicitTag<Integer>> = ASN1(ImplicitTag(tag_of!(IMPLICIT 0), Integer)),
+        #[optional] max: ASN1<ImplicitTag<Integer>> = ASN1(ImplicitTag(tag_of!(IMPLICIT 1), Integer)),
+    }
 }
 
 oid_match_continuation! {
@@ -74,6 +100,9 @@ oid_match_continuation! {
 
         oid(2, 5, 29, 17) =>
             SubjectAltName(ASN1(ExplicitTag(tag_of!(OCTET_STRING), ASN1(GeneralNames)))): ASN1<ExplicitTag<ASN1<GeneralNames>>>,
+
+        oid(2, 5, 29, 30) =>
+            NameConstraints(ASN1(ExplicitTag(tag_of!(OCTET_STRING), ASN1(NameConstraints)))): ASN1<ExplicitTag<ASN1<NameConstraints>>>,
 
         _ => Other(ASN1(OctetString)): ASN1<OctetString>,
     }
