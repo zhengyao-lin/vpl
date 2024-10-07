@@ -80,9 +80,10 @@ mod test {
         const SUFFIX: &'static str = "-----END CERTIFICATE-----";
 
         // Parse all certificates provided
-        roots.split(PREFIX).skip(1).for_each(|cert_enc| {
+        roots.split(PREFIX).skip(1).enumerate().for_each(|(i, cert_enc)| {
             match cert_enc.split(SUFFIX).next() {
                 Some(cert_enc) => {
+                    eprintln!("Parsing certificate {}", i);
                     assert!(parse_cert(cert_enc).is_ok());
                 }
                 None => {}

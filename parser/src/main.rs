@@ -29,7 +29,7 @@ fn parse_cert(src: &str) -> Result<(), String>
     let cert = parse_x509_bytes(&cert_bytes)
         .map_err(|e| format!("Failed to parse certificate: {:?}", e))?;
 
-    // println!("Certificate: {:?}", cert);
+    println!("Certificate: {:?}", cert);
 
     Ok(())
 }
