@@ -1,10 +1,5 @@
 use vstd::prelude::*;
 
-pub use paste::paste;
-
-use crate::asn1::*;
-use crate::common::*;
-
 verus! {
 
 /// Generate a combinator for an ASN.1 SEQUENCE (with default or optional fields)
@@ -21,10 +16,11 @@ verus! {
 /// NOTE: we have the restriction that an OrdChoice combinator cannot
 /// be following an optional or default field.
 #[allow(unused_macros)]
+#[macro_export]
 macro_rules! asn1_sequence {
     // This assumes the view of $field_combinator is also $field_combinator
     (
-        seq $combinator_name:ident {
+        seq $name:ident {
             $(
                 $(#[$modifier:ident $(($modifier_arg:expr))?])? $field_name:ident : $field_combinator_type:ty = $field_combinator:expr
             ),*
@@ -32,15 +28,15 @@ macro_rules! asn1_sequence {
             $(,)?
         }
     ) => {
-        asn1_sequence! {
-            seq $combinator_name {
+        crate::x509::macros::asn1_sequence! {
+            seq $name {
                 $($(#[$modifier $(($modifier_arg))?])? $field_name : $field_combinator_type = $field_combinator, spec $field_combinator),*
             }
         }
     };
 
     (
-        seq $combinator_name:ident {
+        seq $name:ident {
             $(
                 $(#[$modifier:ident $(($modifier_arg:expr))?])? $field_name:ident : $field_combinator_type:ty = $field_combinator:expr, spec $spec_field_combinator:expr
             ),*
@@ -48,37 +44,39 @@ macro_rules! asn1_sequence {
             $(,)?
         }
     ) => {
-        paste! {
+        ::paste::paste! {
             ::builtin_macros::verus! {
-                // Wrap the final combinator in a unit struct called $combinator_name
-                wrap_combinator! {
-                    pub struct $combinator_name: Mapped<LengthWrapped<
-                            gen_inner_combinator_type!($(($($modifier $(($modifier_arg))?)?, $field_combinator_type));*)
-                        >, [< internal_ $combinator_name >]::Mapper> =>
-                        spec [< Spec $combinator_name Value >],
-                        exec<'a> [< $combinator_name Value >]<'a>,
-                        owned [< $combinator_name ValueOwned >],
-                    = Mapped {
-                            inner: LengthWrapped(gen_inner_combinator!($(($($modifier $(($modifier_arg))?)?, $field_combinator));*)),
-                            mapper: [< internal_ $combinator_name >]::Mapper,
-                        };
-                }
+                // Only export the combinator, and the spec/normal/owned result types
+                pub use [< internal_ $name >]::$name;
+                pub use [< internal_ $name >]::SpecValue as [< Spec $name Value >];
+                pub use [< internal_ $name >]::Value as [< $name Value >];
+                pub use [< internal_ $name >]::ValueOwned as [< $name ValueOwned >];
 
-                asn1_tagged!($combinator_name, tag_of!(SEQUENCE));
-
-                // Declare the spec/normal/owned result types
-                pub type [< Spec $combinator_name Value >] = [< internal_ $combinator_name >]::SpecValue;
-                pub type [< $combinator_name Value >]<'a> = [< internal_ $combinator_name >]::Value<'a>;
-                pub type [< $combinator_name ValueOwned >] = [< internal_ $combinator_name >]::ValueOwned;
-
-                // Implement a mapper from nested pairs to a struct
-                mod [< internal_ $combinator_name >] {
-                    // Since snake-case field names are directly used
-                    // as type parameters
+                mod [< internal_ $name >] {
+                    // Since snake-case field names are directly used as type parameters
                     #![allow(non_camel_case_types)]
                     #![allow(non_snake_case)]
 
                     use super::*;
+                    use crate::x509::macros::*;
+                    use crate::asn1::*;
+                    use crate::common::*;
+
+                    // Wrap the final combinator in a unit struct called $name
+                    wrap_combinator! {
+                        pub struct $name: Mapped<LengthWrapped<
+                                gen_inner_combinator_type!($(($($modifier $(($modifier_arg))?)?, $field_combinator_type));*)
+                            >, Mapper> =>
+                            spec SpecValue,
+                            exec<'a> Value<'a>,
+                            owned ValueOwned,
+                        = Mapped {
+                                inner: LengthWrapped(gen_inner_combinator!($(($($modifier $(($modifier_arg))?)?, $field_combinator));*)),
+                                mapper: Mapper,
+                            };
+                    }
+
+                    asn1_tagged!($name, tag_of!(SEQUENCE));
 
                     // Add an indirection here since we can't put it inside the struct definition
                     $(
@@ -117,10 +115,11 @@ macro_rules! asn1_sequence {
         }
     };
 }
-pub(crate) use asn1_sequence;
+pub use asn1_sequence;
 
 /// gen_inner_combinator_type!((optional, type1); (, type2); (default(v), type3))
 #[allow(unused_macros)]
+#[macro_export]
 macro_rules! gen_inner_combinator_type {
     () => { End };
 
@@ -140,9 +139,10 @@ macro_rules! gen_inner_combinator_type {
         $first
     };
 }
-pub(crate) use gen_inner_combinator_type;
+pub use gen_inner_combinator_type;
 
 #[allow(unused_macros)]
+#[macro_export]
 macro_rules! gen_inner_combinator {
     () => { End };
 
@@ -162,9 +162,10 @@ macro_rules! gen_inner_combinator {
         $first
     };
 }
-pub(crate) use gen_inner_combinator;
+pub use gen_inner_combinator;
 
 #[allow(unused_macros)]
+#[macro_export]
 macro_rules! gen_inner_combinator_poly_result_type {
     () => { EndValue };
 
@@ -184,9 +185,10 @@ macro_rules! gen_inner_combinator_poly_result_type {
         $first
     };
 }
-pub(crate) use gen_inner_combinator_poly_result_type;
+pub use gen_inner_combinator_poly_result_type;
 
 #[allow(unused_macros)]
+#[macro_export]
 macro_rules! gen_forward_body {
     ($prev_sel:expr ;) => {};
 
@@ -200,9 +202,10 @@ macro_rules! gen_forward_body {
         gen_forward_body!($prev_sel.1 ; $(($($rest_modifier $(($rest_modifier_arg))?)?, $rest)),*)
     };
 }
-pub(crate) use gen_forward_body;
+pub use gen_forward_body;
 
 #[allow(unused_macros)]
+#[macro_export]
 macro_rules! get_end_field {
     ($prev_sel:expr ;) => {
         $prev_sel
@@ -218,9 +221,10 @@ macro_rules! get_end_field {
         get_end_field!($prev_sel.1 ; $(($($rest_modifier $(($rest_modifier_arg))?)?, $rest)),*)
     };
 }
-pub(crate) use get_end_field;
+pub use get_end_field;
 
 #[allow(unused_macros)]
+#[macro_export]
 macro_rules! gen_backward_body {
     ($src:expr ;) => {
         EndValue
@@ -234,9 +238,10 @@ macro_rules! gen_backward_body {
         PairValue($src.$first, gen_backward_body!($src ; $(($($rest_modifier $(($rest_modifier_arg))?)?, $rest)),*))
     };
 }
-pub(crate) use gen_backward_body;
+pub use gen_backward_body;
 
 #[allow(unused_macros)]
+#[macro_export]
 macro_rules! gen_field_poly_type {
     ((, $field:ident)) => {
         $field
@@ -254,7 +259,7 @@ macro_rules! gen_field_poly_type {
         $field
     };
 }
-pub(crate) use gen_field_poly_type;
+pub use gen_field_poly_type;
 
 /// Generate a continuation that matches the input
 /// against a set of values and for each value,
@@ -275,6 +280,7 @@ pub(crate) use gen_field_poly_type;
 ///     }
 /// }
 #[allow(unused_macros)]
+#[macro_export]
 macro_rules! match_continuation {
     (
         continuation $name:ident<$lt:lifetime>($input_type:ty, spec $spec_input_type:ty) {
@@ -287,60 +293,63 @@ macro_rules! match_continuation {
             $(,)?
         }
     ) => {
-        paste! {
+        ::paste::paste! {
             ::builtin_macros::verus! {
-                #[derive(Debug, View)]
-                pub struct [< $name Cont >];
-
-                impl [< $name Cont >] {
-                    gen_match_continuation_spec_apply! {
-                        [< internal_ $name >]::Mapper, [< $name Cont >], $spec_input_type;
-                        $(($spec_value, $combinator),)*
-                        (, $last_combinator)
-                    }
-                }
-
-                impl Continuation for [< $name Cont >] {
-                    type Input<$lt> = $input_type;
-                    type Output = Mapped<ord_choice_type!(
-                        $(
-                            Cond<$combinator_type>,
-                        )*
-                        Cond<$last_combinator_type>,
-
-                        // Since we can't generate match arms with macros
-                        // the gen_* macros are using a sequence of if let's
-                        // and Rust doesn't know that the if let's are exhaustive
-                        // so we have a "wildcard" case in the end that should
-                        // never be reached
-                        Unreachable,
-                    ), [< internal_ $name >]::Mapper>;
-
-                    gen_match_continuation_apply! {
-                        [< internal_ $name >]::Mapper;
-                        $(($value, $spec_value, $combinator),)*
-                        (, $last_combinator)
-                    }
-
-                    open spec fn requires<'a>(&self, i: Self::Input<'a>) -> bool {
-                        true
-                    }
-
-                    open spec fn ensures<'a>(&self, i: Self::Input<'a>, o: Self::Output) -> bool {
-                        &&& o@ == Self::spec_apply(i@)
-                    }
-                }
-
-                // Declare the spec/normal/owned result types
-                pub type [< Spec $name Value >] = [< internal_ $name >]::SpecValue;
-                pub type [< $name Value >]<'a> = [< internal_ $name >]::Value<'a>;
-                pub type [< $name ValueOwned >] = [< internal_ $name >]::ValueOwned;
+                pub use [< internal_ $name >]::Cont as [< $name Cont >];
+                pub use [< internal_ $name >]::SpecValue as [< Spec $name Value >];
+                pub use [< internal_ $name >]::Value as [< $name Value >];
+                pub use [< internal_ $name >]::ValueOwned as [< $name ValueOwned >];
 
                 mod [< internal_ $name >] {
                     #![allow(non_camel_case_types)]
                     #![allow(non_snake_case)]
 
                     use super::*;
+                    use crate::x509::macros::*;
+                    use crate::asn1::*;
+                    use crate::common::*;
+
+                    #[derive(Debug, View)]
+                    pub struct Cont;
+
+                    impl Cont {
+                        gen_match_continuation_spec_apply! {
+                            Mapper, Cont, $spec_input_type;
+                            $(($spec_value, $combinator),)*
+                            (, $last_combinator)
+                        }
+                    }
+
+                    impl Continuation for Cont {
+                        type Input<$lt> = $input_type;
+                        type Output = Mapped<ord_choice_type!(
+                            $(
+                                Cond<$combinator_type>,
+                            )*
+                            Cond<$last_combinator_type>,
+
+                            // Since we can't generate match arms with macros
+                            // the gen_* macros are using a sequence of if let's
+                            // and Rust doesn't know that the if let's are exhaustive
+                            // so we have a "wildcard" case in the end that should
+                            // never be reached
+                            Unreachable,
+                        ), Mapper>;
+
+                        gen_match_continuation_apply! {
+                            Mapper;
+                            $(($value, $spec_value, $combinator),)*
+                            (, $last_combinator)
+                        }
+
+                        open spec fn requires<'a>(&self, i: Self::Input<'a>) -> bool {
+                            true
+                        }
+
+                        open spec fn ensures<'a>(&self, i: Self::Input<'a>, o: Self::Output) -> bool {
+                            &&& o@ == Self::spec_apply(i@)
+                        }
+                    }
 
                     mapper! {
                         pub struct Mapper;
@@ -390,7 +399,7 @@ macro_rules! match_continuation {
         }
     };
 }
-pub(crate) use match_continuation;
+pub use match_continuation;
 
 /// Special case for matching against OIDs
 ///
@@ -401,6 +410,7 @@ pub(crate) use match_continuation;
 /// the missing proof in gen_lemma_disjoint), otherwise we may
 /// have a soundness issue
 #[allow(unused_macros)]
+#[macro_export]
 macro_rules! oid_match_continuation {
     (
         continuation $name:ident {
@@ -413,7 +423,7 @@ macro_rules! oid_match_continuation {
             $(,)?
         }
     ) => {
-        match_continuation! {
+        crate::x509::macros::match_continuation! {
             continuation $name<'a>(ObjectIdentifierValue, spec SpecObjectIdentifierValue) {
                 $(
                     oid!($($arc),+), spec spec_oid!($($arc),+) => $variant, $combinator_type, $combinator,
@@ -423,15 +433,25 @@ macro_rules! oid_match_continuation {
             }
         }
 
-        paste! {
+        ::paste::paste! {
             ::builtin_macros::verus! {
-                impl [< $name Cont >] {
-                    // Without explicit trigger terms, Verus is unable to
-                    // check that two sequence literals are disjoint.
-                    // So we generate a disjointness lemmas here
-                    gen_lemma_disjoint! {
-                        lemma_disjoint_oids {
-                            $(spec_oid!($($arc),+)),*
+                mod [< internal2_ $name >] {
+                    #![allow(non_camel_case_types)]
+                    #![allow(non_snake_case)]
+
+                    use super::*;
+                    use crate::x509::macros::*;
+                    use crate::asn1::*;
+                    use crate::common::*;
+
+                    impl [< $name Cont >] {
+                        // Without explicit trigger terms, Verus is unable to
+                        // check that two sequence literals are disjoint.
+                        // So we generate a disjointness lemmas here
+                        gen_lemma_disjoint! {
+                            lemma_disjoint_oids {
+                                $(spec_oid!($($arc),+)),*
+                            }
                         }
                     }
                 }
@@ -439,7 +459,7 @@ macro_rules! oid_match_continuation {
         }
     }
 }
-pub(crate) use oid_match_continuation;
+pub use oid_match_continuation;
 
 /// Used to suppress Verus warning about broadcast missing triggers
 pub closed spec fn lemma_disjoint_trigger() -> bool;
@@ -448,6 +468,7 @@ pub closed spec fn lemma_disjoint_trigger() -> bool;
 /// NOTE: the disjointness of the provided terms are trusted
 /// incorrect calls to this might lead to unsoundness
 #[allow(unused_macros)]
+#[macro_export]
 macro_rules! gen_lemma_disjoint {
     ($name:ident { $($term:expr),* $(,)? }) => {
         ::builtin_macros::verus! {
@@ -461,9 +482,10 @@ macro_rules! gen_lemma_disjoint {
         }
     };
 }
-pub(crate) use gen_lemma_disjoint;
+pub use gen_lemma_disjoint;
 
 #[allow(unused_macros)]
+#[macro_export]
 macro_rules! gen_lemma_disjoint_helper {
     ($($term:expr),* ; ) => { true };
 
@@ -471,9 +493,10 @@ macro_rules! gen_lemma_disjoint_helper {
         $(!ext_equal($prev_term, $term) &&)* true && gen_lemma_disjoint_helper!($($prev_term,)* $term ; $($rest_term),*)
     };
 }
-pub(crate) use gen_lemma_disjoint_helper;
+pub use gen_lemma_disjoint_helper;
 
 #[allow(unused_macros)]
+#[macro_export]
 macro_rules! gen_match_continuation_spec_apply_helper {
     ($input:expr, $last_cond:expr; (, $last_combinator:expr)) => {
         OrdChoice(
@@ -489,9 +512,10 @@ macro_rules! gen_match_continuation_spec_apply_helper {
         )
     };
 }
-pub(crate) use gen_match_continuation_spec_apply_helper;
+pub use gen_match_continuation_spec_apply_helper;
 
 #[allow(unused_macros)]
+#[macro_export]
 macro_rules! gen_match_continuation_spec_apply {
     ($mapper:expr, $cont_name:ident, $spec_input_type:ty; $(($spec_value:expr, $combinator:expr),)* (, $last_combinator:expr)) => {
         ::builtin_macros::verus! {
@@ -505,9 +529,10 @@ macro_rules! gen_match_continuation_spec_apply {
         }
     };
 }
-pub(crate) use gen_match_continuation_spec_apply;
+pub use gen_match_continuation_spec_apply;
 
 #[allow(unused_macros)]
+#[macro_export]
 macro_rules! gen_match_continuation_apply_helper {
     ($input:expr, $last_cond:expr; (, $last_combinator:expr)) => {
         OrdChoice(
@@ -523,9 +548,10 @@ macro_rules! gen_match_continuation_apply_helper {
         )
     };
 }
-pub(crate) use gen_match_continuation_apply_helper;
+pub use gen_match_continuation_apply_helper;
 
 #[allow(unused_macros)]
+#[macro_export]
 macro_rules! gen_match_continuation_apply {
     ($mapper:expr; $(($value:expr, $spec_value:expr, $combinator:expr),)* (, $last_combinator:expr)) => {
         ::builtin_macros::verus! {
@@ -541,11 +567,12 @@ macro_rules! gen_match_continuation_apply {
         }
     };
 }
-pub(crate) use gen_match_continuation_apply;
+pub use gen_match_continuation_apply;
 
 /// Given variants, generate if let branches to transform $src
 /// from a nested Either term to a specific variant
 #[allow(unused_macros)]
+#[macro_export]
 macro_rules! gen_choice_forward {
     ($src:expr; $($variant:ident),*) => {
         gen_choice_forward_branches! {
@@ -553,9 +580,10 @@ macro_rules! gen_choice_forward {
         }
     };
 }
-pub(crate) use gen_choice_forward;
+pub use gen_choice_forward;
 
 #[allow(unused_macros)]
+#[macro_export]
 macro_rules! gen_choice_forward_branches {
     ($src:expr, ($($stars:tt,)*); $last_variant:ident) => {
         if let inj_ord_choice_pat!($($stars,)* p, *) = $src {
@@ -575,10 +603,11 @@ macro_rules! gen_choice_forward_branches {
         }
     };
 }
-pub(crate) use gen_choice_forward_branches;
+pub use gen_choice_forward_branches;
 
 /// Generate inj_ord_choice_pat!(*, ..., *, p) with |$variant| stars before p
 #[allow(unused_macros)]
+#[macro_export]
 macro_rules! gen_choice_last_field_pat {
     ($pat:pat, ($($stars:tt,)*);) => {
         inj_ord_choice_pat!($($stars),*, $pat)
@@ -588,7 +617,7 @@ macro_rules! gen_choice_last_field_pat {
         gen_choice_last_field_pat!($pat, ($($stars,)* *,); $($rest),*)
     };
 }
-pub(crate) use gen_choice_last_field_pat;
+pub use gen_choice_last_field_pat;
 
 /// Given variants, generate if let branches to transform $src
 /// to a nested Either term
@@ -598,6 +627,7 @@ pub(crate) use gen_choice_last_field_pat;
 ///    ...
 /// } ...
 #[allow(unused_macros)]
+#[macro_export]
 macro_rules! gen_choice_backward {
     ($src:expr; $($variant:ident),+) => {
         gen_choice_backward_branches! {
@@ -605,9 +635,10 @@ macro_rules! gen_choice_backward {
         }
     };
 }
-pub(crate) use gen_choice_backward;
+pub use gen_choice_backward;
 
 #[allow(unused_macros)]
+#[macro_export]
 macro_rules! gen_choice_backward_branches {
     ($src:expr, ($($stars:tt,)*); $last_variant:ident) => {
         if let PolyType::$last_variant(p) = $src {
@@ -627,7 +658,7 @@ macro_rules! gen_choice_backward_branches {
         }
     };
 }
-pub(crate) use gen_choice_backward_branches;
+pub use gen_choice_backward_branches;
 
 /// Generate a combinator for an ASN.1 CHOICE
 ///
@@ -646,6 +677,7 @@ pub(crate) use gen_choice_backward_branches;
 /// `Unreachable`, which should never be produced at runtime as the combinator
 /// of Unreachable always fails
 #[allow(unused_macros)]
+#[macro_export]
 macro_rules! asn1_choice {
     // This assumes the view of $field_combinator is also $field_combinator
     (
@@ -654,39 +686,42 @@ macro_rules! asn1_choice {
             $(,)?
         }
     ) => {
-        paste! {
+        ::paste::paste! {
             ::builtin_macros::verus! {
-                wrap_combinator! {
-                    pub struct $name: Mapped<ord_choice_type!(
-                            $($combinator_type,)+
-                            Unreachable,
-                        ), [< internal_ $name >]::Mapper> =>
-                        spec [< Spec $name Value >],
-                        exec<'a> [< $name Value >]<'a>,
-                        owned [< $name ValueOwned >],
-                    = Mapped {
-                            inner: ord_choice!(
-                                $($combinator,)+
-                                Unreachable,
-                            ),
-                            mapper: [< internal_ $name >]::Mapper,
-                        };
-                }
+                pub use [< internal_ $name >]::$name;
+                pub use [< internal_ $name >]::SpecValue as [< Spec $name Value >];
+                pub use [< internal_ $name >]::Value as [< $name Value >];
+                pub use [< internal_ $name >]::ValueOwned as [< $name ValueOwned >];
 
-                // Declare the spec/normal/owned result types
-                pub type [< Spec $name Value >] = [< internal_ $name >]::SpecValue;
-                pub type [< $name Value >]<'a> = [< internal_ $name >]::Value<'a>;
-                pub type [< $name ValueOwned >] = [< internal_ $name >]::ValueOwned;
-
-                // Implement a mapper from nested Eithers to a specific variant
-                // TODO: same as the mapper in match_continuation, merge?
                 mod [< internal_ $name >] {
                     #![allow(non_camel_case_types)]
                     #![allow(non_snake_case)]
 
                     use super::*;
+                    use crate::x509::macros::*;
+                    use crate::asn1::*;
+                    use crate::common::*;
+
+                    wrap_combinator! {
+                        pub struct $name: Mapped<ord_choice_type!(
+                                $($combinator_type,)+
+                                Unreachable,
+                            ), Mapper> =>
+                            spec SpecValue,
+                            exec<'a> Value<'a>,
+                            owned ValueOwned,
+                        = Mapped {
+                                inner: ord_choice!(
+                                    $($combinator,)+
+                                    Unreachable,
+                                ),
+                                mapper: Mapper,
+                            };
+                    }
 
                     mapper! {
+                        // Implement a mapper from nested Eithers to a specific variant
+                        // TODO: same as the mapper in match_continuation, merge?
                         pub struct Mapper;
 
                         for <$($variant),+>
@@ -723,6 +758,120 @@ macro_rules! asn1_choice {
         }
     };
 }
-pub(crate) use asn1_choice;
+pub use asn1_choice;
+
+/// Generate a combinator for an ASN.1 SEQUENCE OF
+#[allow(unused_macros)]
+#[macro_export]
+macro_rules! asn1_sequence_of {
+    (
+        seq of $name:ident($combinator:expr): $combinator_type:ty;
+    ) => {
+        ::paste::paste! {
+            ::builtin_macros::verus! {
+                pub use [< internal_ $name >]::$name;
+                pub use [< internal_ $name >]::SpecValue as [< Spec $name Value >];
+                pub use [< internal_ $name >]::Value as [< $name Value >];
+                pub use [< internal_ $name >]::ValueOwned as [< $name ValueOwned >];
+
+                mod [< internal_ $name >] {
+                    #![allow(non_camel_case_types)]
+                    #![allow(non_snake_case)]
+
+                    use super::*;
+                    use crate::x509::macros::*;
+                    use crate::asn1::*;
+                    use crate::common::*;
+
+                    wrap_combinator! {
+                        pub struct $name: SequenceOf<$combinator_type> =>
+                            spec SpecValue,
+                            exec<'a> Value<'a>,
+                            owned ValueOwned,
+                        = SequenceOf($combinator);
+                    }
+
+                    asn1_tagged!($name, tag_of!(SEQUENCE));
+
+                    pub type SpecValue = Seq<<<$combinator_type as View>::V as SpecCombinator>::SpecResult>;
+                    pub type Value<'a> = VecDeep<<$combinator_type as Combinator>::Result<'a>>;
+                    pub type ValueOwned = VecDeep<<$combinator_type as Combinator>::Owned>;
+                }
+            }
+        }
+    };
+}
+pub use asn1_sequence_of;
+
+/// Same as above, but for SET OF
+#[allow(unused_macros)]
+#[macro_export]
+macro_rules! asn1_set_of {
+    (
+        set of $name:ident($combinator:expr): $combinator_type:ty;
+    ) => {
+        ::paste::paste! {
+            ::builtin_macros::verus! {
+                pub use [< internal_ $name >]::$name;
+                pub use [< internal_ $name >]::SpecValue as [< Spec $name Value >];
+                pub use [< internal_ $name >]::Value as [< $name Value >];
+                pub use [< internal_ $name >]::ValueOwned as [< $name ValueOwned >];
+
+                mod [< internal_ $name >] {
+                    #![allow(non_camel_case_types)]
+                    #![allow(non_snake_case)]
+
+                    use super::*;
+                    use crate::x509::macros::*;
+                    use crate::asn1::*;
+                    use crate::common::*;
+
+                    wrap_combinator! {
+                        pub struct $name: SequenceOf<$combinator_type> =>
+                            spec SpecValue,
+                            exec<'a> Value<'a>,
+                            owned ValueOwned,
+                        = SequenceOf($combinator);
+                    }
+
+                    asn1_tagged!($name, tag_of!(SET));
+
+                    pub type SpecValue = Seq<<<$combinator_type as View>::V as SpecCombinator>::SpecResult>;
+                    pub type Value<'a> = VecDeep<<$combinator_type as Combinator>::Result<'a>>;
+                    pub type ValueOwned = VecDeep<<$combinator_type as Combinator>::Owned>;
+                }
+            }
+        }
+    };
+}
+pub use asn1_set_of;
+
+/// Allows multiple definitions involving SEQUENCE, SEQUENCE OF, SET OF, and CHOICE
+#[allow(unused_macros)]
+#[macro_export]
+macro_rules! asn1 {
+    () => {};
+
+    (seq $def:tt { $($body:tt)* } $($rest:tt)*) => {
+        crate::x509::macros::asn1_sequence! { seq $def { $($body)* } }
+        crate::x509::macros::asn1! { $($rest)* }
+    };
+
+    (choice $def:tt { $($body:tt)* } $($rest:tt)*) => {
+        crate::x509::macros::asn1_choice! { choice $def { $($body)* } }
+        crate::x509::macros::asn1! { $($rest)* }
+    };
+
+    (seq of $name:ident($combinator:expr): $combinator_type:ty; $($rest:tt)*) => {
+        crate::x509::macros::asn1_sequence_of! { seq of $name($combinator): $combinator_type; }
+        crate::x509::macros::asn1! { $($rest)* }
+    };
+
+    (set of $name:ident($combinator:expr): $combinator_type:ty; $($rest:tt)*) => {
+        crate::x509::macros::asn1_set_of! { set of $name($combinator): $combinator_type; }
+        crate::x509::macros::asn1! { $($rest)* }
+    };
+}
+pub use asn1;
 
 }

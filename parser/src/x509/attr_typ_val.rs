@@ -19,7 +19,7 @@ verus! {
 // AttributeValue ::= ANY DEFINED BY AttributeType
 //
 // where "in general AttributeValue will be a DirectoryString" (4.1.2.4, RFC 2459)
-asn1_sequence! {
+asn1! {
     seq AttributeTypeAndValue {
         typ: ASN1<ObjectIdentifier> = ASN1(ObjectIdentifier),
         value: DirectoryString = DirectoryString,

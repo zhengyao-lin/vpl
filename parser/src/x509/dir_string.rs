@@ -15,7 +15,7 @@ verus! {
 //     bmpString               BMPString (SIZE (1..MAX))
 //     ia5String               IA5String (SIZE (1..MAX))
 // }
-asn1_choice! {
+asn1! {
     choice DirectoryString {
         PrintableString(ASN1(PrintableString)): ASN1<PrintableString>,
         UTF8String(ASN1(UTF8String)): ASN1<UTF8String>,

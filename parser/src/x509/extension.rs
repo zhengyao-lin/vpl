@@ -5,6 +5,7 @@ use crate::asn1::Boolean;
 
 use crate::common::*;
 use super::ext_value::*;
+use super::macros::asn1;
 
 verus! {
 
@@ -44,11 +45,9 @@ wrap_combinator! {
 
 asn1_tagged!(Extension, tag_of!(SEQUENCE));
 
-wrap_combinator! {
-    pub struct Extensions: ExtensionsInner = SequenceOf(ASN1(Extension));
+asn1! {
+    seq of Extensions(ASN1(Extension)): ASN1<Extension>;
 }
-
-asn1_tagged!(Extensions, tag_of!(SEQUENCE));
 
 mapper! {
     pub struct ExtensionMapper;

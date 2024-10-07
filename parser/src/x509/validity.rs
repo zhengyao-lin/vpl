@@ -4,7 +4,7 @@ use crate::asn1::*;
 use crate::common::*;
 
 use super::time::*;
-use super::macros::*;
+use super::macros::asn1;
 
 verus! {
 
@@ -13,7 +13,7 @@ verus! {
 //     notBefore      Time,
 //     notAfter       Time,
 // }
-asn1_sequence! {
+asn1! {
     seq Validity {
         not_before: Time = Time,
         not_after: Time = Time,

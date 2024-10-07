@@ -11,7 +11,7 @@ verus! {
 //     signatureAlgorithm   AlgorithmIdentifier,
 //     signatureValue       BIT STRING
 // }
-asn1_sequence! {
+asn1! {
     seq CertificateInner {
         cert: Cached<ASN1<TBSCertificate>> = Cached(ASN1(TBSCertificate)),
         sig_alg: ASN1<AlgorithmIdentifier> = ASN1(AlgorithmIdentifier),

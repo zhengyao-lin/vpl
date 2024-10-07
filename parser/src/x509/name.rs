@@ -8,22 +8,10 @@ use super::macros::*;
 
 verus! {
 
-/// In X.509: Name ::= SEQUENCE OF RelativeDistinguishedName
-pub type NameInner = SequenceOf<ASN1<RDN>>;
-
-wrap_combinator! {
-    pub struct Name: NameInner =>
-        spec SpecNameValue,
-        exec<'a> NameValue<'a>,
-        owned NameValueOwned,
-    = SequenceOf(ASN1(RDN));
+// In X.509: Name ::= SEQUENCE OF RelativeDistinguishedName
+asn1! {
+    seq of Name(ASN1(RDN)): ASN1<RDN>;
 }
-
-asn1_tagged!(Name, tag_of!(SEQUENCE));
-
-pub type SpecNameValue = Seq<SpecRDNValue>;
-pub type NameValue<'a> = VecDeep<RDNValue<'a>>;
-pub type NameValueOwned = VecDeep<RDNValueOwned>;
 
 }
 

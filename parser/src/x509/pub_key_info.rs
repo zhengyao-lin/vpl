@@ -12,7 +12,7 @@ verus! {
 //     algorithm            AlgorithmIdentifier,
 //     subjectPublicKey     BIT STRING
 // }
-asn1_sequence! {
+asn1! {
     seq PublicKeyInfo {
         alg: ASN1<AlgorithmIdentifier> = ASN1(AlgorithmIdentifier),
         pub_key: ASN1<BitString> = ASN1(BitString),

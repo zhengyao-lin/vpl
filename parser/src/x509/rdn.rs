@@ -4,27 +4,15 @@ use crate::asn1::*;
 use crate::common::*;
 
 use super::attr_typ_val::*;
+use super::macros::asn1;
 
 verus! {
 
-/// In X.509: RelativeDistinguishedName ::= SET OF AttributeTypeAndValue
-/// TODO: support SET OF instead of using a sequence
-pub type RDNInner = SequenceOf<ASN1<AttributeTypeAndValue>>;
-
-wrap_combinator! {
-    pub struct RDN: RDNInner =>
-        spec SpecRDNValue,
-        exec<'a> RDNValue<'a>,
-        owned RDNValueOwned,
-    = SequenceOf(ASN1(AttributeTypeAndValue));
+// In X.509: RelativeDistinguishedName ::= SET OF AttributeTypeAndValue
+// TODO: support SET OF instead of using a sequence
+asn1! {
+    set of RDN(ASN1(AttributeTypeAndValue)): ASN1<AttributeTypeAndValue>;
 }
-
-// Override the tag to SET OF
-asn1_tagged!(RDN, tag_of!(SET));
-
-pub type SpecRDNValue = Seq<SpecAttributeTypeAndValueValue>;
-pub type RDNValue<'a> = VecDeep<AttributeTypeAndValueValue<'a>>;
-pub type RDNValueOwned = VecDeep<AttributeTypeAndValueValueOwned>;
 
 }
 

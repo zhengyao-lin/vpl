@@ -9,75 +9,46 @@ use super::macros::*;
 
 verus! {
 
-// RFC 2459, 4.2.1.1
-asn1_sequence! {
+asn1! {
+    // RFC 2459, 4.2.1.1
     seq AuthorityKeyIdentifier {
         #[optional] key_id: ASN1<ImplicitTag<OctetString>> = ASN1(ImplicitTag(tag_of!(IMPLICIT 0), OctetString)),
         // TODO: Parsing of GeneralNames is not implemented yet
         #[optional] auth_cert_issuer: placeholder_type!() = placeholder!(EXPLICIT 1),
         #[optional] auth_cert_serial: ASN1<ImplicitTag<BigInt>> = ASN1(ImplicitTag(tag_of!(IMPLICIT 2), BigInt)),
     }
-}
 
-// BasicConstraints ::= SEQUENCE {
-//     cA                      BOOLEAN DEFAULT FALSE,
-//     pathLenConstraint       INTEGER (0..MAX) OPTIONAL
-// }
-asn1_sequence! {
+    // BasicConstraints ::= SEQUENCE {
+    //     cA                      BOOLEAN DEFAULT FALSE,
+    //     pathLenConstraint       INTEGER (0..MAX) OPTIONAL
+    // }
     seq BasicConstraints {
         #[default(false)] is_ca: ASN1<Boolean> = ASN1(Boolean),
         #[optional] path_len: ASN1<Integer> = ASN1(Integer),
     }
-}
 
-// certificatePolicies ::= SEQUENCE SIZE (1..MAX) OF PolicyInformation
-//
-// PolicyInformation ::= SEQUENCE {
-//     policyIdentifier   CertPolicyId,
-//     policyQualifiers   SEQUENCE SIZE (1..MAX) OF
-//                             PolicyQualifierInfo OPTIONAL }
-//
-// CertPolicyId ::= OBJECT IDENTIFIER
-//
-// PolicyQualifierInfo ::= SEQUENCE {
-//     policyQualifierId  PolicyQualifierId,
-//     qualifier          ANY DEFINED BY policyQualifierId }
-//
-// PolicyQualifierId ::= OBJECT IDENTIFIER ( id-qt-cps | id-qt-unotice )
-asn1_sequence! {
+    // PolicyInformation ::= SEQUENCE {
+    //     policyIdentifier   CertPolicyId,
+    //     policyQualifiers   SEQUENCE SIZE (1..MAX) OF
+    //                             PolicyQualifierInfo OPTIONAL }
+    //
+    // CertPolicyId ::= OBJECT IDENTIFIER
+    //
+    // PolicyQualifierInfo ::= SEQUENCE {
+    //     policyQualifierId  PolicyQualifierId,
+    //     qualifier          ANY DEFINED BY policyQualifierId }
+    //
+    // PolicyQualifierId ::= OBJECT IDENTIFIER ( id-qt-cps | id-qt-unotice )
     seq PolicyInfo {
         policy_id: ASN1<ObjectIdentifier> = ASN1(ObjectIdentifier),
         #[optional] qualifiers: placeholder_type!() = placeholder!(SEQUENCE),
     }
+
+    // certificatePolicies ::= SEQUENCE SIZE (1..MAX) OF PolicyInformation
+    seq of CertificatePolicies(ASN1(PolicyInfo)): ASN1<PolicyInfo>;
+
+    seq of ExtendedKeyUsage(ASN1(ObjectIdentifier)): ASN1<ObjectIdentifier>;
 }
-
-wrap_combinator! {
-    pub struct CertificatePolicies: SequenceOf<ASN1<PolicyInfo>> =>
-        spec SpecCertificatePoliciesValue,
-        exec<'a> CertificatePoliciesValue<'a>,
-        owned CertificatePoliciesValueOwned,
-    = SequenceOf(ASN1(PolicyInfo));
-}
-
-asn1_tagged!(CertificatePolicies, tag_of!(SEQUENCE));
-
-pub type SpecCertificatePoliciesValue = Seq<SpecPolicyInfoValue>;
-pub type CertificatePoliciesValue<'a> = VecDeep<PolicyInfoValue<'a>>;
-pub type CertificatePoliciesValueOwned = VecDeep<PolicyInfoValueOwned>;
-
-wrap_combinator! {
-    pub struct ExtendedKeyUsage: SequenceOf<ASN1<ObjectIdentifier>> =>
-        spec SpecExtendedKeyUsageValue,
-        exec<'a> ExtendedKeyUsageValue<'a>,
-        owned ExtendedKeyUsageValueOwned,
-    = SequenceOf(ASN1(ObjectIdentifier));
-}
-
-asn1_tagged!(ExtendedKeyUsage, tag_of!(SEQUENCE));
-
-pub type SpecExtendedKeyUsageValue = Seq<SpecObjectIdentifierValue>;
-pub type ExtendedKeyUsageValue<'a> = VecDeep<ObjectIdentifierValue>;
-pub type ExtendedKeyUsageValueOwned = VecDeep<ObjectIdentifierValueOwned>;
 
 oid_match_continuation! {
     continuation ExtensionParam {

@@ -7,27 +7,25 @@ use super::macros::*;
 
 verus! {
 
-// Dss-Parms  ::=  SEQUENCE  {
-//     p             INTEGER,
-//     q             INTEGER,
-//     g             INTEGER
-// }
-asn1_sequence! {
+asn1! {
+    // Dss-Parms  ::=  SEQUENCE  {
+    //     p             INTEGER,
+    //     q             INTEGER,
+    //     g             INTEGER
+    // }
     seq DSAParam {
         p: ASN1<BigInt> = ASN1(BigInt),
         q: ASN1<BigInt> = ASN1(BigInt),
         g: ASN1<BigInt> = ASN1(BigInt),
     }
-}
 
-// NOTE: This is the format of the public key field of subject public key info
-// not the format of AlgorithmIdentifier.param
-//
-// RSAPublicKey ::= SEQUENCE {
-//     modulus            INTEGER, -- n
-//     publicExponent     INTEGER  -- e --
-// }
-asn1_sequence! {
+    // NOTE: This is the format of the public key field of subject public key info
+    // not the format of AlgorithmIdentifier.param
+    //
+    // RSAPublicKey ::= SEQUENCE {
+    //     modulus            INTEGER, -- n
+    //     publicExponent     INTEGER  -- e --
+    // }
     seq RSAParam {
         modulus: ASN1<BigInt> = ASN1(BigInt),
         exponent: ASN1<BigInt> = ASN1(BigInt),
