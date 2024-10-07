@@ -58,8 +58,8 @@ pub fn check_auth_key_id(issuer: &CertificateValue, subject: &CertificateValue) 
     true
 }
 
-pub fn get_extension_param<'a, 'b>(cert: &'b CertificateValue<'a>, oid: &ObjectIdentifierValue) -> (res: OptionDeep<&'b ExtensionParamValue<'a>>)
-    ensures res@ == spec_get_extension_param(cert@, oid@)
+pub fn get_extension<'a, 'b>(cert: &'b CertificateValue<'a>, oid: &ObjectIdentifierValue) -> (res: OptionDeep<&'b ExtensionValue<'a>>)
+    ensures res@ == spec_get_extension(cert@, oid@)
 {
     if let Some(exts) = &cert.get().cert.get().extensions {
         let len = exts.len();
@@ -70,11 +70,11 @@ pub fn get_extension_param<'a, 'b>(cert: &'b CertificateValue<'a>, oid: &ObjectI
             invariant
                 len == exts@.len(),
                 forall |j| #![auto] 0 <= j < i ==> exts@[j].id != oid@,
-                spec_get_extension_param(cert@, oid@)
-                    == spec_get_extension_param_helper(exts@.skip(i as int), oid@),
+                spec_get_extension(cert@, oid@)
+                    == spec_get_extension_helper(exts@.skip(i as int), oid@),
         {
             if exts.get(i).id.polyfill_eq(oid) {
-                return Some(&exts.get(i).param);
+                return Some(exts.get(i));
             }
 
             assert(exts@.skip(i as int).drop_first() == exts@.skip(i + 1));
@@ -92,8 +92,8 @@ pub fn get_auth_key_id<'a, 'b>(cert: &'b CertificateValue<'a>) -> (res: OptionDe
     let oid = oid!(2, 5, 29, 35);
     assert(oid@ == spec_oid!(2, 5, 29, 35));
 
-    if let Some(param) = get_extension_param(cert, &oid) {
-        if let ExtensionParamValue::AuthorityKeyIdentifier(param) = param {
+    if let Some(ext) = get_extension(cert, &oid) {
+        if let ExtensionParamValue::AuthorityKeyIdentifier(param) = &ext.param {
             return Some(param);
         }
     }
@@ -107,8 +107,8 @@ pub fn get_subject_key_id<'a, 'b>(cert: &'b CertificateValue<'a>) -> (res: Optio
     let oid = oid!(2, 5, 29, 14);
     assert(oid@ == spec_oid!(2, 5, 29, 14));
 
-    if let Some(param) = get_extension_param(cert, &oid) {
-        if let ExtensionParamValue::SubjectKeyIdentifier(param) = param {
+    if let Some(ext) = get_extension(cert, &oid) {
+        if let ExtensionParamValue::SubjectKeyIdentifier(param) = &ext.param {
             return Some(param);
         }
     }
@@ -239,8 +239,7 @@ pub fn gen_cert_facts(cert: &CertificateValue, i: LiteralInt) -> (res: Result<Ve
 {
     let ser_cert = cert.serialize();
 
-    let mut facts = gen_subject_name_info(cert, i)?;
-    let mut rest = vec_deep![
+    let mut facts = vec_deep![
         RuleX::fact("fingerprint", vec![
             cert_name(i),
             TermX::str(hash::to_hex_upper(&hash::sha256_digest(ser_cert)).as_str()),
@@ -267,7 +266,11 @@ pub fn gen_cert_facts(cert: &CertificateValue, i: LiteralInt) -> (res: Result<Ve
         gen_spki_rsa_param_fact(cert, i)?,
     ];
 
-    facts.append(&mut rest);
+    let mut name_facts = gen_subject_name_info(cert, i)?;
+    let mut ext_facts = gen_extension_facts(cert, i)?;
+
+    facts.append(&mut name_facts);
+    facts.append(&mut ext_facts);
 
     Ok(facts)
 }
@@ -398,6 +401,39 @@ pub fn gen_spki_rsa_param_fact(cert: &CertificateValue, i: LiteralInt) -> (res: 
 
         _ => Ok(RuleX::fact("spkiRSAModLength", vec![ cert_name(i), TermX::atom("na") ])),
     }
+}
+
+pub fn gen_extension_facts(cert: &CertificateValue, i: LiteralInt) -> (res: Result<VecDeep<Rule>, ValidationError>)
+    ensures res matches Ok(res) ==> res@ =~~= spec_gen_extension_facts(cert@, i as int)
+{
+    gen_ext_basic_constraints_facts(cert, i)
+}
+
+pub fn gen_ext_basic_constraints_facts(cert: &CertificateValue, i: LiteralInt) -> (res: Result<VecDeep<Rule>, ValidationError>)
+    ensures res matches Ok(res) ==> res@ =~~= spec_gen_ext_basic_constraints_facts(cert@, i as int)
+{
+    let oid = oid!(2, 5, 29, 19);
+    assert(oid@ == spec_oid!(2, 5, 29, 19));
+
+    if let Some(ext) = get_extension(cert, &oid) {
+        if let ExtensionParamValue::BasicConstraints(param) = &ext.param {
+            return Ok(vec_deep![
+                RuleX::fact("basicConstraintsExt", vec![ cert_name(i), TermX::atom("true") ]),
+                RuleX::fact("basicConstraintsCritical", vec![ cert_name(i), TermX::atom(if ext.critical { "true" } else { "false" }) ]),
+                RuleX::fact("isCA", vec![ cert_name(i), TermX::atom(if param.is_ca { "true" } else { "false" }) ]),
+
+                if let Some(path_len) = param.path_len {
+                    RuleX::fact("pathLimit", vec![ cert_name(i), TermX::int(path_len as LiteralInt) ])
+                } else {
+                    RuleX::fact("pathLimit", vec![ cert_name(i), TermX::atom("none") ])
+                },
+            ]);
+        }
+    }
+
+    Ok(vec_deep![
+        RuleX::fact("basicConstraintsExt", vec![ cert_name(i), TermX::atom("false") ]),
+    ])
 }
 
 pub fn issuer_fact(i: LiteralInt, j: LiteralInt) -> (res: Rule)

@@ -195,25 +195,26 @@ pub open spec fn spec_check_auth_key_id(issuer: SpecCertificateValue, subject: S
 }
 
 /// Get the first extension with the given OID
-pub open spec fn spec_get_extension_param(cert: SpecCertificateValue, oid: SpecObjectIdentifierValue) -> OptionDeep<SpecExtensionParamValue>
+/// return (critical, param)
+pub open spec fn spec_get_extension(cert: SpecCertificateValue, oid: SpecObjectIdentifierValue) -> OptionDeep<SpecExtensionValue>
 {
     if let Some(exts) = cert.cert.extensions {
-        spec_get_extension_param_helper(exts, oid)
+        spec_get_extension_helper(exts, oid)
     } else {
         None
     }
 }
 
-pub open spec fn spec_get_extension_param_helper(exts: Seq<SpecExtensionValue>, oid: SpecObjectIdentifierValue) -> OptionDeep<SpecExtensionParamValue>
+pub open spec fn spec_get_extension_helper(exts: Seq<SpecExtensionValue>, oid: SpecObjectIdentifierValue) -> OptionDeep<SpecExtensionValue>
     decreases exts.len()
 {
     if exts.len() == 0 {
         None
     } else {
         if exts[0].id =~= oid {
-            Some(exts[0].param)
+            Some(exts[0])
         } else {
-            spec_get_extension_param_helper(exts.drop_first(), oid)
+            spec_get_extension_helper(exts.drop_first(), oid)
         }
     }
 }
@@ -221,8 +222,8 @@ pub open spec fn spec_get_extension_param_helper(exts: Seq<SpecExtensionValue>, 
 /// Get the AuthorityKeyIdentifier extension if it exists
 pub open spec fn spec_get_auth_key_id(cert: SpecCertificateValue) -> OptionDeep<SpecAuthorityKeyIdentifierValue>
 {
-    if let Some(param) = spec_get_extension_param(cert, spec_oid!(2, 5, 29, 35)) {
-        if let SpecExtensionParamValue::AuthorityKeyIdentifier(param) = param {
+    if let Some(ext) = spec_get_extension(cert, spec_oid!(2, 5, 29, 35)) {
+        if let SpecExtensionParamValue::AuthorityKeyIdentifier(param) = ext.param {
             Some(param)
         } else {
             None
@@ -235,8 +236,8 @@ pub open spec fn spec_get_auth_key_id(cert: SpecCertificateValue) -> OptionDeep<
 /// Get the SubjectKeyIdentifier extension if it exists
 pub open spec fn spec_get_subject_key_id(cert: SpecCertificateValue) -> OptionDeep<Seq<u8>>
 {
-    if let Some(param) = spec_get_extension_param(cert, spec_oid!(2, 5, 29, 14)) {
-        if let SpecExtensionParamValue::SubjectKeyIdentifier(param) = param {
+    if let Some(ext) = spec_get_extension(cert, spec_oid!(2, 5, 29, 14)) {
+        if let SpecExtensionParamValue::SubjectKeyIdentifier(param) = ext.param {
             Some(param)
         } else {
             None
@@ -294,7 +295,7 @@ pub open spec fn spec_gen_cert_facts(cert: SpecCertificateValue, i: int) -> Seq<
     // here since due to CachedValue::serialized()
     let ser_cert = ASN1(CertificateInner)@.spec_serialize(cert).unwrap();
 
-    spec_gen_subject_name_info(cert, i) + seq![
+    seq![
         spec_fact!("fingerprint",
             spec_cert_name(i),
             spec_str!(hash::spec_to_hex_upper(hash::spec_sha256_digest(ser_cert))),
@@ -309,7 +310,7 @@ pub open spec fn spec_gen_cert_facts(cert: SpecCertificateValue, i: int) -> Seq<
 
         spec_gen_spki_dsa_param_fact(cert, i),
         spec_gen_spki_rsa_param_fact(cert, i),
-    ]
+    ] + spec_gen_subject_name_info(cert, i) + spec_gen_extension_facts(cert, i)
 }
 
 /// Extract info about the subject name
@@ -401,6 +402,38 @@ pub open spec fn spec_gen_spki_rsa_param_fact(cert: SpecCertificateValue, i: int
         }
 
         _ => spec_fact!("spkiRSAModLength", spec_cert_name(i), spec_atom!("na".view())),
+    }
+}
+
+pub open spec fn spec_gen_extension_facts(cert: SpecCertificateValue, i: int) -> Seq<SpecRule>
+{
+    spec_gen_ext_basic_constraints_facts(cert, i)
+}
+
+pub open spec fn spec_gen_ext_basic_constraints_facts(cert: SpecCertificateValue, i: int) -> Seq<SpecRule>
+{
+    if let Some(ext) = spec_get_extension(cert, spec_oid!(2, 5, 29, 19)) {
+        if let SpecExtensionParamValue::BasicConstraints(param) = ext.param {
+            seq![
+                spec_fact!("basicConstraintsExt", spec_cert_name(i), spec_atom!("true".view())),
+                spec_fact!("basicConstraintsCritical", spec_cert_name(i), spec_atom!((if ext.critical { "true" } else { "false" }).view())),
+                spec_fact!("isCA", spec_cert_name(i), spec_atom!((if param.is_ca { "true" } else { "false" }).view())),
+
+                if let Some(path_len) = param.path_len {
+                    spec_fact!("pathLimit", spec_cert_name(i), spec_int!(path_len as int))
+                } else {
+                    spec_fact!("pathLimit", spec_cert_name(i), spec_atom!("none".view()))
+                },
+            ]
+        } else {
+            seq![
+                spec_fact!("basicConstraintsExt", spec_cert_name(i), spec_atom!("false".view())),
+            ]
+        }
+    } else {
+        seq![
+            spec_fact!("basicConstraintsExt", spec_cert_name(i), spec_atom!("false".view())),
+        ]
     }
 }
 
