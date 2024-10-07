@@ -294,7 +294,7 @@ pub open spec fn spec_gen_cert_facts(cert: SpecCertificateValue, i: int) -> Seq<
     // here since due to CachedValue::serialized()
     let ser_cert = ASN1(CertificateInner)@.spec_serialize(cert).unwrap();
 
-    seq![
+    spec_gen_subject_name_info(cert, i) + seq![
         spec_fact!("fingerprint",
             spec_cert_name(i),
             spec_str!(hash::spec_to_hex_upper(hash::spec_sha256_digest(ser_cert))),
@@ -302,6 +302,19 @@ pub open spec fn spec_gen_cert_facts(cert: SpecCertificateValue, i: int) -> Seq<
 
         spec_fact!("version", spec_cert_name(i), spec_int!(cert.cert.version as int)),
 
+        spec_fact!("signatureAlgorithm", spec_cert_name(i), spec_str!(spec_oid_to_str(cert.sig_alg.id))),
+
+        spec_fact!("notAfter", spec_cert_name(i), spec_int!(spec_x509_time_to_timestamp(cert.cert.validity.not_after).unwrap() as int)),
+        spec_fact!("notBefore", spec_cert_name(i), spec_int!(spec_x509_time_to_timestamp(cert.cert.validity.not_before).unwrap() as int)),
+
+        spec_gen_spki_dsa_param_fact(cert, i),
+    ]
+}
+
+/// Extract info about the subject name
+pub open spec fn spec_gen_subject_name_info(cert: SpecCertificateValue, i: int) -> Seq<SpecRule>
+{
+    seq![
         spec_fact!("subject", spec_cert_name(i),
             // common name
             spec_str!(spec_get_rdn(cert.cert.subject, spec_oid!(2, 5, 4, 3)).unwrap_or("".view())),
@@ -351,12 +364,23 @@ pub open spec fn spec_gen_cert_facts(cert: SpecCertificateValue, i: int) -> Seq<
         spec_fact!("surname", spec_cert_name(i),
             spec_str!(spec_get_rdn(cert.cert.subject, spec_oid!(2, 5, 4, 4)).unwrap_or("".view())),
         ),
-
-        spec_fact!("signatureAlgorithm", spec_cert_name(i), spec_str!(spec_oid_to_str(cert.sig_alg.id))),
-
-        spec_fact!("notAfter", spec_cert_name(i), spec_int!(spec_x509_time_to_timestamp(cert.cert.validity.not_after).unwrap() as int)),
-        spec_fact!("notBefore", spec_cert_name(i), spec_int!(spec_x509_time_to_timestamp(cert.cert.validity.not_before).unwrap() as int)),
     ]
+}
+
+pub open spec fn spec_gen_spki_dsa_param_fact(cert: SpecCertificateValue, i: int) -> SpecRule
+{
+    match cert.cert.subject_key.alg.param {
+        SpecAlgorithmParamValue::DSASignature(Either::Left(param)) => {
+            spec_fact!("spkiDSAParam",
+                spec_cert_name(i),
+                spec_int!((param.p.len() - 1) as usize * 8),
+                spec_int!((param.q.len() - 1) as usize * 8),
+                spec_int!((param.g.len() - 1) as usize * 8),
+            )
+        }
+
+        _ => spec_fact!("spkiDSAParam", spec_cert_name(i), spec_atom!("na".view()), spec_atom!("na".view()), spec_atom!("na".view())),
+    }
 }
 
 pub closed spec fn spec_x509_time_to_timestamp(time: SpecTimeValue) -> Option<i64>;
@@ -445,6 +469,17 @@ macro_rules! spec_str {
     };
 }
 pub(crate) use spec_str;
+
+/// Atom literal as a SpecTerm
+#[allow(unused_macros)]
+macro_rules! spec_atom {
+    ($x:expr) => {
+        ::builtin_macros::verus_proof_expr! {
+            SpecTerm::Literal(SpecLiteral::Atom($x))
+        }
+    };
+}
+pub(crate) use spec_atom;
 
 /// String literal as a SpecTerm
 #[allow(unused_macros)]

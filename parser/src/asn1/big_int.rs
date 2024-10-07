@@ -46,11 +46,19 @@ impl View for BigIntOwned {
 
 impl<'a> PolyfillClone for BigIntValue<'a> {
     fn clone(&self) -> Self {
+        proof {
+            use_type_invariant(self);
+        }
         BigIntValue(&self.0)
     }
 }
 
 impl<'a> BigIntValue<'a> {
+    #[verifier::type_invariant]
+    closed spec fn inv(self) -> bool {
+        Self::spec_wf(self@)
+    }
+
     /// `bytes` should be the minimal encoding
     /// i.e. the first byte should not be 0 unless
     ///   1. bytes.len() == 1
@@ -69,6 +77,20 @@ impl<'a> BigIntValue<'a> {
     {
         bytes.len() != 0 &&
         (bytes[0] != 0 || bytes.len() == 1 || bytes[1] >= 0x80)
+    }
+
+    pub open spec fn spec_byte_len(&self) -> usize {
+        (self@.len() - 1) as usize
+    }
+
+    /// The minimum number of bytes to represent the integer
+    pub fn byte_len(&self) -> (res: usize)
+        ensures res == self.spec_byte_len()
+    {
+        proof {
+            use_type_invariant(self);
+        }
+        self.0.len() - 1
     }
 
     // TODO: add more methods to interpret BigIntValue as an integer

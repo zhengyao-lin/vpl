@@ -153,7 +153,7 @@ macro_rules! wrap_combinator_impls {
                     let c: $inner_type = $inner_expr;
 
                     // For future compatibility, check that $inner_expr is also a valid spec expr
-                    let ghost _ = $inner_expr;
+                    let ghost _ = $inner_expr.view();
 
                     // Check that $inner_expr is a Combinator
                     let _ = $inner_expr.length();

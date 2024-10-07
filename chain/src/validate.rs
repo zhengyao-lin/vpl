@@ -238,6 +238,41 @@ pub fn gen_cert_facts(cert: &CertificateValue, i: LiteralInt) -> (res: Result<Ve
 {
     let ser_cert = cert.serialize();
 
+    let mut facts = gen_subject_name_info(cert, i)?;
+    let mut rest = vec_deep![
+        RuleX::fact("fingerprint", vec![
+            cert_name(i),
+            TermX::str(hash::to_hex_upper(&hash::sha256_digest(ser_cert)).as_str()),
+        ]),
+
+        RuleX::fact("version", vec![ cert_name(i), TermX::int(cert.get().cert.get().version) ]),
+
+        RuleX::fact("signatureAlgorithm", vec![
+            cert_name(i),
+            TermX::str(oid_to_str(&cert.get().sig_alg.id).as_str()),
+        ]),
+
+        RuleX::fact("notAfter", vec![
+            cert_name(i),
+            TermX::int(x509_time_to_timestamp(&cert.get().cert.get().validity.not_after).ok_or(ValidationError::TimeParseError)?),
+        ]),
+
+        RuleX::fact("notBefore", vec![
+            cert_name(i),
+            TermX::int(x509_time_to_timestamp(&cert.get().cert.get().validity.not_before).ok_or(ValidationError::TimeParseError)?),
+        ]),
+
+        gen_spki_dsa_param_fact(cert, i)?,
+    ];
+
+    facts.append(&mut rest);
+
+    Ok(facts)
+}
+
+pub fn gen_subject_name_info(cert: &CertificateValue, i: LiteralInt) -> (res: Result<VecDeep<Rule>, ValidationError>)
+    ensures res matches Ok(res) ==> res@ =~~= spec_gen_subject_name_info(cert@, i as int)
+{
     let oid = oid!(2, 5, 4, 3); assert(oid@ == spec_oid!(2, 5, 4, 3));
     let oid = oid!(2, 5, 4, 4); assert(oid@ == spec_oid!(2, 5, 4, 4));
     let oid = oid!(2, 5, 4, 6); assert(oid@ == spec_oid!(2, 5, 4, 6));
@@ -249,13 +284,6 @@ pub fn gen_cert_facts(cert: &CertificateValue, i: LiteralInt) -> (res: Result<Ve
     let oid = oid!(2, 5, 4, 17); assert(oid@ == spec_oid!(2, 5, 4, 17));
 
     Ok(vec_deep![
-        RuleX::fact("fingerprint", vec![
-            cert_name(i),
-            TermX::str(hash::to_hex_upper(&hash::sha256_digest(ser_cert)).as_str()),
-        ]),
-
-        RuleX::fact("version", vec![ cert_name(i), TermX::int(cert.get().cert.get().version) ]),
-
         // TODO: performance?
         RuleX::fact("subject", vec![
             cert_name(i),
@@ -310,22 +338,37 @@ pub fn gen_cert_facts(cert: &CertificateValue, i: LiteralInt) -> (res: Result<Ve
             cert_name(i),
             TermX::str(get_rdn(&cert.get().cert.get().subject, &oid!(2, 5, 4, 4)).unwrap_or("")),
         ]),
-
-        RuleX::fact("signatureAlgorithm", vec![
-            cert_name(i),
-            TermX::str(oid_to_str(&cert.get().sig_alg.id).as_str()),
-        ]),
-
-        RuleX::fact("notAfter", vec![
-            cert_name(i),
-            TermX::int(x509_time_to_timestamp(&cert.get().cert.get().validity.not_after).ok_or(ValidationError::TimeParseError)?),
-        ]),
-
-        RuleX::fact("notBefore", vec![
-            cert_name(i),
-            TermX::int(x509_time_to_timestamp(&cert.get().cert.get().validity.not_before).ok_or(ValidationError::TimeParseError)?),
-        ]),
     ])
+}
+
+pub fn gen_spki_dsa_param_fact(cert: &CertificateValue, i: LiteralInt) -> (res: Result<Rule, ValidationError>)
+    ensures res matches Ok(res) ==> res@ =~~= spec_gen_spki_dsa_param_fact(cert@, i as int)
+{
+    match &cert.get().cert.get().subject_key.alg.param {
+        AlgorithmParamValue::DSASignature(Either::Left(param)) => {
+            let p_len = param.p.byte_len();
+            let q_len = param.q.byte_len();
+            let g_len = param.g.byte_len();
+
+            if p_len > LiteralInt::MAX as usize / 8 || q_len > LiteralInt::MAX as usize / 8 || g_len > LiteralInt::MAX as usize / 8 {
+                return Err(ValidationError::IntegerOverflow);
+            }
+
+            Ok(RuleX::fact("spkiDSAParam", vec![
+                cert_name(i),
+                TermX::int((p_len * 8) as LiteralInt),
+                TermX::int((q_len * 8) as LiteralInt),
+                TermX::int((g_len * 8) as LiteralInt),
+            ]))
+        }
+
+        _ => Ok(RuleX::fact("spkiDSAParam", vec![
+            cert_name(i),
+            TermX::atom("na"),
+            TermX::atom("na"),
+            TermX::atom("na"),
+        ])),
+    }
 }
 
 pub fn issuer_fact(i: LiteralInt, j: LiteralInt) -> (res: Rule)
