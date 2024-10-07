@@ -19,6 +19,7 @@ pub enum ValidationError {
     EmptyChain,
     ProofFailure,
     TimeParseError,
+    RSAPubKeyParseError,
 }
 
 pub fn likely_issued(issuer: &CertificateValue, subject: &CertificateValue) -> (res: bool)
@@ -263,6 +264,7 @@ pub fn gen_cert_facts(cert: &CertificateValue, i: LiteralInt) -> (res: Result<Ve
         ]),
 
         gen_spki_dsa_param_fact(cert, i)?,
+        gen_spki_rsa_param_fact(cert, i)?,
     ];
 
     facts.append(&mut rest);
@@ -368,6 +370,39 @@ pub fn gen_spki_dsa_param_fact(cert: &CertificateValue, i: LiteralInt) -> (res: 
             TermX::atom("na"),
             TermX::atom("na"),
         ])),
+    }
+}
+
+pub fn gen_spki_rsa_param_fact(cert: &CertificateValue, i: LiteralInt) -> (res: Result<Rule, ValidationError>)
+    ensures res matches Ok(res) ==> res@ =~~= spec_gen_spki_rsa_param_fact(cert@, i as int)
+{
+    match &cert.get().cert.get().subject_key.alg.param {
+        AlgorithmParamValue::RSAEncryption(..) => {
+            let pub_key = cert.get().cert.get().subject_key.pub_key.0;
+            let pub_key = if pub_key.len() == 0 {
+                pub_key
+            } else {
+                slice_drop_first(pub_key)
+            };
+
+            let parsed = match ASN1(RSAParam).parse(pub_key) {
+                Ok((_, parsed)) => parsed,
+                Err(_) => return Err(ValidationError::RSAPubKeyParseError),
+            };
+
+            let mod_len = parsed.modulus.byte_len();
+
+            if mod_len > LiteralInt::MAX as usize / 8 {
+                return Err(ValidationError::IntegerOverflow);
+            }
+
+            Ok(RuleX::fact("spkiRSAModLength", vec![
+                cert_name(i),
+                TermX::int((mod_len * 8) as LiteralInt),
+            ]))
+        }
+
+        _ => Ok(RuleX::fact("spkiRSAModLength", vec![ cert_name(i), TermX::atom("na") ])),
     }
 }
 

@@ -308,6 +308,7 @@ pub open spec fn spec_gen_cert_facts(cert: SpecCertificateValue, i: int) -> Seq<
         spec_fact!("notBefore", spec_cert_name(i), spec_int!(spec_x509_time_to_timestamp(cert.cert.validity.not_before).unwrap() as int)),
 
         spec_gen_spki_dsa_param_fact(cert, i),
+        spec_gen_spki_rsa_param_fact(cert, i),
     ]
 }
 
@@ -380,6 +381,31 @@ pub open spec fn spec_gen_spki_dsa_param_fact(cert: SpecCertificateValue, i: int
         }
 
         _ => spec_fact!("spkiDSAParam", spec_cert_name(i), spec_atom!("na".view()), spec_atom!("na".view()), spec_atom!("na".view())),
+    }
+}
+
+pub open spec fn spec_gen_spki_rsa_param_fact(cert: SpecCertificateValue, i: int) -> SpecRule
+{
+    match cert.cert.subject_key.alg.param {
+        SpecAlgorithmParamValue::RSAEncryption(..) => {
+            // Parse the public key field to get the modulus length
+
+            let pub_key = cert.cert.subject_key.pub_key.0;
+            let pub_key = if pub_key.len() == 0 {
+                pub_key
+            } else {
+                // First byte of cert.cert.subject_key.pub_key.0 indicates the number of trailing zeros
+                // in ASN.1 bit string
+                pub_key.drop_first()
+            };
+
+            // TODO: we need to enforce at the parser that this must succeed
+            let (_, parsed) = ASN1(RSAParam)@.spec_parse(pub_key).unwrap();
+
+            spec_fact!("spkiRSAModLength", spec_cert_name(i), spec_int!((parsed.modulus.len() - 1) as usize * 8))
+        }
+
+        _ => spec_fact!("spkiRSAModLength", spec_cert_name(i), spec_atom!("na".view())),
     }
 }
 

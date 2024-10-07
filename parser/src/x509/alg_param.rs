@@ -20,6 +20,20 @@ asn1_sequence! {
     }
 }
 
+// NOTE: This is the format of the public key field of subject public key info
+// not the format of AlgorithmIdentifier.param
+//
+// RSAPublicKey ::= SEQUENCE {
+//     modulus            INTEGER, -- n
+//     publicExponent     INTEGER  -- e --
+// }
+asn1_sequence! {
+    seq RSAParam {
+        modulus: ASN1<BigInt> = ASN1(BigInt),
+        exponent: ASN1<BigInt> = ASN1(BigInt),
+    }
+}
+
 // TODO: DSA, ECDSA, etc.
 oid_match_continuation! {
     continuation AlgorithmParam {
