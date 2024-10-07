@@ -1932,10 +1932,7 @@ certVerifiedNonLeaf(Cert, LeafCommonName, LeafSANList, EVStatus, CertsSoFar, Lea
   fingerprint(Cert, Fingerprint),
   notBefore(Cert, Lower),
   notAfter(Cert, Upper),
-  signatureAlgorithm(Cert, OuterAlgorithm, OuterParams),
-  signature(Cert, InnerAlgorithm, InnerParams),
-  OuterAlgorithm = InnerAlgorithm,
-  OuterParams = InnerParams,
+  signatureAlgorithm(Cert, SigAlgorithm),
   getBasicConstraints(Cert, BasicConstraints),
   findall(Usage, keyUsage(Cert, Usage), KeyUsage),
   findall(ExtUsage, extendedKeyUsage(Cert, ExtUsage), ExtKeyUsage),
@@ -1944,7 +1941,7 @@ certVerifiedNonLeaf(Cert, LeafCommonName, LeafSANList, EVStatus, CertsSoFar, Lea
   pathLengthValid(CertsSoFar, BasicConstraints),
   (
     (
-      verifiedIntermediate(Fingerprint, Lower, Upper, InnerAlgorithm, BasicConstraints, KeyUsage, ExtKeyUsage, EVStatus, StapledResponse, OcspResponse),
+      verifiedIntermediate(Fingerprint, Lower, Upper, SigAlgorithm, BasicConstraints, KeyUsage, ExtKeyUsage, EVStatus, StapledResponse, OcspResponse),
       issuer(Cert, Parent),
       Cert \= Parent,
       certVerifiedNonLeaf(Parent, LeafCommonName, LeafSANList, EVStatus, CertsSoFar + 1, Leaf),
@@ -2050,10 +2047,7 @@ certVerifiedLeaf(Cert, SANList, EVStatus):-
   commonName(Cert, CommonName),
   notBefore(Cert, Lower),
   notAfter(Cert, Upper),
-  signatureAlgorithm(Cert, OuterAlgorithm, OuterParams),
-  signature(Cert, InnerAlgorithm, InnerParams),
-  InnerAlgorithm = OuterAlgorithm,
-  OuterParams = InnerParams,
+  signatureAlgorithm(Cert, SigAlgorithm),
   getBasicConstraints(Cert, BasicConstraints),
   (
     (
@@ -2069,7 +2063,7 @@ certVerifiedLeaf(Cert, SANList, EVStatus):-
   findall(ExtUsage, extendedKeyUsage(Cert, ExtUsage), ExtKeyUsage),
   stapledResponse(Cert, StapledResponse),
   ocspResponse(Cert, OcspResponse),
-  verifiedLeaf(Fingerprint, SANList, CommonName, Lower, Upper, InnerAlgorithm, BasicConstraints, KeyUsage, ExtKeyUsage, EVStatus, StapledResponse, OcspResponse).
+  verifiedLeaf(Fingerprint, SANList, CommonName, Lower, Upper, SigAlgorithm, BasicConstraints, KeyUsage, ExtKeyUsage, EVStatus, StapledResponse, OcspResponse).
 
 mapStringLower([], []).
 mapStringLower([Name|Names], [Lower|Lowers]):-
@@ -2096,7 +2090,7 @@ certVerifiedChain(Cert):-
   issuer(Cert, Parent),
   certVerifiedNonLeaf(Parent, CommonName, SANList, EVStatus, 0, Cert).
 
-go :- certVerifiedChain(cert_0).
+go :- certVerifiedChain(cert(0)).
 
 basicConstraintsCritical(hack, hack).
 basicConstraintsExt(hack, hack).
@@ -2132,8 +2126,7 @@ san(hack, hack).
 sanCritical(hack, hack).
 sanExt(hack, hack).
 serialNumber(hack, hack).
-signatureAlgorithm(hack, hack, hack).
-signature(hack, hack, hack).
+signatureAlgorithm(hack, hack).
 subjectKeyIdentifier(hack, hack).
 subjectKeyIdentifierCritical(hack, hack).
 subjectKeyIdentifierExt(hack, hack).

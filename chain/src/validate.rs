@@ -359,7 +359,7 @@ pub fn gen_spki_dsa_param_fact(cert: &CertificateValue, i: LiteralInt) -> (res: 
                 return Err(ValidationError::IntegerOverflow);
             }
 
-            Ok(RuleX::fact("spkiDSAParam", vec![
+            Ok(RuleX::fact("spkiDSAParameters", vec![
                 cert_name(i),
                 TermX::int((p_len * 8) as LiteralInt),
                 TermX::int((q_len * 8) as LiteralInt),
@@ -367,7 +367,7 @@ pub fn gen_spki_dsa_param_fact(cert: &CertificateValue, i: LiteralInt) -> (res: 
             ]))
         }
 
-        _ => Ok(RuleX::fact("spkiDSAParam", vec![
+        _ => Ok(RuleX::fact("spkiDSAParameters", vec![
             cert_name(i),
             TermX::atom("na"),
             TermX::atom("na"),

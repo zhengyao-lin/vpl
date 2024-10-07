@@ -373,7 +373,7 @@ pub open spec fn spec_gen_spki_dsa_param_fact(cert: SpecCertificateValue, i: int
 {
     match cert.cert.subject_key.alg.param {
         SpecAlgorithmParamValue::DSASignature(Either::Left(param)) => {
-            spec_fact!("spkiDSAParam",
+            spec_fact!("spkiDSAParameters",
                 spec_cert_name(i),
                 spec_int!((param.p.len() - 1) as usize * 8),
                 spec_int!((param.q.len() - 1) as usize * 8),
@@ -381,7 +381,7 @@ pub open spec fn spec_gen_spki_dsa_param_fact(cert: SpecCertificateValue, i: int
             )
         }
 
-        _ => spec_fact!("spkiDSAParam", spec_cert_name(i), spec_atom!("na".view()), spec_atom!("na".view()), spec_atom!("na".view())),
+        _ => spec_fact!("spkiDSAParameters", spec_cert_name(i), spec_atom!("na".view()), spec_atom!("na".view()), spec_atom!("na".view())),
     }
 }
 
@@ -473,15 +473,6 @@ pub open spec fn spec_gen_ext_key_usage_facts(cert: SpecCertificateValue, i: int
                 spec_fact!("keyUsageCritical", spec_cert_name(i), spec_atom!((if ext.critical { "true" } else { "false" }).view())),
             ] +
             spec_gen_ext_key_usage_facts_helper(usages, param, i, usages.len() as int)
-            // if BitStringValue::spec_has_bit(param, 0) { seq![ spec_fact!("keyUsage", spec_cert_name(i), spec_str!("digitalSignature".view())) ] } else { seq![] } +
-            // if BitStringValue::spec_has_bit(param, 1) { seq![ spec_fact!("keyUsage", spec_cert_name(i), spec_str!("nonRepudiation".view())) ] } else { seq![] } +
-            // if BitStringValue::spec_has_bit(param, 2) { seq![ spec_fact!("keyUsage", spec_cert_name(i), spec_str!("keyEncipherment".view())) ] } else { seq![] } +
-            // if BitStringValue::spec_has_bit(param, 3) { seq![ spec_fact!("keyUsage", spec_cert_name(i), spec_str!("dataEncipherment".view())) ] } else { seq![] } +
-            // if BitStringValue::spec_has_bit(param, 4) { seq![ spec_fact!("keyUsage", spec_cert_name(i), spec_str!("keyAgreement".view())) ] } else { seq![] } +
-            // if BitStringValue::spec_has_bit(param, 5) { seq![ spec_fact!("keyUsage", spec_cert_name(i), spec_str!("keyCertSign".view())) ] } else { seq![] } +
-            // if BitStringValue::spec_has_bit(param, 6) { seq![ spec_fact!("keyUsage", spec_cert_name(i), spec_str!("cRLSign".view())) ] } else { seq![] } +
-            // if BitStringValue::spec_has_bit(param, 7) { seq![ spec_fact!("keyUsage", spec_cert_name(i), spec_str!("encipherOnly".view())) ] } else { seq![] }
-            // if BitStringValue::spec_has_bit(param, 8) { seq![ spec_fact!("keyUsage", spec_cert_name(i), spec_str!("decipherOnly".view())) ] } else { seq![] }
         } else {
             seq![
                 spec_fact!("keyUsageExt", spec_cert_name(i), spec_atom!("false".view())),

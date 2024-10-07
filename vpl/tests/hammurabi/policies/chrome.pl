@@ -1160,16 +1160,13 @@ certVerifiedNonLeaf(Cert, LeafSANList, CertsSoFar, Leaf):-
   notBefore(Cert, Lower),
   notAfter(Cert, Upper),
   getBasicConstraints(Cert, BasicConstraints),
-  signatureAlgorithm(Cert, OuterAlgorithm, OuterParams),
-  signature(Cert, InnerAlgorithm, InnerParams),
-  OuterAlgorithm = InnerAlgorithm,
-  OuterParams = InnerParams,
+  signatureAlgorithm(Cert, SigAlgorithm),
   findall(Usage, keyUsage(Cert, Usage), KeyUsage),
   findall(ExtUsage, extendedKeyUsage(Cert, ExtUsage), ExtKeyUsage),
   pathLengthValid(CertsSoFar, BasicConstraints),
   (
     (
-      verifiedIntermediate(Fingerprint, Lower, Upper, InnerAlgorithm, BasicConstraints, KeyUsage, ExtKeyUsage),
+      verifiedIntermediate(Fingerprint, Lower, Upper, SigAlgorithm, BasicConstraints, KeyUsage, ExtKeyUsage),
       issuer(Cert, Parent),
       Cert \= Parent,
       certVerifiedNonLeaf(Parent, LeafSANList, CertsSoFar + 1, Leaf),
@@ -1283,15 +1280,12 @@ certVerifiedLeaf(Cert, SANList):-
   notBefore(Cert, Lower),
   notAfter(Cert, Upper),
   forall(member(SAN, SANList), nameValid(SAN)),
-  signatureAlgorithm(Cert, OuterAlgorithm, OuterParams),
-  signature(Cert, InnerAlgorithm, InnerParams),
-  OuterAlgorithm = InnerAlgorithm,
-  OuterParams = InnerParams,
+  signatureAlgorithm(Cert, SigAlgorithm),
   getBasicConstraints(Cert, BasicConstraints),
   findall(Usage, keyUsage(Cert, Usage), KeyUsage),
   findall(ExtUsage, extendedKeyUsage(Cert, ExtUsage), ExtKeyUsage),
   isValidPKI(Cert),
-  verifiedLeaf(Fingerprint, SANList, Lower, Upper, InnerAlgorithm, BasicConstraints, KeyUsage, ExtKeyUsage).
+  verifiedLeaf(Fingerprint, SANList, Lower, Upper, SigAlgorithm, BasicConstraints, KeyUsage, ExtKeyUsage).
 
 mapCleanName([], []).
 mapCleanName([Name|Names], [CleanName|CleanNames]):-
@@ -1306,7 +1300,7 @@ certVerifiedChain(Cert):-
   issuer(Cert, Parent),
   certVerifiedNonLeaf(Parent, CleanSANList, 0, Cert).
 
-go :- certVerifiedChain(cert_0).
+go :- certVerifiedChain(cert(0)).
 
 basicConstraintsCritical(hack, hack).
 basicConstraintsExt(hack, hack).
@@ -1342,8 +1336,7 @@ san(hack, hack).
 sanCritical(hack, hack).
 sanExt(hack, hack).
 serialNumber(hack, hack).
-signatureAlgorithm(hack, hack, hack).
-signature(hack, hack, hack).
+signatureAlgorithm(hack, hack).
 subjectKeyIdentifier(hack, hack).
 subjectKeyIdentifierCritical(hack, hack).
 subjectKeyIdentifierExt(hack, hack).
