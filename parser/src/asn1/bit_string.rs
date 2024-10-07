@@ -97,14 +97,36 @@ impl<'a> BitStringValue<'a> {
         self.0[self.0.len() - 1]
     }
 
-    /// Get the actual (padded) bit string
-    pub fn bit_string(&self) -> (res: &[u8])
-        ensures res@ == self@.drop_first()
+    pub closed spec fn spec_bytes(s: SpecBitStringValue) -> SpecBitStringValue {
+        s.drop_first()
+    }
+
+    /// Get the actual (zero-padded) bit string
+    pub fn bytes(&self) -> (res: &[u8])
+        ensures res@ == Self::spec_bytes(self@)
     {
         proof {
             use_type_invariant(self);
         }
         slice_drop_first(self.0)
+    }
+
+    /// Check if the n-th bit is set (counting from 0)
+    /// e.g. the 0-th bit is the most significant bit of the first byte
+    /// the 8-th bit is the most significant bit of the second byte
+    pub closed spec fn spec_has_bit(s: SpecBitStringValue, n: int) -> bool {
+        &&& n >= 0
+        &&& s.len() > 1 + n / 8
+        &&& s[1 + n / 8] & (1u8 << (7 - n % 8)) != 0
+    }
+
+    pub fn has_bit(&self, n: usize) -> (res: bool)
+        ensures res == Self::spec_has_bit(self@, n as int)
+    {
+        proof {
+            use_type_invariant(self);
+        }
+        self.0.len() > 1 + n / 8 && self.0[1 + n / 8] & (1u8 << (7 - n as usize % 8)) != 0
     }
 }
 
@@ -204,7 +226,7 @@ mod test {
     use der::Encode;
 
     fn serialize_bit_string(v: BitStringValue) -> Result<Vec<u8>, SerializeError> {
-        let mut data = vec![0; v.bit_string().len() + 10];
+        let mut data = vec![0; v.bytes().len() + 10];
         data[0] = 0x03; // Prepend the tag byte
         let len = BitString.serialize(v, &mut data, 1)?;
         data.truncate(len + 1);
@@ -223,5 +245,19 @@ mod test {
         diff(&[0]);
         diff(&[5, 0b11100000]);
         diff(&[4, 0b11100000]);
+    }
+
+    #[test]
+    fn has_bit() {
+        let (_, s) = BitString.parse(&[ 0x02, 0x01, 0x86 ]).unwrap();
+        assert_eq!(s.has_bit(0), true);
+        assert_eq!(s.has_bit(1), false);
+        assert_eq!(s.has_bit(2), false);
+        assert_eq!(s.has_bit(3), false);
+        assert_eq!(s.has_bit(4), false);
+        assert_eq!(s.has_bit(5), true);
+        assert_eq!(s.has_bit(6), true);
+        assert_eq!(s.has_bit(7), false);
+        assert_eq!(s.has_bit(100), false);
     }
 }

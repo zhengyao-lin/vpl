@@ -378,7 +378,7 @@ pub fn gen_spki_rsa_param_fact(cert: &CertificateValue, i: LiteralInt) -> (res: 
 {
     match &cert.get().cert.get().subject_key.alg.param {
         AlgorithmParamValue::RSAEncryption(..) => {
-            let pub_key = cert.get().cert.get().subject_key.pub_key.bit_string();
+            let pub_key = cert.get().cert.get().subject_key.pub_key.bytes();
             let parsed = match ASN1(RSAParam).parse(pub_key) {
                 Ok((_, parsed)) => parsed,
                 Err(_) => return Err(ValidationError::RSAPubKeyParseError),
