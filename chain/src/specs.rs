@@ -524,6 +524,8 @@ pub fn x509_time_to_timestamp(time: &TimeValue) -> (res: Option<i64>)
                 return Option::None;
             }
         }
+
+        TimeValue::Unreachable => return Option::None,
     };
 
     Option::Some(dt.timestamp())
