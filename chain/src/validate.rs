@@ -406,7 +406,15 @@ pub fn gen_spki_rsa_param_fact(cert: &CertificateValue, i: LiteralInt) -> (res: 
 pub fn gen_extension_facts(cert: &CertificateValue, i: LiteralInt) -> (res: Result<VecDeep<Rule>, ValidationError>)
     ensures res matches Ok(res) ==> res@ =~~= spec_gen_extension_facts(cert@, i as int)
 {
-    gen_ext_basic_constraints_facts(cert, i)
+    let mut facts = vec_deep![];
+
+    let mut basic_constraints = gen_ext_basic_constraints_facts(cert, i)?;
+    let mut key_usage = gen_ext_key_usage_facts(cert, i)?;
+
+    facts.append(&mut basic_constraints);
+    facts.append(&mut key_usage);
+
+    Ok(facts)
 }
 
 pub fn gen_ext_basic_constraints_facts(cert: &CertificateValue, i: LiteralInt) -> (res: Result<VecDeep<Rule>, ValidationError>)
@@ -434,6 +442,64 @@ pub fn gen_ext_basic_constraints_facts(cert: &CertificateValue, i: LiteralInt) -
     Ok(vec_deep![
         RuleX::fact("basicConstraintsExt", vec![ cert_name(i), TermX::atom("false") ]),
     ])
+}
+
+pub fn gen_ext_key_usage_facts(cert: &CertificateValue, i: LiteralInt) -> (res: Result<VecDeep<Rule>, ValidationError>)
+    ensures res matches Ok(res) ==> res@ =~~= spec_gen_ext_key_usage_facts(cert@, i as int)
+{
+    let oid = oid!(2, 5, 29, 15);
+    assert(oid@ == spec_oid!(2, 5, 29, 15));
+
+    if let Some(ext) = get_extension(cert, &oid) {
+        if let ExtensionParamValue::KeyUsage(param) = &ext.param {
+            let usages = vec_deep![
+                "digitalSignature",
+                "nonRepudiation",
+                "keyEncipherment",
+                "dataEncipherment",
+                "keyAgreement",
+                "keyCertSign",
+                "cRLSign",
+                "encipherOnly",
+                "decipherOnly",
+            ];
+            let len = usages.len();
+            let mut usage_facts = vec_deep![];
+
+            for j in 0..len
+                invariant
+                    len == usages@.len(),
+                    usage_facts@ =~~= spec_gen_ext_key_usage_facts_helper(usages@, param@, i as int, j as int),
+            {
+                if param.has_bit(j) {
+                    usage_facts.push(RuleX::fact("keyUsage", vec![ cert_name(i), TermX::atom(usages.get(j)) ]));
+                }
+            }
+
+            let mut facts = vec_deep![
+                RuleX::fact("keyUsageExt", vec![ cert_name(i), TermX::atom("true") ]),
+                RuleX::fact("keyUsageCritical", vec![ cert_name(i), TermX::atom(if ext.critical { "true" } else { "false" }) ]),
+            ];
+
+            assert(usages@ =~= seq![
+                "digitalSignature".view(),
+                "nonRepudiation".view(),
+                "keyEncipherment".view(),
+                "dataEncipherment".view(),
+                "keyAgreement".view(),
+                "keyCertSign".view(),
+                "cRLSign".view(),
+                "encipherOnly".view(),
+                "decipherOnly".view(),
+            ]);
+
+            facts.append(&mut usage_facts);
+
+            return Ok(facts);
+        }
+    }
+
+    Ok(vec_deep![ RuleX::fact("keyUsageExt", vec![ cert_name(i), TermX::atom("false") ]) ])
 }
 
 pub fn issuer_fact(i: LiteralInt, j: LiteralInt) -> (res: Rule)

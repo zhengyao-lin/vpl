@@ -405,9 +405,11 @@ pub open spec fn spec_gen_spki_rsa_param_fact(cert: SpecCertificateValue, i: int
     }
 }
 
+/// Generate facts about X.509 extensions
 pub open spec fn spec_gen_extension_facts(cert: SpecCertificateValue, i: int) -> Seq<SpecRule>
 {
-    spec_gen_ext_basic_constraints_facts(cert, i)
+    spec_gen_ext_basic_constraints_facts(cert, i) +
+    spec_gen_ext_key_usage_facts(cert, i)
 }
 
 pub open spec fn spec_gen_ext_basic_constraints_facts(cert: SpecCertificateValue, i: int) -> Seq<SpecRule>
@@ -433,6 +435,61 @@ pub open spec fn spec_gen_ext_basic_constraints_facts(cert: SpecCertificateValue
     } else {
         seq![
             spec_fact!("basicConstraintsExt", spec_cert_name(i), spec_atom!("false".view())),
+        ]
+    }
+}
+
+pub open spec fn spec_gen_ext_key_usage_facts_helper(usages: Seq<Seq<char>>, param: SpecBitStringValue, i: int, j: int) -> Seq<SpecRule>
+    decreases j
+{
+    if j <= 0 {
+        seq![]
+    } else if BitStringValue::spec_has_bit(param, j - 1) {
+        spec_gen_ext_key_usage_facts_helper(usages, param, i, j - 1) +
+        seq![ spec_fact!("keyUsage", spec_cert_name(i), spec_atom!(usages[j - 1])) ]
+    } else {
+        spec_gen_ext_key_usage_facts_helper(usages, param, i, j - 1)
+    }
+}
+
+pub open spec fn spec_gen_ext_key_usage_facts(cert: SpecCertificateValue, i: int) -> Seq<SpecRule>
+{
+    if let Some(ext) = spec_get_extension(cert, spec_oid!(2, 5, 29, 15)) {
+        if let SpecExtensionParamValue::KeyUsage(param) = ext.param {
+            let usages = seq![
+                "digitalSignature".view(),
+                "nonRepudiation".view(),
+                "keyEncipherment".view(),
+                "dataEncipherment".view(),
+                "keyAgreement".view(),
+                "keyCertSign".view(),
+                "cRLSign".view(),
+                "encipherOnly".view(),
+                "decipherOnly".view(),
+            ];
+
+            seq![
+                spec_fact!("keyUsageExt", spec_cert_name(i), spec_atom!("true".view())),
+                spec_fact!("keyUsageCritical", spec_cert_name(i), spec_atom!((if ext.critical { "true" } else { "false" }).view())),
+            ] +
+            spec_gen_ext_key_usage_facts_helper(usages, param, i, usages.len() as int)
+            // if BitStringValue::spec_has_bit(param, 0) { seq![ spec_fact!("keyUsage", spec_cert_name(i), spec_str!("digitalSignature".view())) ] } else { seq![] } +
+            // if BitStringValue::spec_has_bit(param, 1) { seq![ spec_fact!("keyUsage", spec_cert_name(i), spec_str!("nonRepudiation".view())) ] } else { seq![] } +
+            // if BitStringValue::spec_has_bit(param, 2) { seq![ spec_fact!("keyUsage", spec_cert_name(i), spec_str!("keyEncipherment".view())) ] } else { seq![] } +
+            // if BitStringValue::spec_has_bit(param, 3) { seq![ spec_fact!("keyUsage", spec_cert_name(i), spec_str!("dataEncipherment".view())) ] } else { seq![] } +
+            // if BitStringValue::spec_has_bit(param, 4) { seq![ spec_fact!("keyUsage", spec_cert_name(i), spec_str!("keyAgreement".view())) ] } else { seq![] } +
+            // if BitStringValue::spec_has_bit(param, 5) { seq![ spec_fact!("keyUsage", spec_cert_name(i), spec_str!("keyCertSign".view())) ] } else { seq![] } +
+            // if BitStringValue::spec_has_bit(param, 6) { seq![ spec_fact!("keyUsage", spec_cert_name(i), spec_str!("cRLSign".view())) ] } else { seq![] } +
+            // if BitStringValue::spec_has_bit(param, 7) { seq![ spec_fact!("keyUsage", spec_cert_name(i), spec_str!("encipherOnly".view())) ] } else { seq![] }
+            // if BitStringValue::spec_has_bit(param, 8) { seq![ spec_fact!("keyUsage", spec_cert_name(i), spec_str!("decipherOnly".view())) ] } else { seq![] }
+        } else {
+            seq![
+                spec_fact!("keyUsageExt", spec_cert_name(i), spec_atom!("false".view())),
+            ]
+        }
+    } else {
+        seq![
+            spec_fact!("keyUsageExt", spec_cert_name(i), spec_atom!("false".view())),
         ]
     }
 }

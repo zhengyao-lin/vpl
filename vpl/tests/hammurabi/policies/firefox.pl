@@ -1,3 +1,5 @@
+:- style_check('-'(discontiguous)).
+
 % md2
 md2_sig_algo("1.2.840.113549.1.1.2").
 md2_sig_algo("1.3.14.7.2.3.1").
@@ -1574,7 +1576,7 @@ nameLabelsPermitted(_, []).
 nameLabelsPermitted([_|_], [""|[]]).
 % Presented: foo.example.com, Permitted: foo.example.com -- valid
 % Presented: foo1.example.com, Permitted: foo.example.com --invalid
-nameLabelsPermitted([NameLabel|NameRest], [PermittedLabel|PermittedRest]) :- 
+nameLabelsPermitted([NameLabel|NameRest], [PermittedLabel|PermittedRest]) :-
   PermittedLabel \= "", % Should be checked earlier
   PermittedLabel = NameLabel,
   nameLabelsPermitted(NameRest, PermittedRest).
@@ -1741,7 +1743,7 @@ internationalInvalidIntermediate(Cert, Domain) :-
 
 isEVChain(Cert) :-
   certificatePoliciesExt(Cert, true),
-  certificatePolicies(Cert, Oid), 
+  certificatePolicies(Cert, Oid),
   evPolicyOid(Oid, _, _, _, _, _),
   issuer(Cert, P),
   isEVIntermediate(P, Oid).
@@ -1810,7 +1812,7 @@ extKeyUsageValid(BasicConstraints, ExtKeyUsage) :-
   isCA(BasicConstraints),
   member(serverAuth, ExtKeyUsage).
 
-% Firefox rejects end-entity certificates 
+% Firefox rejects end-entity certificates
 % (other than delegated OCSP Signing Certs)
 % that have the oCSPSigning EKU
 extKeyUsageValid(BasicConstraints, ExtKeyUsage) :-
@@ -1821,7 +1823,7 @@ extKeyUsageValid(BasicConstraints, ExtKeyUsage) :-
 extKeyUsageValid(_, []).
 
 checkKeyCertSign(KeyUsage) :-
-  KeyUsage = []; 
+  KeyUsage = [];
   member(keyCertSign, KeyUsage).
 
 
@@ -1886,7 +1888,7 @@ pathLengthValid(CertsSoFar, BasicConstraints):-
 pathLengthValid(CertsSoFar, BasicConstraints):-
   CertsSoFar =< 6,            % global max intermediates limit in Firefox
   BasicConstraints = [_, Limit],
-  Limit \= none, 
+  Limit \= none,
   CertsSoFar =< Limit.
 
 verifiedRoot(LeafSANList, Fingerprint, Lower, Upper, BasicConstraints, KeyUsage, ChildFingerprint):-
@@ -1903,7 +1905,7 @@ verifiedRoot(LeafSANList, Fingerprint, Lower, Upper, BasicConstraints, KeyUsage,
   isCA(BasicConstraints),
   checkKeyCertSign(KeyUsage).
 
-verifiedIntermediate(Fingerprint, Lower, Upper, Algorithm, BasicConstraints, KeyUsage, ExtKeyUsage, EVStatus, StapledResponse, OcspResponse):- 
+verifiedIntermediate(Fingerprint, Lower, Upper, Algorithm, BasicConstraints, KeyUsage, ExtKeyUsage, EVStatus, StapledResponse, OcspResponse):-
   isCA(BasicConstraints),
   notCrl(Fingerprint),
   isTimeValid(Lower, Upper),
@@ -1912,7 +1914,7 @@ verifiedIntermediate(Fingerprint, Lower, Upper, Algorithm, BasicConstraints, Key
   extKeyUsageValid(BasicConstraints, ExtKeyUsage),
   notRevoked(Lower, Upper, EVStatus, StapledResponse, OcspResponse).
 
-verifiedLeaf(Fingerprint, SANList, CommonName, Lower, Upper, Algorithm, BasicConstraints, KeyUsage, ExtKeyUsage, EVStatus, StapledResponse, OcspResponse):- 
+verifiedLeaf(Fingerprint, SANList, CommonName, Lower, Upper, Algorithm, BasicConstraints, KeyUsage, ExtKeyUsage, EVStatus, StapledResponse, OcspResponse):-
   \+isCA(BasicConstraints),
   firefoxNameMatches(SANList, CommonName),
   leafDurationValid(EVStatus, Lower, Upper),
@@ -1942,7 +1944,7 @@ certVerifiedNonLeaf(Cert, LeafCommonName, LeafSANList, EVStatus, CertsSoFar, Lea
   pathLengthValid(CertsSoFar, BasicConstraints),
   (
     (
-      verifiedIntermediate(Fingerprint, Lower, Upper, InnerAlgorithm, BasicConstraints, KeyUsage, ExtKeyUsage, EVStatus, StapledResponse, OcspResponse), 
+      verifiedIntermediate(Fingerprint, Lower, Upper, InnerAlgorithm, BasicConstraints, KeyUsage, ExtKeyUsage, EVStatus, StapledResponse, OcspResponse),
       issuer(Cert, Parent),
       Cert \= Parent,
       certVerifiedNonLeaf(Parent, LeafCommonName, LeafSANList, EVStatus, CertsSoFar + 1, Leaf),
@@ -2077,7 +2079,7 @@ mapStringLower([Name|Names], [Lower|Lowers]):-
 certVerifiedChain(Cert):-
   getEVStatus(Cert, EVStatus),
   (
-    ( 
+    (
       sanExt(Cert, true),
       findall(Name, san(Cert, Name), SANList0),
       mapStringLower(SANList0, SANList)
@@ -2095,3 +2097,47 @@ certVerifiedChain(Cert):-
   certVerifiedNonLeaf(Parent, CommonName, SANList, EVStatus, 0, Cert).
 
 go :- certVerifiedChain(cert_0).
+
+basicConstraintsCritical(hack, hack).
+basicConstraintsExt(hack, hack).
+certificatePolicies(hack, hack).
+certificatePoliciesCritical(hack, hack).
+certificatePoliciesExt(hack, hack).
+commonName(hack, hack).
+extendedKeyUsage(hack, hack).
+extendedKeyUsageCritical(hack, hack).
+extendedKeyUsageExt(hack, hack).
+fingerprint(hack, hack).
+inhibitAnyPolicyExt(hack, hack).
+isCA(hack, hack).
+issuer(hack, hack).
+keyAlgorithm(hack, hack).
+keyLen(hack, hack).
+keyUsage(hack, hack).
+keyUsageCritical(hack, hack).
+keyUsageExt(hack, hack).
+nameConstraintsExt(hack, hack).
+nameConstraintsCritical(hack, hack).
+nameConstraintsPermitted(hack, hack, hack).
+nameConstraintsExcluded(hack, hack, hack).
+notAfter(hack, hack).
+notBefore(hack, hack).
+pathLimit(hack, hack).
+policyConstraintsExt(hack, hack).
+policyConstraintsCritical(hack, hack).
+requireExplicitPolicy(hack, hack).
+policyMappingsExt(hack, hack, hack).
+policyMappings(hack, hack, hack).
+san(hack, hack).
+sanCritical(hack, hack).
+sanExt(hack, hack).
+serialNumber(hack, hack).
+signatureAlgorithm(hack, hack, hack).
+signature(hack, hack, hack).
+subjectKeyIdentifier(hack, hack).
+subjectKeyIdentifierCritical(hack, hack).
+subjectKeyIdentifierExt(hack, hack).
+version(hack, hack).
+ocspResponse(hack, hack).
+stapledResponse(hack, hack).
+spkiDSAParameters(hack, hack, hack, hack).

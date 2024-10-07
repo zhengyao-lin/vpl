@@ -1,3 +1,4 @@
+:- style_check('-'(discontiguous)).
 :- use_module(library(uri)).
 
 publicSuffix("uk").
@@ -1056,11 +1057,11 @@ keyUsageValid(BasicConstraints, KeyUsage) :-
   \+member(keyCertSign, KeyUsage).
 
 checkKeyCertSign(KeyUsage) :-
-  KeyUsage = []; 
+  KeyUsage = [];
   member(keyCertSign, KeyUsage).
 
 extKeyUsageValid(ExtKeyUsage) :-
-  ExtKeyUsage = []; 
+  ExtKeyUsage = [];
   % I'm pretty sure about this one, firefox doesn't allow this
   member(any, ExtKeyUsage);
   member(serverAuth, ExtKeyUsage).
@@ -1306,3 +1307,47 @@ certVerifiedChain(Cert):-
   certVerifiedNonLeaf(Parent, CleanSANList, 0, Cert).
 
 go :- certVerifiedChain(cert_0).
+
+basicConstraintsCritical(hack, hack).
+basicConstraintsExt(hack, hack).
+certificatePolicies(hack, hack).
+certificatePoliciesCritical(hack, hack).
+certificatePoliciesExt(hack, hack).
+commonName(hack, hack).
+extendedKeyUsage(hack, hack).
+extendedKeyUsageCritical(hack, hack).
+extendedKeyUsageExt(hack, hack).
+fingerprint(hack, hack).
+inhibitAnyPolicyExt(hack, hack).
+isCA(hack, hack).
+issuer(hack, hack).
+keyAlgorithm(hack, hack).
+keyLen(hack, hack).
+keyUsage(hack, hack).
+keyUsageCritical(hack, hack).
+keyUsageExt(hack, hack).
+nameConstraintsExt(hack, hack).
+nameConstraintsCritical(hack, hack).
+nameConstraintsPermitted(hack, hack, hack).
+nameConstraintsExcluded(hack, hack, hack).
+notAfter(hack, hack).
+notBefore(hack, hack).
+pathLimit(hack, hack).
+policyConstraintsExt(hack, hack).
+policyConstraintsCritical(hack, hack).
+requireExplicitPolicy(hack, hack).
+policyMappingsExt(hack, hack, hack).
+policyMappings(hack, hack, hack).
+san(hack, hack).
+sanCritical(hack, hack).
+sanExt(hack, hack).
+serialNumber(hack, hack).
+signatureAlgorithm(hack, hack, hack).
+signature(hack, hack, hack).
+subjectKeyIdentifier(hack, hack).
+subjectKeyIdentifierCritical(hack, hack).
+subjectKeyIdentifierExt(hack, hack).
+version(hack, hack).
+ocspResponse(hack, hack).
+stapledResponse(hack, hack).
+spkiDSAParameters(hack, hack, hack, hack).
