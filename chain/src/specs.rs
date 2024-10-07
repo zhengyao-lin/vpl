@@ -390,14 +390,9 @@ pub open spec fn spec_gen_spki_rsa_param_fact(cert: SpecCertificateValue, i: int
         SpecAlgorithmParamValue::RSAEncryption(..) => {
             // Parse the public key field to get the modulus length
 
-            let pub_key = cert.cert.subject_key.pub_key.0;
-            let pub_key = if pub_key.len() == 0 {
-                pub_key
-            } else {
-                // First byte of cert.cert.subject_key.pub_key.0 indicates the number of trailing zeros
-                // in ASN.1 bit string
-                pub_key.drop_first()
-            };
+            // First byte of cert.cert.subject_key.pub_key.0 indicates the number of trailing zeros
+            // in ASN.1 bit string
+            let pub_key = cert.cert.subject_key.pub_key.drop_first();
 
             // TODO: we need to enforce at the parser that this must succeed
             let (_, parsed) = ASN1(RSAParam)@.spec_parse(pub_key).unwrap();

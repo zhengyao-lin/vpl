@@ -20,38 +20,69 @@ pub struct BitString;
 
 asn1_tagged!(BitString, tag_of!(BIT_STRING));
 
-#[derive(View, PolyfillClone)]
-pub struct BitStringValuePoly<T>(pub T);
+// #[derive(View, PolyfillClone)]
+// pub struct BitStringValuePoly<T>(pub T);
 
-pub type SpecBitStringValue = BitStringValuePoly<Seq<u8>>;
-pub type BitStringValue<'a> = BitStringValuePoly<&'a [u8]>;
-pub type BitStringValueOwned = BitStringValuePoly<Vec<u8>>;
+pub type SpecBitStringValue = Seq<u8>;
 
-impl SpecBitStringValue {
-    pub open spec fn wf(&self) -> bool {
-        // Empty string
-        ||| self.0.len() == 1 && self.0[0] == 0
+pub struct BitStringValue<'a>(&'a [u8]);
+pub struct BitStringValueOwned(Vec<u8>);
 
-        // Otherwise, check that all trailing bits (as declared in bytes[0]) are zeros
-        ||| self.0.len() > 1 && self.0[0] <= u8_trailing_zeros(self.0.last())
+impl<'a> PolyfillClone for BitStringValue<'a> {
+    fn clone(&self) -> Self {
+        proof {
+            use_type_invariant(self);
+        }
+        BitStringValue(&self.0)
+    }
+}
+
+impl<'a> View for BitStringValue<'a> {
+    type V = Seq<u8>;
+
+    closed spec fn view(&self) -> Self::V {
+        self.0@
+    }
+}
+
+impl View for BitStringValueOwned {
+    type V = Seq<u8>;
+
+    closed spec fn view(&self) -> Self::V {
+        self.0@
     }
 }
 
 impl<'a> BitStringValue<'a> {
-    pub fn wf(&self) -> (res: bool)
-        ensures res == self@.wf()
-    {
-        self.0.len() == 1 && self.0[0] == 0
-        || self.0.len() > 1 && self.0[0] as u32 <= self.0[self.0.len() - 1].trailing_zeros()
+    #[verifier::type_invariant]
+    closed spec fn inv(self) -> bool {
+        Self::spec_wf(self@)
     }
 
-    pub fn new_raw(s: &'a [u8]) -> (res: Option<BitStringValue<'a>>)
-        ensures res.is_some() ==> res.unwrap()@.wf()
-    {
-        let res = BitStringValuePoly(s);
+    pub open spec fn spec_wf(s: SpecBitStringValue) -> bool {
+        // Empty string
+        ||| s.len() == 1 && s[0] == 0
 
-        if res.wf() {
-            Some(res)
+        // Otherwise, check that all trailing bits (as declared in bytes[0]) are zeros
+        ||| s.len() > 1 && s[0] <= u8_trailing_zeros(s.last())
+    }
+
+    pub fn wf(s: &'a [u8]) -> (res: bool)
+        ensures res == Self::spec_wf(s@)
+    {
+        s.len() == 1 && s[0] == 0
+        || s.len() > 1 && s[0] as u32 <= s[s.len() - 1].trailing_zeros()
+    }
+
+    /// Create a BitString from raw bytes
+    /// The first byte of the slice should indicate the number of trailing zeros
+    pub fn new_raw(s: &'a [u8]) -> (res: Option<BitStringValue<'a>>)
+        ensures
+            res matches Some(res) ==> res@ == s@ && Self::spec_wf(res@),
+            res.is_none() ==> !Self::spec_wf(s@)
+    {
+        if Self::wf(s) {
+            Some(BitStringValue(s))
         } else {
             None
         }
@@ -60,22 +91,20 @@ impl<'a> BitStringValue<'a> {
     /// Get the number of padded zeros at the end
     pub fn trailing_zeros(&self) -> u8
     {
-        if self.0.len() == 0 {
-            0
-        } else {
-            self.0[self.0.len() - 1]
+        proof {
+            use_type_invariant(self);
         }
+        self.0[self.0.len() - 1]
     }
 
     /// Get the actual (padded) bit string
-    pub fn bit_string(&self) -> &[u8]
-        requires self@.wf()
+    pub fn bit_string(&self) -> (res: &[u8])
+        ensures res@ == self@.drop_first()
     {
-        if self.0.len() == 0 {
-            self.0
-        } else {
-            slice_drop_first(self.0)
+        proof {
+            use_type_invariant(self);
         }
+        slice_drop_first(self.0)
     }
 }
 
@@ -85,8 +114,8 @@ impl SpecCombinator for BitString {
     open spec fn spec_parse(&self, s: Seq<u8>) -> Result<(usize, Self::SpecResult), ()> {
         match OctetString.spec_parse(s) {
             Ok((len, bytes)) =>
-                if BitStringValuePoly(bytes).wf() {
-                    Ok((len, BitStringValuePoly(bytes)))
+                if BitStringValue::spec_wf(bytes) {
+                    Ok((len, bytes))
                 } else {
                     Err(())
                 }
@@ -98,8 +127,8 @@ impl SpecCombinator for BitString {
     proof fn spec_parse_wf(&self, s: Seq<u8>) {}
 
     open spec fn spec_serialize(&self, v: Self::SpecResult) -> Result<Seq<u8>, ()> {
-        if v.wf() {
-            OctetString.spec_serialize(v.0)
+        if BitStringValue::spec_wf(v) {
+            OctetString.spec_serialize(v)
         } else {
             Err(())
         }
@@ -112,7 +141,7 @@ impl SecureSpecCombinator for BitString {
     }
 
     proof fn theorem_serialize_parse_roundtrip(&self, v: Self::SpecResult) {
-        OctetString.theorem_serialize_parse_roundtrip(v.0);
+        OctetString.theorem_serialize_parse_roundtrip(v);
     }
 
     proof fn theorem_parse_serialize_roundtrip(&self, buf: Seq<u8>) {
@@ -139,19 +168,18 @@ impl Combinator for BitString {
     fn parse<'a>(&self, s: &'a [u8]) -> (res: Result<(usize, Self::Result<'a>), ParseError>) {
         let (len, v) = OctetString.parse(s)?;
 
-        if BitStringValuePoly(v).wf() {
-            Ok((len, BitStringValuePoly(v)))
+        if let Some(s) = BitStringValue::new_raw(v) {
+            Ok((len, s))
         } else {
             Err(ParseError::Other("Ill-formed bit string".to_string()))
         }
     }
 
     fn serialize(&self, v: Self::Result<'_>, data: &mut Vec<u8>, pos: usize) -> (res: Result<usize, SerializeError>) {
-        if v.wf() {
-            OctetString.serialize(v.0, data, pos)
-        } else {
-            Err(SerializeError::Other("Ill-formed bit string".to_string()))
+        proof {
+            use_type_invariant(&v);
         }
+        OctetString.serialize(v.0, data, pos)
     }
 }
 
@@ -159,18 +187,14 @@ impl Combinator for BitString {
 
 impl<'a> Debug for BitStringValue<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        if self.wf() {
-            write!(f, "BitStringValue([{}] ", (self.0.len() - 1) * 8 - self.0[0] as usize)?;
+        write!(f, "BitStringValue([{}] ", (self.0.len() - 1) * 8 - self.0[0] as usize)?;
 
-            // Print the hex values
-            for i in 1..self.0.len() {
-                write!(f, "{:02x}", self.0[i])?;
-            }
-
-            write!(f, ")")
-        } else {
-            write!(f, "BitStringValue(ill-formed)")
+        // Print the hex values
+        for i in 1..self.0.len() {
+            write!(f, "{:02x}", self.0[i])?;
         }
+
+        write!(f, ")")
     }
 }
 
