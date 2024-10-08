@@ -88,6 +88,13 @@ impl<T: View> VecDeep<T> {
         self.0.append(&mut other.0);
     }
 
+    pub fn append_owned(&mut self, mut other: VecDeep<T>)
+        ensures
+            self@ =~= old(self)@ + other@,
+    {
+        self.0.append(&mut other.0);
+    }
+
     /// TODO: verify this?
     #[verifier::external_body]
     pub fn flatten(v: VecDeep<VecDeep<T>>) -> (res: VecDeep<T>)

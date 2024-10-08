@@ -1,5 +1,8 @@
-use polyfill::slice_take;
 use vstd::prelude::*;
+use std::ops::Deref;
+
+use polyfill::slice_take;
+
 use super::*;
 
 verus! {

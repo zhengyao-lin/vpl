@@ -53,7 +53,9 @@ impl<T> OptionDeep<T> {
     }
 
     #[verifier::when_used_as_spec(spec_from_opt)]
-    pub fn from_opt(opt: Option<T>) -> Self {
+    pub fn from_opt(opt: Option<T>) -> (res: Self)
+        ensures res == Self::spec_from_opt(opt)
+    {
         match opt {
             Some(t) => OptionDeep::Some(t),
             None => OptionDeep::None,

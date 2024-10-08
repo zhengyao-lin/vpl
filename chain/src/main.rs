@@ -2,6 +2,7 @@ mod error;
 mod specs;
 mod validate;
 mod hash;
+mod facts;
 
 use vstd::prelude::*;
 

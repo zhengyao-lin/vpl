@@ -29,25 +29,6 @@ impl View for ObjectIdentifierValue {
     }
 }
 
-/// Macro for constructing an OID
-#[allow(unused_macros)]
-#[macro_export]
-macro_rules! oid {
-    ($($x:literal),+) => {
-        ObjectIdentifierValue(vec_deep![$($x),+])
-    };
-}
-pub use oid;
-
-#[allow(unused_macros)]
-#[macro_export]
-macro_rules! spec_oid {
-    ($($x:literal),+) => {
-        seq![$($x),+ as UInt]
-    };
-}
-pub use spec_oid;
-
 impl PolyfillEq for ObjectIdentifierValue {
     fn polyfill_eq(&self, other: &ObjectIdentifierValue) -> bool
     {
@@ -280,6 +261,25 @@ fn new_object_identifier_inner() -> (res: ObjectIdentifierInner)
         }),
     }
 }
+
+/// Macro for constructing an OID
+#[allow(unused_macros)]
+#[macro_export]
+macro_rules! oid {
+    ($($x:literal),+) => {
+        ObjectIdentifierValue(vec_deep![$($x),+])
+    };
+}
+pub use oid;
+
+#[allow(unused_macros)]
+#[macro_export]
+macro_rules! spec_oid {
+    ($($x:literal),+) => {
+        seq![$($x),+ as UInt]
+    };
+}
+pub use spec_oid;
 
 }
 

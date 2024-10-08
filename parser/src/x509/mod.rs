@@ -13,9 +13,10 @@ mod extension;
 mod ext_value;
 mod tbs_cert;
 mod cert;
-mod macros;
 mod display;
 mod general_name;
+
+pub mod macros;
 
 pub use name::*;
 pub use rdn::*;
