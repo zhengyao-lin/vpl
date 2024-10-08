@@ -412,7 +412,8 @@ pub open spec fn spec_gen_extension_facts(cert: SpecCertificateValue, i: int) ->
 {
     spec_gen_ext_basic_constraints_facts(cert, i) +
     spec_gen_ext_key_usage_facts(cert, i) +
-    spec_gen_ext_subject_alt_name_facts(cert, i)
+    spec_gen_ext_subject_alt_name_facts(cert, i) +
+    spec_gen_ext_name_constraints_facts(cert, i)
 }
 
 pub open spec fn spec_gen_ext_basic_constraints_facts(cert: SpecCertificateValue, i: int) -> Seq<SpecRule>
@@ -506,11 +507,9 @@ pub open spec fn spec_oid_to_name(oid: SpecObjectIdentifierValue) -> Seq<char>
     else { "UNKNOWN"@ }
 }
 
-/// Extract all general names along with a string denoting their variant
-/// For directoryName, expand each RDN to a string
-pub open spec fn spec_extract_general_names(names: Seq<SpecGeneralNameValue>) -> Seq<Seq<(Seq<char>, SpecTerm)>>
+pub open spec fn spec_extract_general_name(name: SpecGeneralNameValue) -> Seq<(Seq<char>, SpecTerm)>
 {
-    Seq::new(names.len(), |i| match names[i] {
+    match name {
         SpecGeneralNameValue::Other(..) => seq![ ("Other"@, spec_atom!("unsupported".view())) ],
         SpecGeneralNameValue::RFC822(s) => seq![ ("RFC822"@, spec_str!(s)) ],
         SpecGeneralNameValue::DNS(s) => seq![ ("DNS"@, spec_str!(s)) ],
@@ -534,8 +533,14 @@ pub open spec fn spec_extract_general_names(names: Seq<SpecGeneralNameValue>) ->
         SpecGeneralNameValue::IP(..) => seq![ ("IP"@, spec_atom!("unsupported".view())) ],
         SpecGeneralNameValue::RegisteredID(..) => seq![ ("RegisteredID"@, spec_atom!("unsupported".view())) ],
         SpecGeneralNameValue::Unreachable => seq![],
+    }
+}
 
-    })
+/// Extract all general names along with a string denoting their variant
+/// For directoryName, expand each RDN to a string
+pub open spec fn spec_extract_general_names(names: Seq<SpecGeneralNameValue>) -> Seq<Seq<(Seq<char>, SpecTerm)>>
+{
+    Seq::new(names.len(), |i| spec_extract_general_name(names[i]))
 }
 
 pub open spec fn spec_gen_ext_subject_alt_name_facts(cert: SpecCertificateValue, i: int) -> Seq<SpecRule>
@@ -556,6 +561,44 @@ pub open spec fn spec_gen_ext_subject_alt_name_facts(cert: SpecCertificateValue,
     } else {
         seq![
             spec_fact!("sanExt", spec_cert_name(i), spec_atom!("false".view())),
+        ]
+    }
+}
+
+/// Generate nameConstraintsPermited and nameConstraintsExcluded facts
+pub open spec fn spec_gen_name_constraint_general_subtree_facts(subtrees: Seq<SpecGeneralSubtreeValue>, fact_name: &str, i: int) -> Seq<Seq<SpecRule>>
+{
+    Seq::new(subtrees.len(), |j| {
+        let typ_names = spec_extract_general_name(subtrees[j].base);
+
+        Seq::new(typ_names.len(), |k| spec_fact!(fact_name, spec_cert_name(i), spec_str!(typ_names[k].0), typ_names[k].1))
+    })
+}
+
+pub open spec fn spec_gen_ext_name_constraints_facts(cert: SpecCertificateValue, i: int) -> Seq<SpecRule>
+{
+    if let Some(ext) = spec_get_extension(cert, spec_oid!(2, 5, 29, 30)) {
+        if let SpecExtensionParamValue::NameConstraints(param) = ext.param {
+            seq![
+                spec_fact!("nameConstraintsExt", spec_cert_name(i), spec_atom!("true".view())),
+                spec_fact!("nameConstraintsCritical", spec_cert_name(i), spec_atom!((if ext.critical { "true" } else { "false" }).view())),
+            ] +
+
+            if let Some(permitted) = param.permitted {
+                spec_gen_name_constraint_general_subtree_facts(permitted, "nameConstraintsPermited", i).flatten()
+            } else { seq![] } +
+
+            if let Some(excluded) = param.excluded {
+                spec_gen_name_constraint_general_subtree_facts(excluded, "nameConstraintsExcluded", i).flatten()
+            } else { seq![] }
+        } else {
+            seq![
+                spec_fact!("nameConstraintsExt", spec_cert_name(i), spec_atom!("false".view())),
+            ]
+        }
+    } else {
+        seq![
+            spec_fact!("nameConstraintsExt", spec_cert_name(i), spec_atom!("false".view())),
         ]
     }
 }
@@ -614,7 +657,7 @@ pub(crate) use count_args;
 
 #[allow(unused_macros)]
 macro_rules! spec_app {
-    ($name:literal $(, $args:expr)* $(,)?) => {
+    ($name:expr $(, $args:expr)* $(,)?) => {
         ::builtin_macros::verus_proof_expr! {
             SpecTerm::App(
                 SpecFnName::User($name.view(), count_args!($($args),*) as int),
@@ -627,7 +670,7 @@ pub(crate) use spec_app;
 
 #[allow(unused_macros)]
 macro_rules! spec_fact {
-    ($name:literal $(, $args:expr)* $(,)?) => {
+    ($name:expr $(, $args:expr)* $(,)?) => {
         ::builtin_macros::verus_proof_expr! {
             SpecRule {
                 head: spec_app!($name $(, $args)*),

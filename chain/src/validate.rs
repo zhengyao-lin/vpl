@@ -414,10 +414,12 @@ pub fn gen_extension_facts(cert: &CertificateValue, i: LiteralInt) -> (res: Resu
     let mut basic_constraints = gen_ext_basic_constraints_facts(cert, i)?;
     let mut key_usage = gen_ext_key_usage_facts(cert, i)?;
     let mut subject_alt_name = gen_ext_subject_alt_name_facts(cert, i);
+    let mut name_constraints = gen_ext_name_constraints_facts(cert, i);
 
     facts.append(&mut basic_constraints);
     facts.append(&mut key_usage);
     facts.append(&mut subject_alt_name);
+    facts.append(&mut name_constraints);
 
     Ok(facts)
 }
@@ -539,6 +541,74 @@ pub fn gen_ext_subject_alt_name_facts(cert: &CertificateValue, i: LiteralInt) ->
     vec_deep![ RuleX::fact("sanExt", vec![ cert_name(i), TermX::atom("false") ]) ]
 }
 
+pub fn extract_general_name(name: &GeneralNameValue) -> (res: VecDeep<(String, Term)>)
+    ensures res@ =~~= spec_extract_general_name(name@)
+{
+    match name {
+        GeneralNameValue::Other(..) => vec_deep![("Other".to_string(), TermX::atom("unsupported"))],
+        GeneralNameValue::RFC822(s) => vec_deep![("RFC822".to_string(), TermX::str(s))],
+        GeneralNameValue::DNS(s) => vec_deep![("DNS".to_string(), TermX::str(s))],
+        GeneralNameValue::X400(..) => vec_deep![("X400".to_string(), TermX::atom("unsupported"))],
+        GeneralNameValue::Directory(dir_names) => {
+            let mut dir_name_pairs = vec_deep![];
+
+            let len = dir_names.len();
+            for j in 0..len
+                invariant
+                    len == dir_names@.len(),
+                    dir_name_pairs@ =~~= Seq::new(j as nat, |j| {
+                        Seq::new(dir_names@[j].len(), |k| {
+                            (
+                                "Directory/"@ + spec_oid_to_name(dir_names@[j][k].typ),
+                                match spec_dir_string_to_string(dir_names@[j][k].value) {
+                                    Some(s) => spec_str!(s),
+                                    None => spec_atom!("unsupported".view()),
+                                }
+                            )
+                        })
+                    })
+            {
+                let mut rdn_pairs = vec_deep![];
+
+                // Read each RDN, and convert it to a pair of (type, value)
+                let len = dir_names.get(j).len();
+                for k in 0..len
+                    invariant
+                        0 <= j < dir_names@.len(),
+                        len == dir_names@[j as int].len(),
+                        rdn_pairs@ =~~= Seq::new(k as nat, |k| {
+                            (
+                                "Directory/"@ + spec_oid_to_name(dir_names@[j as int][k].typ),
+                                match spec_dir_string_to_string(dir_names@[j as int][k].value) {
+                                    Some(s) => spec_str!(s),
+                                    None => spec_atom!("unsupported".view()),
+                                }
+                            )
+                        })
+                {
+                    let attr = dir_names.get(j).get(k);
+                    let typ = "Directory/".to_string().concat(oid_to_name(&attr.typ));
+                    let val = match dir_string_to_string(&attr.value) {
+                        Some(s) => TermX::str(s),
+                        None => TermX::atom("unsupported"),
+                    };
+
+                    rdn_pairs.push((typ, val));
+                }
+
+                dir_name_pairs.push(rdn_pairs);
+            }
+
+            VecDeep::flatten(dir_name_pairs)
+        }
+        GeneralNameValue::EDIParty(..) => vec_deep![("EDIParty".to_string(), TermX::atom("unsupported"))],
+        GeneralNameValue::URI(s) => vec_deep![("URI".to_string(), TermX::str(s))],
+        GeneralNameValue::IP(..) => vec_deep![("IP".to_string(), TermX::atom("unsupported"))],
+        GeneralNameValue::RegisteredID(..) => vec_deep![("RegisteredID".to_string(), TermX::atom("unsupported"))],
+        GeneralNameValue::Unreachable => vec_deep![],
+    }
+}
+
 pub fn extract_general_names(names: &VecDeep<GeneralNameValue>) -> (res: VecDeep<VecDeep<(String, Term)>>)
     ensures res@ =~~= spec_extract_general_names(names@)
 {
@@ -551,69 +621,7 @@ pub fn extract_general_names(names: &VecDeep<GeneralNameValue>) -> (res: VecDeep
             len == names@.len(),
             typ_names@ =~~= spec_extract_general_names(names@).take(i as int),
     {
-        match names.get(i) {
-            GeneralNameValue::Other(..) => typ_names.push(vec_deep![("Other".to_string(), TermX::atom("unsupported"))]),
-            GeneralNameValue::RFC822(s) => typ_names.push(vec_deep![("RFC822".to_string(), TermX::str(s))]),
-            GeneralNameValue::DNS(s) => typ_names.push(vec_deep![("DNS".to_string(), TermX::str(s))]),
-            GeneralNameValue::X400(..) => typ_names.push(vec_deep![("X400".to_string(), TermX::atom("unsupported"))]),
-            GeneralNameValue::Directory(dir_names) => {
-                let mut dir_name_pairs = vec_deep![];
-
-                let len = dir_names.len();
-                for j in 0..len
-                    invariant
-                        len == dir_names@.len(),
-                        dir_name_pairs@ =~~= Seq::new(j as nat, |j| {
-                            Seq::new(dir_names@[j].len(), |k| {
-                                (
-                                    "Directory/"@ + spec_oid_to_name(dir_names@[j][k].typ),
-                                    match spec_dir_string_to_string(dir_names@[j][k].value) {
-                                        Some(s) => spec_str!(s),
-                                        None => spec_atom!("unsupported".view()),
-                                    }
-                                )
-                            })
-                        })
-                {
-                    let mut rdn_pairs = vec_deep![];
-
-                    // Read each RDN, and convert it to a pair of (type, value)
-                    let len = dir_names.get(j).len();
-                    for k in 0..len
-                        invariant
-                            0 <= j < dir_names@.len(),
-                            len == dir_names@[j as int].len(),
-                            rdn_pairs@ =~~= Seq::new(k as nat, |k| {
-                                (
-                                    "Directory/"@ + spec_oid_to_name(dir_names@[j as int][k].typ),
-                                    match spec_dir_string_to_string(dir_names@[j as int][k].value) {
-                                        Some(s) => spec_str!(s),
-                                        None => spec_atom!("unsupported".view()),
-                                    }
-                                )
-                            })
-                    {
-                        let attr = dir_names.get(j).get(k);
-                        let typ = "Directory/".to_string().concat(oid_to_name(&attr.typ));
-                        let val = match dir_string_to_string(&attr.value) {
-                            Some(s) => TermX::str(s),
-                            None => TermX::atom("unsupported"),
-                        };
-
-                        rdn_pairs.push((typ, val));
-                    }
-
-                    dir_name_pairs.push(rdn_pairs);
-                }
-
-                typ_names.push(VecDeep::flatten(dir_name_pairs));
-            }
-            GeneralNameValue::EDIParty(..) => typ_names.push(vec_deep![("EDIParty".to_string(), TermX::atom("unsupported"))]),
-            GeneralNameValue::URI(s) => typ_names.push(vec_deep![("URI".to_string(), TermX::str(s))]),
-            GeneralNameValue::IP(..) => typ_names.push(vec_deep![("IP".to_string(), TermX::atom("unsupported"))]),
-            GeneralNameValue::RegisteredID(..) => typ_names.push(vec_deep![("RegisteredID".to_string(), TermX::atom("unsupported"))]),
-            GeneralNameValue::Unreachable => typ_names.push(vec_deep![]),
-        }
+        typ_names.push(extract_general_name(names.get(i)));
     }
 
     typ_names
@@ -648,6 +656,68 @@ pub fn oid_to_name(oid: &ObjectIdentifierValue) -> (res: &'static str)
     else if oid.polyfill_eq(&oid!(2, 5, 4, 42)) { "given name" }
     else if oid.polyfill_eq(&oid!(0, 9, 2342, 19200300, 100, 1, 25)) { "domain component" }
     else { "UNKNOWN" }
+}
+
+pub fn gen_ext_name_constraints_facts(cert: &CertificateValue, i: LiteralInt) -> (res: VecDeep<Rule>)
+    ensures res@ =~~= spec_gen_ext_name_constraints_facts(cert@, i as int)
+{
+    let oid = oid!(2, 5, 29, 30);
+    assert(oid@ == spec_oid!(2, 5, 29, 30));
+
+    if let Some(ext) = get_extension(cert, &oid) {
+        if let ExtensionParamValue::NameConstraints(param) = &ext.param {
+            let mut facts = vec_deep![
+                RuleX::fact("nameConstraintsExt", vec![ cert_name(i), TermX::atom("true") ]),
+                RuleX::fact("nameConstraintsCritical", vec![ cert_name(i), TermX::atom(if ext.critical { "true" } else { "false" }) ]),
+            ];
+
+            if let Some(permitted) = &param.permitted {
+                let mut permitted_facts = VecDeep::flatten(gen_name_constraint_general_subtree_facts(permitted, "nameConstraintsPermited", i));
+                facts.append(&mut permitted_facts);
+            }
+
+            if let Some(excluded) = &param.excluded {
+                let mut excluded_facts = VecDeep::flatten(gen_name_constraint_general_subtree_facts(excluded, "nameConstraintsExcluded", i));
+                facts.append(&mut excluded_facts);
+            }
+
+            return facts;
+        }
+    }
+
+    vec_deep![ RuleX::fact("nameConstraintsExt", vec![ cert_name(i), TermX::atom("false") ]) ]
+}
+
+pub fn gen_name_constraint_general_subtree_facts(subtrees: &VecDeep<GeneralSubtreeValue>, fact_name: &str, i: LiteralInt) -> (res: VecDeep<VecDeep<Rule>>)
+    ensures res@ =~~= spec_gen_name_constraint_general_subtree_facts(subtrees@, fact_name, i as int)
+{
+    let mut facts = vec_deep![];
+
+    let len = subtrees.len();
+    for j in 0..len
+        invariant
+            len == subtrees@.len(),
+            facts@ =~~= spec_gen_name_constraint_general_subtree_facts(subtrees@, fact_name, i as int).take(j as int),
+    {
+        let typ_names = extract_general_name(&subtrees.get(j).base);
+        let len = typ_names.len();
+
+        let mut subtree_facts = vec_deep![];
+
+        for k in 0..len
+            invariant
+                len == typ_names@.len(),
+                0 <= j < subtrees@.len(),
+                typ_names@ == spec_extract_general_name(subtrees@[j as int].base),
+                subtree_facts@ =~~= spec_gen_name_constraint_general_subtree_facts(subtrees@, fact_name, i as int)[j as int].take(k as int),
+        {
+            subtree_facts.push(RuleX::fact(fact_name, vec![ cert_name(i), TermX::str(typ_names.get(k).0.as_str()), rc_clone(&typ_names.get(k).1) ]));
+        }
+
+        facts.push(subtree_facts);
+    }
+
+    facts
 }
 
 pub fn issuer_fact(i: LiteralInt, j: LiteralInt) -> (res: Rule)
