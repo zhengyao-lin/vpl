@@ -29,8 +29,8 @@ debug: $(foreach target,$(TARGETS),target/debug/$(target))
 release: $(foreach target,$(TARGETS),target/release/$(target))
 
 # Build each dependency in CARGO_DEPS
-.PHONY: rust_deps-%
-rust_deps-%: $(foreach dep,$(CARGO_DEPS),force-target/%/lib$(dep).rlib)
+.PHONY: rust-deps-%
+rust-deps-%: $(foreach dep,$(CARGO_DEPS),force-target/%/lib$(dep).rlib)
 	@mkdir -p target/$*
 
 # Bulid each dependency in VERUS_DEPS
@@ -71,13 +71,13 @@ VERUS_COMMAND = \
 
 # Generate one rule for each target
 define TARGET_TEMPLATE
-target/%/$(1): rust_deps-% verus-deps-% $$(SOURCE)
+target/%/$(1): rust-deps-% verus-deps-% $$(SOURCE)
 	$$(VERUS_COMMAND)
 endef
 $(foreach target,$(TARGETS),$(eval $(call TARGET_TEMPLATE,$(target))))
 
 # Build a test binary
-target/%/test-$(FIRST_TARGET): rust_deps-% verus-deps-% $(SOURCE)
+target/%/test-$(FIRST_TARGET): rust-deps-% verus-deps-% $(SOURCE)
 	$(VERUS_COMMAND) --test
 
 .PHONY: test
