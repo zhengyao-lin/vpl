@@ -40,6 +40,9 @@ pub enum Error {
 
     #[error("base64 decode error: {0}")]
     Base64DecodeError(#[from] base64::DecodeError),
+
+    #[error("failed to validate domain")]
+    DomainValidationError,
 }
 
 impl From<X509ParseError> for Error {

@@ -137,12 +137,17 @@ fn main_args(args: Args) -> Result<(), Error> {
     };
 
     // Call the main validation routine
-    eprintln!("result: {}", valid_domain::<_, Error>(
+    let res = valid_domain::<_, Error>(
         &mut swipl_backend,
         policy,
         &query,
         args.debug,
-    )?);
+    )?;
+    eprintln!("result: {}", res);
+
+    if !res {
+        return Err(Error::DomainValidationError);
+    }
 
     Ok(())
 }
