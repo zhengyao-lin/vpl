@@ -1,8 +1,22 @@
+use vstd::prelude::*;
+
 use thiserror::Error;
 
 use parser::ParseError as X509ParseError;
 use vpl::{ProofError as VPLProofError, ParseError as VPLParseError};
-use crate::validate::ValidationError;
+
+verus! {
+
+#[derive(Debug)]
+pub enum ValidationError {
+    IntegerOverflow,
+    EmptyChain,
+    ProofFailure,
+    TimeParseError,
+    RSAPubKeyParseError,
+}
+
+}
 
 #[derive(Error, Debug)]
 pub enum Error {

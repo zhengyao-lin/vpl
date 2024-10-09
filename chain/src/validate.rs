@@ -1,26 +1,15 @@
 use vstd::prelude::*;
 
 use polyfill::*;
-
 use parser::{*, asn1::*, x509::*};
 use parser::OptionDeep::*;
-
 use vpl::*;
+
 use crate::specs::*;
 use crate::facts::*;
+use crate::error::*;
 
 verus! {
-
-broadcast use vpl::lemma_ext_equal_deep;
-
-#[derive(Debug)]
-pub enum ValidationError {
-    IntegerOverflow,
-    EmptyChain,
-    ProofFailure,
-    TimeParseError,
-    RSAPubKeyParseError,
-}
 
 pub fn likely_issued(issuer: &CertificateValue, subject: &CertificateValue) -> (res: bool)
     ensures res == spec_likely_issued(issuer@, subject@)

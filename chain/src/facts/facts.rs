@@ -2,14 +2,15 @@ use vstd::prelude::*;
 use vpl::*;
 use parser::*;
 
-pub use crate::validate::ValidationError;
-pub use crate::specs::*;
+use crate::error::*;
 
 verus! {
 
 pub trait Facts<Of: View> {
+    /// Generate facts for the spec value
     spec fn spec_facts(t: Of::V) -> Option<Seq<SpecRule>>;
 
+    /// Exec version of spec_facts
     fn facts(t: &Of, out: &mut VecDeep<Rule>) -> (res: Result<(), ValidationError>)
         ensures
             res.is_ok() ==> {
