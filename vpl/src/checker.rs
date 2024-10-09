@@ -169,6 +169,12 @@ impl TermX {
         Rc::new(TermX::Literal(Literal::Atom(str_to_rc_str(name))))
     }
 
+    pub fn bool(b: bool) -> (res: Term)
+        ensures res@ == SpecTerm::Literal(SpecLiteral::Atom(if b { "true"@ } else { "false"@ }))
+    {
+        Self::atom(if b { "true" } else { "false" })
+    }
+
     pub fn int(i: LiteralInt) -> (res: Term)
         ensures res@ == SpecTerm::Literal(SpecLiteral::Int(i as int))
     {

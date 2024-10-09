@@ -7,11 +7,26 @@ use vpl::*;
 use parser::{*, asn1::*, x509::*};
 
 use super::facts::*;
+use super::ext::*;
 use crate::hash;
 
 verus! {
 
 broadcast use vpl::lemma_ext_equal_deep;
+
+pub type CertificateFacts = seq_facts![BasicFacts, TimeFacts, SubjectNameFacts, SubjectPKIFacts, ExtensionFacts];
+
+/// Basic facts about a certificate, such as fingerprint, version, etc.
+pub struct BasicFacts;
+
+/// Encode the validity field of a certificate
+pub struct TimeFacts;
+
+/// Facts about the subject field
+pub struct SubjectNameFacts;
+
+/// Facts about subject public key info
+pub struct SubjectPKIFacts;
 
 /// Attach a certificate index to an arbitrary type
 #[derive(View)]
@@ -39,98 +54,77 @@ impl<T> CertIndexed<T> {
         // we use cert(i) to avoid int::to_string in the spec
         spec_app!("cert", spec_int!(self.idx as int))
     }
+}
 
+impl<T: View> CertIndexed<T> {
     /// Exec version of spec_cert
     pub fn cert(&self) -> (res: Term)
-        ensures res@ =~~= self.spec_cert()
+        ensures res@ =~~= self@.spec_cert()
     {
         TermX::app_str("cert", vec![TermX::int(self.idx)])
     }
 }
 
-pub type CertificateFacts = seq_facts![BasicFacts, TimeFacts, SubjectNameFacts, SubjectPKIFacts];
+impl<'a, 'b> Facts<CertIndexed<&'b CertificateValue<'a>>> for BasicFacts {
+    closed spec fn spec_facts(t: CertIndexed<SpecCertificateValue>) -> Option<Seq<SpecRule>> {
+        if_let! {
+            let Ok(ser_cert) = ASN1(CertificateInner).view().spec_serialize(t.x);
 
-/// Basic facts about a certificate, such as fingerprint, version, etc.
-pub struct BasicFacts;
+            Some(seq![
+                spec_fact!("fingerprint",
+                    t.spec_cert(),
+                    spec_str!(hash::spec_to_hex_upper(hash::spec_sha256_digest(ser_cert))),
+                ),
 
-/// Encode the validity field of a certificate
-pub struct TimeFacts;
+                spec_fact!("version", t.spec_cert(), spec_int!(t.x.cert.version as int)),
 
-/// Facts about the subject field
-pub struct SubjectNameFacts;
-
-/// Facts about subject public key info
-pub struct SubjectPKIFacts;
-
-impl SubjectNameFacts {
-    /// Convert a dir string to string
-    pub closed spec fn spec_dir_string_to_string(dir: SpecDirectoryStringValue) -> Option<Seq<char>>
-    {
-        match dir {
-            SpecDirectoryStringValue::PrintableString(s) => Some(s),
-            SpecDirectoryStringValue::UTF8String(s) => Some(s),
-            SpecDirectoryStringValue::IA5String(s) => Some(s),
-            SpecDirectoryStringValue::TeletexString(s) => None,
-            SpecDirectoryStringValue::UniversalString(s) => None,
-            SpecDirectoryStringValue::BMPString(s) => None,
-            SpecDirectoryStringValue::Unreachable => None,
+                spec_fact!("signatureAlgorithm", t.spec_cert(), spec_str!(Self::spec_oid_to_string(t.x.sig_alg.id))),
+            ])
         }
     }
 
-    /// Exec version of spec_dir_string_to_string
-    pub fn dir_string_to_string<'a, 'b>(dir: &'b DirectoryStringValue<'a>) -> (res: Option<&'a str>)
-        ensures
-            res matches Some(res) ==> Self::spec_dir_string_to_string(dir@) == Some(res@),
-            res.is_none() ==> Self::spec_dir_string_to_string(dir@).is_none(),
-    {
-        match dir {
-            DirectoryStringValue::PrintableString(s) => Some(s),
-            DirectoryStringValue::UTF8String(s) => Some(s),
-            DirectoryStringValue::IA5String(s) => Some(s),
-            DirectoryStringValue::TeletexString(s) => None,
-            DirectoryStringValue::UniversalString(s) => None,
-            DirectoryStringValue::BMPString(s) => None,
-            DirectoryStringValue::Unreachable => None,
+    fn facts(t: &CertIndexed<&'b CertificateValue<'a>>, out: &mut VecDeep<Rule>) -> (res: Result<(), ValidationError>) {
+        out.append_owned(vec_deep![
+            RuleX::fact("fingerprint", vec![
+                t.cert(),
+                TermX::str(hash::to_hex_upper(&hash::sha256_digest(t.x.serialize())).as_str()),
+            ]),
+
+            RuleX::fact("version", vec![ t.cert(), TermX::int(t.x.get().cert.get().version) ]),
+
+            RuleX::fact("signatureAlgorithm", vec![
+                t.cert(),
+                TermX::str(Self::oid_to_string(&t.x.get().sig_alg.id).as_str()),
+            ]),
+        ]);
+        Ok(())
+    }
+}
+
+impl<'a, 'b> Facts<CertIndexed<&'b CertificateValue<'a>>> for TimeFacts {
+    closed spec fn spec_facts(t: CertIndexed<SpecCertificateValue>) -> Option<Seq<SpecRule>> {
+        if_let! {
+            let Some(not_after) = Self::spec_time_to_timestamp(t.x.cert.validity.not_after);
+            let Some(not_before) = Self::spec_time_to_timestamp(t.x.cert.validity.not_before);
+
+            Some(seq![
+                spec_fact!("notAfter", t.spec_cert(), spec_int!(not_after as int)),
+                spec_fact!("notBefore", t.spec_cert(), spec_int!(not_before as int)),
+            ])
         }
     }
 
-    /// Get RDN value of a specific OID
-    pub closed spec fn spec_get_rdn(name: SpecNameValue, oid: SpecObjectIdentifierValue) -> Option<Seq<char>>
-        decreases name.len()
-    {
-        if name.len() == 0 {
-            None
-        } else {
-            if name[0].len() == 1 && name[0][0].typ == oid {
-                Self::spec_dir_string_to_string(name[0][0].value)
-            } else {
-                Self::spec_get_rdn(name.drop_first(), oid)
-            }
-        }
-    }
+    fn facts(t: &CertIndexed<&'b CertificateValue<'a>>, out: &mut VecDeep<Rule>) -> (res: Result<(), ValidationError>) {
+        let not_after = Self::time_to_timestamp(&t.x.get().cert.get().validity.not_after)
+            .ok_or(ValidationError::TimeParseError)?;
 
-    /// Exec version of spec_get_rdn
-    pub fn get_rdn<'a, 'b>(name: &'b NameValue<'a>, oid: &'b ObjectIdentifierValue) -> (res: Option<&'a str>)
-        ensures
-            res matches Some(res) ==> Self::spec_get_rdn(name@, oid@) == Some(res@),
-            res.is_none() ==> Self::spec_get_rdn(name@, oid@).is_none(),
-    {
-        let len = name.len();
+        let not_before = Self::time_to_timestamp(&t.x.get().cert.get().validity.not_before)
+            .ok_or(ValidationError::TimeParseError)?;
 
-        assert(name@.skip(0) == name@);
+        out.push(RuleX::fact("notAfter", vec![ t.cert(), TermX::int(not_after) ]));
+        out.push(RuleX::fact("notBefore", vec![ t.cert(), TermX::int(not_before) ]));
 
-        for i in 0..len
-            invariant
-                len == name@.len(),
-                Self::spec_get_rdn(name@, oid@) =~= Self::spec_get_rdn(name@.skip(i as int), oid@),
-        {
-            if name.get(i).len() == 1 && name.get(i).get(0).typ.polyfill_eq(oid) {
-                return Self::dir_string_to_string(&name.get(i).get(0).value);
-            }
-            assert(name@.skip(i as int).drop_first() == name@.skip(i + 1));
-        }
-
-        return None;
+        Ok(())
     }
 }
 
@@ -256,69 +250,6 @@ impl<'a, 'b> Facts<CertIndexed<&'b CertificateValue<'a>>> for SubjectNameFacts {
                 TermX::str(Self::get_rdn(&t.x.get().cert.get().subject, &oid!(2, 5, 4, 4)).unwrap_or("")),
             ]),
         ]);
-        Ok(())
-    }
-}
-
-impl<'a, 'b> Facts<CertIndexed<&'b CertificateValue<'a>>> for BasicFacts {
-    closed spec fn spec_facts(t: CertIndexed<SpecCertificateValue>) -> Option<Seq<SpecRule>> {
-        if_let! {
-            let Ok(ser_cert) = ASN1(CertificateInner).view().spec_serialize(t.x);
-
-            Some(seq![
-                spec_fact!("fingerprint",
-                    t.spec_cert(),
-                    spec_str!(hash::spec_to_hex_upper(hash::spec_sha256_digest(ser_cert))),
-                ),
-
-                spec_fact!("version", t.spec_cert(), spec_int!(t.x.cert.version as int)),
-
-                spec_fact!("signatureAlgorithm", t.spec_cert(), spec_str!(Self::spec_oid_to_string(t.x.sig_alg.id))),
-            ])
-        }
-    }
-
-    fn facts(t: &CertIndexed<&'b CertificateValue<'a>>, out: &mut VecDeep<Rule>) -> (res: Result<(), ValidationError>) {
-        out.append_owned(vec_deep![
-            RuleX::fact("fingerprint", vec![
-                t.cert(),
-                TermX::str(hash::to_hex_upper(&hash::sha256_digest(t.x.serialize())).as_str()),
-            ]),
-
-            RuleX::fact("version", vec![ t.cert(), TermX::int(t.x.get().cert.get().version) ]),
-
-            RuleX::fact("signatureAlgorithm", vec![
-                t.cert(),
-                TermX::str(Self::oid_to_string(&t.x.get().sig_alg.id).as_str()),
-            ]),
-        ]);
-        Ok(())
-    }
-}
-
-impl<'a, 'b> Facts<CertIndexed<&'b CertificateValue<'a>>> for TimeFacts {
-    closed spec fn spec_facts(t: CertIndexed<SpecCertificateValue>) -> Option<Seq<SpecRule>> {
-        if_let! {
-            let Some(not_after) = Self::spec_time_to_timestamp(t.x.cert.validity.not_after);
-            let Some(not_before) = Self::spec_time_to_timestamp(t.x.cert.validity.not_before);
-
-            Some(seq![
-                spec_fact!("notAfter", t.spec_cert(), spec_int!(not_after as int)),
-                spec_fact!("notBefore", t.spec_cert(), spec_int!(not_before as int)),
-            ])
-        }
-    }
-
-    fn facts(t: &CertIndexed<&'b CertificateValue<'a>>, out: &mut VecDeep<Rule>) -> (res: Result<(), ValidationError>) {
-        let not_after = Self::time_to_timestamp(&t.x.get().cert.get().validity.not_after)
-            .ok_or(ValidationError::TimeParseError)?;
-
-        let not_before = Self::time_to_timestamp(&t.x.get().cert.get().validity.not_before)
-            .ok_or(ValidationError::TimeParseError)?;
-
-        out.push(RuleX::fact("notAfter", vec![ t.cert(), TermX::int(not_after) ]));
-        out.push(RuleX::fact("notBefore", vec![ t.cert(), TermX::int(not_before) ]));
-
         Ok(())
     }
 }
@@ -487,6 +418,78 @@ impl TimeFacts {
         };
 
         Option::Some(dt.timestamp())
+    }
+}
+
+impl SubjectNameFacts {
+    /// Convert a dir string to string
+    pub closed spec fn spec_dir_string_to_string(dir: SpecDirectoryStringValue) -> Option<Seq<char>>
+    {
+        match dir {
+            SpecDirectoryStringValue::PrintableString(s) => Some(s),
+            SpecDirectoryStringValue::UTF8String(s) => Some(s),
+            SpecDirectoryStringValue::IA5String(s) => Some(s),
+            SpecDirectoryStringValue::TeletexString(s) => None,
+            SpecDirectoryStringValue::UniversalString(s) => None,
+            SpecDirectoryStringValue::BMPString(s) => None,
+            SpecDirectoryStringValue::Unreachable => None,
+        }
+    }
+
+    /// Exec version of spec_dir_string_to_string
+    pub fn dir_string_to_string<'a, 'b>(dir: &'b DirectoryStringValue<'a>) -> (res: Option<&'a str>)
+        ensures
+            res matches Some(res) ==> Self::spec_dir_string_to_string(dir@) == Some(res@),
+            res.is_none() ==> Self::spec_dir_string_to_string(dir@).is_none(),
+    {
+        match dir {
+            DirectoryStringValue::PrintableString(s) => Some(s),
+            DirectoryStringValue::UTF8String(s) => Some(s),
+            DirectoryStringValue::IA5String(s) => Some(s),
+            DirectoryStringValue::TeletexString(s) => None,
+            DirectoryStringValue::UniversalString(s) => None,
+            DirectoryStringValue::BMPString(s) => None,
+            DirectoryStringValue::Unreachable => None,
+        }
+    }
+
+    /// Get RDN value of a specific OID
+    pub closed spec fn spec_get_rdn(name: SpecNameValue, oid: SpecObjectIdentifierValue) -> Option<Seq<char>>
+        decreases name.len()
+    {
+        if name.len() == 0 {
+            None
+        } else {
+            if name[0].len() == 1 && name[0][0].typ == oid {
+                Self::spec_dir_string_to_string(name[0][0].value)
+            } else {
+                Self::spec_get_rdn(name.drop_first(), oid)
+            }
+        }
+    }
+
+    /// Exec version of spec_get_rdn
+    pub fn get_rdn<'a, 'b>(name: &'b NameValue<'a>, oid: &'b ObjectIdentifierValue) -> (res: Option<&'a str>)
+        ensures
+            res matches Some(res) ==> Self::spec_get_rdn(name@, oid@) == Some(res@),
+            res.is_none() ==> Self::spec_get_rdn(name@, oid@).is_none(),
+    {
+        let len = name.len();
+
+        assert(name@.skip(0) == name@);
+
+        for i in 0..len
+            invariant
+                len == name@.len(),
+                Self::spec_get_rdn(name@, oid@) =~= Self::spec_get_rdn(name@.skip(i as int), oid@),
+        {
+            if name.get(i).len() == 1 && name.get(i).get(0).typ.polyfill_eq(oid) {
+                return Self::dir_string_to_string(&name.get(i).get(0).value);
+            }
+            assert(name@.skip(i as int).drop_first() == name@.skip(i + 1));
+        }
+
+        return None;
     }
 }
 

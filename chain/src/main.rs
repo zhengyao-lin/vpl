@@ -16,6 +16,7 @@ use parser::{x509, ParseError, Combinator, VecDeep};
 use vpl::{parse_program, SwiplBackend};
 
 use validate::*;
+use facts::*;
 use error::Error;
 
 verus! {
@@ -129,13 +130,17 @@ fn main_args(args: Args) -> Result<(), Error> {
     let source = fs::read_to_string(&args.policy)?;
     let (policy, _) = parse_program(source, &args.policy)?;
 
+    let query = Query {
+        roots: &VecDeep::from_vec(roots),
+        chain: &VecDeep::from_vec(chain),
+        domain: &args.domain,
+    };
+
     // Call the main validation routine
     eprintln!("result: {}", valid_domain::<_, Error>(
         &mut swipl_backend,
         policy,
-        &VecDeep::from_vec(roots),
-        &VecDeep::from_vec(chain),
-        &args.domain,
+        &query,
         args.debug,
     )?);
 
